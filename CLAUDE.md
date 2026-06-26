@@ -178,3 +178,260 @@ npx ruflo@latest doctor --fix
 > by default; `--ttl 0` to disable, `daemon status --all` to audit running daemons).
 
 **Agent tool** handles execution (agents, files, code, git). **MCP tools** handle coordination (swarm, memory, hooks). **CLI** is the same via Bash.
+
+---
+
+# Constitución del Proyecto — All Motors Cloud
+
+**Versión:** 1.0 | **Estado:** Activo | **Última actualización:** Junio 2026
+
+---
+
+## Propósito del Proyecto
+
+All Motors Cloud nace desde un taller mecánico real.
+No fue concebido por una empresa de software intentando comprender el funcionamiento de un taller.
+Fue concebido por el propietario de All Motors SPA, un taller mecánico ubicado en Chile, a partir de problemas reales detectados durante años de operación utilizando distintos sistemas de gestión.
+
+El objetivo del proyecto no es crear un ERP genérico.
+El objetivo es construir la mejor plataforma de gestión para talleres mecánicos.
+La tecnología nunca será el objetivo. Será únicamente el medio para mejorar la operación del taller.
+
+---
+
+## Qué NO estamos construyendo
+
+- No estamos construyendo un clon de TallerGP.
+- No estamos replicando su arquitectura.
+- No estamos intentando copiar su interfaz.
+- No queremos desarrollar un software con cientos de funciones innecesarias.
+- No queremos un sistema donde el mecánico pase más tiempo usando el software que reparando vehículos.
+
+---
+
+## Qué estamos construyendo
+
+Una plataforma llamada **All Motors Cloud**, diseñada desde la experiencia de un taller mecánico real.
+Con el tiempo estará compuesta por distintos productos que compartirán la misma base de datos. Ejemplo:
+
+- Core ERP
+- Recepción Digital
+- Check-In Inteligente
+- Historial Técnico
+- App del Mecánico
+- Portal del Cliente
+- CRM
+- Inventario
+- Compras
+- Business Intelligence
+- Inteligencia Artificial
+- API Pública
+
+Todos compartirán un mismo modelo de dominio.
+
+---
+
+## Estado actual
+
+El proyecto se encuentra en su etapa de fundación. Ya se logró:
+
+- Conexión con la API oficial de TallerGP.
+- Autenticación (OAuth2 + access token).
+- Exploración de 15 tipos de entidades con paginación completa.
+- Extracción de clientes, vehículos y órdenes de trabajo.
+- Validación del historial del vehículo SRDV88.
+- Comparación entre el historial de la API y el historial visible en TallerGP.
+
+**Conclusión:** La API permite reconstruir prácticamente todo el historial técnico del vehículo.
+TallerGP será únicamente una fuente de migración de datos. Nunca será el modelo del nuevo sistema.
+
+---
+
+## Estado del Producto
+
+### Fase actual
+
+Fase 0 — Migración y Fundación.
+
+### Completado
+
+- Migration Toolkit: conexión, autenticación, exploración y validación de datos.
+- Data Discovery Engine: catálogo de 15 entidades con análisis de campos.
+- Vehicle History Validator: reconstrucción del historial completo por patente.
+- Product Bible: estructura inicial y Capítulo 00 (Preámbulo).
+
+### En desarrollo
+
+- Product Bible: capítulos 01 al 04.
+- Scripts de migración completa de datos históricos.
+
+### Próximos hitos
+
+- Modelo de datos del Core ERP.
+- Migración completa: 2.842 clientes, 3.539 vehículos, 5.449 órdenes de trabajo.
+- Inicio de desarrollo del Core ERP — Fase 1.
+
+---
+
+## Fuente Oficial de Verdad
+
+Toda decisión funcional debe quedar documentada.
+La documentación oficial del producto vive en `docs/product-bible/`.
+
+Si existe una contradicción entre el código y la documentación:
+**la documentación tiene prioridad. El código deberá adaptarse. Nunca al revés.**
+
+---
+
+## Principios Fundamentales
+
+Estos principios nunca deben romperse.
+
+**1. El vehículo es la entidad principal.**
+Todo gira alrededor del vehículo. No alrededor de la factura. No alrededor de la Orden de Trabajo.
+
+**2. El historial técnico es el activo más importante.**
+Debe contener toda la vida del vehículo, incluyendo:
+
+- Diagnósticos
+- Presupuestos
+- Trabajos realizados
+- Trabajos rechazados
+- Fotografías
+- Videos
+- Scanner
+- Garantías
+- Recomendaciones
+- Próximas mantenciones
+
+**3. El software nunca debe disminuir la productividad.**
+El taller gana dinero reparando vehículos, no utilizando software.
+Toda funcionalidad debe reducir trabajo. Nunca aumentarlo.
+
+**4. Toda información debe capturarse una sola vez.**
+Nunca pedir dos veces el mismo dato.
+
+**5. La evidencia tiene prioridad sobre el texto.**
+Siempre que sea posible, utilizar:
+
+- Fotografías
+- Videos
+- PDF
+- Firmas
+- Archivos
+
+Antes que descripciones largas.
+
+**6. Todo debe quedar trazado.**
+Cada acción importante debe registrar:
+
+- Usuario
+- Fecha
+- Hora
+- Acción realizada
+
+Nunca debe perderse el historial.
+
+**7. El software debe adaptarse al taller.**
+Nunca obligar al taller a cambiar su forma de trabajar solamente para adaptarse al sistema.
+
+---
+
+## Filosofía de Desarrollo
+
+Antes de desarrollar cualquier funcionalidad, siempre debe responderse:
+
+> *¿Esta funcionalidad mejora realmente la operación del taller?*
+
+Si la respuesta es no, debe replantearse.
+No desarrollar funcionalidades solamente porque son técnicamente interesantes.
+
+---
+
+## Productividad
+
+El tiempo del mecánico es el recurso más valioso del taller. Por lo tanto:
+
+- Reducir clics.
+- Reducir escritura.
+- Automatizar procesos.
+- Utilizar tablet cuando corresponda.
+- Registrar información de forma automática.
+
+**Regla general:** si una tarea frecuente requiere más de tres clics o más de diez segundos, debe rediseñarse.
+
+---
+
+## Arquitectura
+
+Toda nueva funcionalidad debe respetar:
+
+- Arquitectura modular.
+- Código limpio.
+- Responsabilidades separadas.
+- Reutilización.
+- Escalabilidad.
+- Mantenibilidad.
+
+No duplicar lógica de negocio.
+
+---
+
+## Estructura del Proyecto
+
+```
+docs/                  — Documentación general del proyecto
+  product-bible/       — Fuente oficial de verdad del producto
+  decisions/           — Registro de decisiones de arquitectura (ADRs)
+migration-toolkit/     — Herramientas de extracción y migración desde TallerGP
+backend/               — Servidor de la plataforma (próxima fase)
+frontend/              — Interfaces de usuario (próxima fase)
+packages/              — Paquetes compartidos del monorepo
+scripts/               — Scripts de utilidad y automatización
+```
+
+---
+
+## Uso de TallerGP
+
+TallerGP será utilizado únicamente como fuente de migración.
+
+- No copiar su arquitectura.
+- No copiar sus limitaciones.
+- No copiar su experiencia de usuario.
+
+Analizar la información. Comprender el negocio. Construir una solución mejor.
+
+---
+
+## Rol de Claude
+
+Claude actúa como Arquitecto de Software y Editor Técnico del proyecto.
+Antes de escribir código debe:
+
+1. Revisar la Product Bible.
+2. Revisar decisiones de arquitectura.
+3. Verificar que la funcionalidad respete los principios del proyecto.
+4. Identificar riesgos.
+5. Proponer mejoras.
+
+Nunca asumir reglas de negocio que no estén documentadas.
+Cuando exista duda, solicitar que primero se documente la decisión antes de implementarla.
+
+---
+
+## Restricciones
+
+1. Nunca asumir reglas de negocio que no estén documentadas.
+2. Consultar siempre la Product Bible antes de diseñar nuevas funcionalidades.
+3. No duplicar lógica de negocio.
+4. No crear documentación paralela fuera de la Product Bible.
+5. Toda decisión importante debe quedar documentada.
+
+---
+
+## Objetivo Final
+
+All Motors Cloud no busca convertirse únicamente en un software de gestión.
+Busca convertirse en el **Sistema Operativo de un Taller Mecánico**.
+Cada decisión debe acercar al proyecto a ese objetivo.
