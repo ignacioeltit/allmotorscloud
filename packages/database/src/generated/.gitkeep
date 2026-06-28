@@ -1,0 +1,3 @@
+# Este directorio es generado automáticamente por `supabase gen types`.
+# Ejecutar: pnpm db:types
+# NO editar manualmente ningún archivo en este directorio.

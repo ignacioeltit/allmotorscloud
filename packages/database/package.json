@@ -1,0 +1,21 @@
+{
+  "name": "@allmotors/database",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Supabase clients, tipos generados y schema de dominio",
+  "exports": {
+    ".": "./src/index.ts",
+    "./client/browser": "./src/client/browser.ts",
+    "./client/server": "./src/client/server.ts",
+    "./client/native": "./src/client/native.ts",
+    "./types": "./src/generated/types.ts",
+    "./schema": "./src/schema/index.ts"
+  },
+  "peerDependencies": {
+    "@supabase/supabase-js": "^2.0.0"
+  },
+  "devDependencies": {
+    "@allmotors/config": "workspace:*",
+    "typescript": "^5.6.3"
+  }
+}

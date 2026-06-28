@@ -1,0 +1,21 @@
+{
+  "name": "@allmotors/ui",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Componentes Radix UI + Tailwind CSS. Solo para apps web (Next.js).",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "peerDependencies": {
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0"
+  },
+  "dependencies": {
+    "@allmotors/design-tokens": "workspace:*",
+    "@allmotors/utils": "workspace:*"
+  },
+  "devDependencies": {
+    "@allmotors/config": "workspace:*",
+    "typescript": "^5.6.3"
+  }
+}

@@ -1,0 +1,16 @@
+{
+  "name": "@allmotors/utils",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Utilidades puras sin dependencias de framework. Compatible web y native.",
+  "exports": {
+    ".": "./src/index.ts",
+    "./rut": "./src/rut.ts",
+    "./dates": "./src/dates.ts",
+    "./formatters": "./src/formatters.ts"
+  },
+  "devDependencies": {
+    "@allmotors/config": "workspace:*",
+    "typescript": "^5.6.3"
+  }
+}
