@@ -1,0 +1,4 @@
+# Migraciones de Supabase
+# Archivos de migración: 001_foundation.sql, 002_vehicles_events.sql, etc.
+# Ver docs/architecture/PHYSICAL_SCHEMA.md para el plan de 6 migraciones.
+# Implementar en Sprint 1 (Migrations 001-002).
