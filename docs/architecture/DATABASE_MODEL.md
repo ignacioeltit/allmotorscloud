@@ -74,7 +74,7 @@ El evento es la unidad mínima de información del sistema. Toda actividad gener
 |---|---|
 | `eventos` | Tabla central de todos los registros técnicos. Tiene tipo de evento, estado actual, responsable, referencia a la historia técnica del vehículo, y opcionalmente referencia a la orden de trabajo. Inmutable una vez cerrado. |
 | `tipos_evento` | Catálogo de tipos de evento (Diagnóstico, Reparación, Garantía, Consulta, etc.). Catálogo por tenant: cada organización tiene su propia copia, sembrada desde el catálogo base global cuando la organización es activada. Permite personalización por taller. |
-| `transiciones_evento` | Log inmutable de cada cambio de estado de un evento. Registra estado anterior, estado nuevo, actor, tipo de actor (`actor_tipo`: `humano` o `sistema`), timestamp y razón. La razón es obligatoria cuando el estado destino es `cancelado`. Esta tabla nunca se actualiza: solo se inserta. |
+| `transiciones_evento` | Log inmutable de cada cambio de estado de un evento. Registra estado anterior, estado nuevo, actor, tipo de actor (`actor_tipo`: `humano` o `sistema`), timestamp y razón. La razón es obligatoria cuando el estado destino es `cancelado`. Esta tabla nunca se actualiza: solo se inserta. **Columnas conceptuales:** `id`, `evento_id` (UUID NOT NULL — FK diferida a Migration 002), `vehiculo_id` (UUID NOT NULL — denormalización deliberada, ver nota), `org_id` (UUID NOT NULL), `estado_anterior` (TEXT), `estado_nuevo` (TEXT NOT NULL), `actor_id` (UUID — NULL para actor sistema), `actor_tipo` (`humano` \| `sistema`), `razon` (TEXT — obligatoria si estado_nuevo es `cancelado`), `creado_en` (TIMESTAMPTZ NOT NULL). **Nota sobre `vehiculo_id` (denormalización deliberada):** esta columna denormaliza el `vehiculo_id` del evento para evitar el triple JOIN `transiciones_evento → eventos → historias_tecnicas → vehiculos` en el hot query path de Historia Técnica. Sin esta columna, el índice primario `(vehiculo_id, creado_en DESC)` no puede existir. La estrategia de sincronización es por propagación en INSERT: cuando la aplicación o un trigger inserta una transición, provee el `vehiculo_id` obtenido del evento. La FK formal `vehiculo_id → vehiculos.id` se añade en Migration 002 junto con la FK `evento_id → eventos.id`. |
 | `referencias_evento` | Relación entre eventos: un evento puede referenciar a otro como origen, contexto o corrección. Permite construir el grafo de dependencias de la Historia Técnica. El grafo es un DAG (grafo acíclico dirigido): un trigger de base de datos rechaza cualquier inserción que crearía un ciclo. Tiene columna `eliminado_en` (soft-delete estándar): anular un arco del DAG es una operación válida que debe quedar en historial. |
 
 **Columnas clave de `eventos` (conceptuales):**
@@ -206,7 +206,7 @@ Las tablas per-tenant incluyen `org_id` como columna obligatoria no nula. Este c
 
 **Implementación:**
 - RLS (Row Level Security) de Supabase filtra por `org_id` en cada operación SELECT, INSERT, UPDATE y DELETE sobre tablas per-tenant.
-- La función `mi_org_id()` (SECURITY DEFINER, con `SET search_path = public` para prevenir hijacking de search_path) devuelve el `org_id` del usuario autenticado leyendo la tabla `usuarios`. Esta función es la única fuente de verdad para RLS.
+- La función `mi_org_id()` (SECURITY DEFINER, con `SET search_path = public` para prevenir hijacking de search_path) devuelve el `org_id` del usuario autenticado leyendo el claim `app_metadata.org_id` del JWT de Supabase Auth (`auth.jwt()`). Esta función es O(1) — no hace lookup en tabla `usuarios`. Ver `PERSISTENCE_ARCHITECTURE.md` §9 y `MIGRATION_001_SPEC.md` §8.1.
 - Ninguna consulta desde la aplicación necesita incluir `WHERE org_id = ?` explícitamente: RLS lo aplica transparentemente.
 - El campo `org_id` no es editable desde la aplicación. Se asigna en el momento de creación y nunca cambia.
 
@@ -276,7 +276,8 @@ Los índices se definen por patrón de uso, no por convención genérica.
 | Inventario bajo mínimo | Índice parcial sobre `sucursal_id` WHERE `cantidad_actual <= nivel_minimo` |
 | Garantías próximas a vencer | Índice sobre `(org_id, fecha_vencimiento)` en `garantias` WHERE `estado = 'vigente'` |
 | Búsqueda de cliente por RUT | Índice único sobre `(org_id, rut)` en `clientes` |
-| Log de transiciones por evento | Índice sobre `(evento_id, creado_en)` en `transiciones_evento` |
+| Historia Técnica por vehículo — hot path primario | Índice compuesto `(vehiculo_id, creado_en DESC)` en `transiciones_evento`. Este es el índice principal del sistema: cubre todo acceso a historial técnico independientemente de la partición. Requiere la columna denormalizada `vehiculo_id` (ver §4.2). |
+| Log de transiciones por evento (FK lookup) | Índice sobre `evento_id` en `transiciones_evento` — cubre el JOIN futuro cuando Migration 002 active la FK. |
 | Supabase Realtime | Índices sobre columnas filtradas en canales activos (`org_id`, `sucursal_id`) |
 
 **Particionamiento:** `transiciones_evento` debe particionarse por rango de `creado_en` (mensual o anual) desde la primera migración. A 10K talleres con 200 OTs/mes, esta tabla acumula ~1.8B filas/año. El particionamiento no es opcional: debe definirse antes de crear la tabla físicamente.

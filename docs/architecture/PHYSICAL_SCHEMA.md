@@ -203,7 +203,8 @@ La columna `_fts GENERATED ALWAYS AS (...) STORED` se regenera automáticamente 
 | Columnas | snake_case | creado_en, orden_trabajo_id |
 | PKs | Siempre `id` | id UUID |
 | FKs | `{tabla_singular}_id` | vehiculo_id, orden_trabajo_id |
-| Funciones | Prefijo `fn_` | fn_set_updated_at(), fn_mi_org_id() |
+| Funciones internas (triggers, audit) | Prefijo `fn_` | fn_set_updated_at(), fn_audit_insert() |
+| Funciones RLS-facing (invocadas en policies) | Sin prefijo, nombre semántico | mi_org_id(), mi_rol(), mi_sucursal_id() |
 | Triggers | Prefijo `trg_` | trg_inmutabilidad_evento, trg_anti_ciclo_refs |
 | Vistas | Prefijo `v_` | v_clientes_mecanico, v_historial_tecnico_ia |
 | Materialized views | Prefijo `mv_` | mv_dashboard_ots_activas |
@@ -217,7 +218,7 @@ La columna `_fts GENERATED ALWAYS AS (...) STORED` se regenera automáticamente 
 
 | Migration | Qué incluye | Dependencias |
 |---|---|---|
-| **001 — Foundation** | Extensiones (uuid-ossp, pg_trgm, unaccent, pgcrypto, vector). Funciones: fn_mi_org_id(), fn_mi_rol(), fn_set_updated_at(). Tablas: organizaciones, usuarios, roles, permisos_rol, tipos_evento_base. Particionamiento: transiciones_evento y audit_log con primera partición vacía. Seed: roles base, tipos_evento_base. | Ninguna |
+| **001 — Foundation** | Extensiones (uuid-ossp, pg_trgm, unaccent, pgcrypto, vector). Funciones: mi_org_id(), mi_rol(), mi_sucursal_id(), fn_set_updated_at(), fn_audit_insert(). Tablas: organizaciones, usuarios, roles, permisos_rol, tipos_evento_base. Particionamiento: transiciones_evento y audit_log con particiones desde 2020 hasta Q1 2027. Seed: roles base, tipos_evento_base. | Ninguna |
 | **002 — Vehículos y Eventos** | vehiculos, historias_tecnicas, propietarios_vehiculo, clientes, conductores. tipos_evento (per-tenant). eventos, referencias_evento. Triggers: anti-ciclo en referencias_evento. Índices: GIN pg_trgm en clientes.nombre, clientes.rut, vehiculos.patente. | 001 |
 | **003 — OT y Flujo Operacional** | ordenes_trabajo, presupuestos, items_presupuesto, reparaciones, items_reparacion, entregas, citas, evidencias, garantias. Triggers: inmutabilidad de eventos cerrados. Índices B-tree compuestos para dashboard. | 002 |
 | **004 — Inventario y Facturación** | repuestos, proveedores, movimientos_stock, facturas, items_factura. | 003 |
