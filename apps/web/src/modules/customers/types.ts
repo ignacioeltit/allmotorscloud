@@ -59,3 +59,17 @@ export interface ListClientesParams {
   limit?: number
   offset?: number
 }
+
+/** Fila de `propietarios_vehiculo` — relación cliente↔vehículo (activa si fecha_fin = null). */
+export interface PropietarioVehiculo {
+  id: string
+  vehiculo_id: string
+  cliente_id: string
+  org_id: string
+  fecha_inicio: string
+  fecha_fin: string | null
+  notas: string | null
+  creado_en: string
+  actualizado_en: string
+  creado_por: string | null
+}

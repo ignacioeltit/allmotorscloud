@@ -2,8 +2,63 @@
 @tailwind components;
 @tailwind utilities;
 
+:root {
+  color-scheme: dark;
+}
+
 @layer base {
-  body {
-    @apply bg-neutral-50 text-neutral-900 antialiased;
+  html {
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
   }
+
+  body {
+    @apply bg-neutral-950 text-neutral-100 font-sans;
+  }
+
+  h1,
+  h2,
+  h3 {
+    @apply tracking-tight;
+  }
+
+  /* Quitar spinners de inputs numéricos para un look limpio */
+  input[type='number']::-webkit-outer-spin-button,
+  input[type='number']::-webkit-inner-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+  }
+  input[type='number'] {
+    -moz-appearance: textfield;
+    appearance: textfield;
+  }
+
+  /* Calendario / date picker en oscuro */
+  input[type='date']::-webkit-calendar-picker-indicator {
+    filter: invert(0.7);
+    cursor: pointer;
+  }
+}
+
+/* Scrollbar discreta y oscura */
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: #2a2a2e;
+  border-radius: 9999px;
+  border: 2px solid transparent;
+  background-clip: padding-box;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #3a3a40;
+  background-clip: padding-box;
+}
+
+::selection {
+  background: rgba(59, 130, 246, 0.32);
 }

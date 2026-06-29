@@ -12,6 +12,7 @@ import {
   type Cliente,
   type ClienteCreateInput,
   type ClienteUpdateInput,
+  type PropietarioVehiculo,
 } from './types'
 
 const COLUMNS =
@@ -55,6 +56,31 @@ export async function updateCliente(
     .select(COLUMNS)
 
   return unwrapWritten<Cliente>(data, error)
+}
+
+/**
+ * Vincula un cliente como propietario activo de un vehículo (propietarios_vehiculo).
+ * Úsese solo cuando el vehículo no tenga ya un propietario activo (UNIQUE parcial en DB).
+ */
+export async function vincularPropietario(
+  supabase: DbClient,
+  params: { vehiculoId: string; clienteId: string },
+): Promise<PropietarioVehiculo> {
+  const { userId, orgId } = await getAuthContext(supabase)
+
+  const { data, error } = await supabase
+    .from('propietarios_vehiculo')
+    .insert({
+      vehiculo_id: params.vehiculoId,
+      cliente_id: params.clienteId,
+      org_id: orgId,
+      creado_por: userId,
+    })
+    .select(
+      'id, vehiculo_id, cliente_id, org_id, fecha_inicio, fecha_fin, notas, creado_en, actualizado_en, creado_por',
+    )
+
+  return unwrapWritten<PropietarioVehiculo>(data, error)
 }
 
 /** Soft-delete: marca el cliente como eliminado. No borra físicamente. */

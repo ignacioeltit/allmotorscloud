@@ -22,7 +22,7 @@ export default async function VehiclesPage() {
       {!result.ok ? (
         <Notice tone={result.isAuth ? 'warning' : 'error'} title={result.error}>
           {result.isAuth
-            ? 'Inicia sesión para ver los vehículos (Auth — Sprint 2 pendiente).'
+            ? 'Inicia sesión para ver los vehículos.'
             : 'No se pudieron cargar los vehículos.'}
         </Notice>
       ) : result.data.length === 0 ? (
@@ -30,23 +30,23 @@ export default async function VehiclesPage() {
       ) : (
         <div className={`${card} overflow-x-auto p-0`}>
           <table className="w-full text-sm">
-            <thead className="border-b border-neutral-200 bg-neutral-50 text-left text-neutral-500">
+            <thead className="border-b border-white/[0.06] bg-white/[0.02] text-left text-[11px] uppercase tracking-wider text-neutral-500">
               <tr>
-                <th className="px-4 py-2 font-medium">Patente</th>
-                <th className="px-4 py-2 font-medium">Marca</th>
-                <th className="px-4 py-2 font-medium">Modelo</th>
-                <th className="px-4 py-2 font-medium">Año</th>
-                <th className="px-4 py-2 font-medium"></th>
+                <th className="px-4 py-3 font-medium">Patente</th>
+                <th className="px-4 py-3 font-medium">Marca</th>
+                <th className="px-4 py-3 font-medium">Modelo</th>
+                <th className="px-4 py-3 font-medium">Año</th>
+                <th className="px-4 py-3 font-medium"></th>
               </tr>
             </thead>
             <tbody>
               {result.data.map((v) => (
-                <tr key={v.id} className="border-b border-neutral-100 last:border-0">
-                  <td className="px-4 py-2 font-medium text-neutral-900">{v.patente}</td>
-                  <td className="px-4 py-2 text-neutral-600">{v.marca}</td>
-                  <td className="px-4 py-2 text-neutral-600">{v.modelo}</td>
-                  <td className="px-4 py-2 text-neutral-600">{v.anio ?? '—'}</td>
-                  <td className="px-4 py-2 text-right">
+                <tr key={v.id} className="border-b border-white/[0.04] last:border-0">
+                  <td className="px-4 py-3 font-medium tracking-wide text-neutral-50">{v.patente}</td>
+                  <td className="px-4 py-3 text-neutral-400">{v.marca}</td>
+                  <td className="px-4 py-3 text-neutral-400">{v.modelo}</td>
+                  <td className="px-4 py-3 text-neutral-400">{v.anio ?? '—'}</td>
+                  <td className="px-4 py-3 text-right">
                     <Link href={`/vehicles/${v.id}`} className={linkClass}>
                       Ver ficha →
                     </Link>

@@ -1,11 +1,11 @@
-// Avisos presentacionales (info / warning / error / empty). Server Component puro.
+// Avisos presentacionales (info / warning / error / empty). Tema oscuro.
 type NoticeTone = 'info' | 'warning' | 'error' | 'empty'
 
 const toneClasses: Record<NoticeTone, string> = {
-  info: 'border-brand-100 bg-brand-50 text-brand-900',
-  warning: 'border-warning-500/30 bg-warning-500/10 text-neutral-900',
-  error: 'border-danger-500/30 bg-danger-500/10 text-danger-600',
-  empty: 'border-neutral-200 bg-neutral-100 text-neutral-500',
+  info: 'border-accent-500/20 bg-accent-500/[0.07] text-accent-200',
+  warning: 'border-amber-500/25 bg-amber-500/[0.08] text-amber-200',
+  error: 'border-red-500/25 bg-red-500/[0.08] text-red-200',
+  empty: 'border-white/[0.06] bg-white/[0.02] text-neutral-500',
 }
 
 export function Notice({
@@ -18,9 +18,9 @@ export function Notice({
   children?: React.ReactNode
 }) {
   return (
-    <div className={`rounded-md border p-4 text-sm ${toneClasses[tone]}`}>
+    <div className={`rounded-xl border p-4 text-sm ${toneClasses[tone]}`}>
       {title ? <p className="font-medium">{title}</p> : null}
-      {children ? <div className={title ? 'mt-1' : ''}>{children}</div> : null}
+      {children ? <div className={title ? 'mt-1 text-[13px] opacity-90' : ''}>{children}</div> : null}
     </div>
   )
 }

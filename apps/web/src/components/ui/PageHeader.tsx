@@ -11,7 +11,7 @@ export function PageHeader({
 }) {
   return (
     <div className="mb-6 flex items-center justify-between gap-4">
-      <h1 className="text-xl font-semibold text-neutral-900">{title}</h1>
+      <h1 className="text-xl font-semibold text-neutral-50">{title}</h1>
       {action ? (
         <Link href={action.href} className={btnPrimary}>
           {action.label}

@@ -44,7 +44,7 @@ export function LoginForm() {
   return (
     <form onSubmit={onSubmit} className={`${card} w-full max-w-sm space-y-4`}>
       <div>
-        <h1 className="text-lg font-semibold text-neutral-900">Iniciar sesión</h1>
+        <h1 className="text-lg font-semibold text-neutral-50">Iniciar sesión</h1>
         <p className="mt-1 text-sm text-neutral-500">All Motors Cloud — ERP del taller</p>
       </div>
 

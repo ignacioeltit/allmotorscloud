@@ -91,3 +91,34 @@ export async function getOrdenTrabajoActivaByVehiculo(
 
   return unwrapMaybe<OrdenTrabajo>(data as OrdenTrabajo | null, error)
 }
+
+/**
+ * Genera el siguiente número de OT correlativo del tenant, con formato `OT-000001`.
+ * Toma el mayor numero_ot existente (incluye soft-deleted: el UNIQUE no es parcial) y suma 1.
+ * Nota: bajo alta concurrencia dos recepciones simultáneas podrían generar el mismo número;
+ * el UNIQUE(org_id, numero_ot) lo rechaza y la orquestación reintenta.
+ */
+export async function getSiguienteNumeroOt(supabase: DbClient): Promise<string> {
+  const { orgId } = await getAuthContext(supabase)
+
+  const { data, error } = await supabase
+    .from('ordenes_trabajo')
+    .select('numero_ot')
+    .eq('org_id', orgId)
+    .order('numero_ot', { ascending: false })
+    .limit(1)
+    .maybeSingle()
+
+  const row = unwrapMaybe<{ numero_ot: string }>(
+    data as { numero_ot: string } | null,
+    error,
+  )
+
+  let siguiente = 1
+  if (row?.numero_ot) {
+    const match = /(\d+)\s*$/.exec(row.numero_ot)
+    const grupo = match?.[1]
+    if (grupo) siguiente = Number.parseInt(grupo, 10) + 1
+  }
+  return `OT-${String(siguiente).padStart(6, '0')}`
+}

@@ -4,7 +4,7 @@
 
 import type { DbClient } from '@/lib/supabase/types'
 import { getAuthContext } from '@/lib/auth/context'
-import { unwrapList, unwrapRequired } from '@/lib/supabase/result'
+import { unwrapList, unwrapMaybe, unwrapRequired } from '@/lib/supabase/result'
 import { CLIENTES_PAGE_SIZE } from './constants'
 import type { Cliente, ListClientesParams } from './types'
 
@@ -49,4 +49,41 @@ export async function getClienteById(supabase: DbClient, id: string): Promise<Cl
     .maybeSingle()
 
   return unwrapRequired<Cliente>(data as Cliente | null, error)
+}
+
+/**
+ * Devuelve el cliente propietario actual de un vehículo (propietarios_vehiculo activo),
+ * o null si el vehículo no tiene propietario asignado.
+ */
+export async function getPropietarioActivoByVehiculo(
+  supabase: DbClient,
+  vehiculoId: string,
+): Promise<Cliente | null> {
+  const { orgId } = await getAuthContext(supabase)
+
+  const { data: rel, error: relErr } = await supabase
+    .from('propietarios_vehiculo')
+    .select('cliente_id')
+    .eq('org_id', orgId)
+    .eq('vehiculo_id', vehiculoId)
+    .is('fecha_fin', null)
+    .order('fecha_inicio', { ascending: false })
+    .limit(1)
+    .maybeSingle()
+
+  const row = unwrapMaybe<{ cliente_id: string }>(
+    rel as { cliente_id: string } | null,
+    relErr,
+  )
+  if (!row) return null
+
+  const { data, error } = await supabase
+    .from('clientes')
+    .select(COLUMNS)
+    .eq('org_id', orgId)
+    .eq('id', row.cliente_id)
+    .is('eliminado_en', null)
+    .maybeSingle()
+
+  return unwrapMaybe<Cliente>(data as Cliente | null, error)
 }
