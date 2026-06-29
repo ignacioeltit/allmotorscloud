@@ -3,6 +3,7 @@ export const dynamic = 'force-dynamic'
 
 import { createClient } from '@/lib/supabase/server'
 import { getTipoEventoRecepcionId } from '@/modules/reception/queries'
+import { isEnrichmentEnabled } from '@/lib/enrichment'
 import { load } from '@/lib/ui/load'
 import { Notice } from '@/components/ui/Notice'
 import { ReceptionFlow } from '../reception/ReceptionFlow'
@@ -32,5 +33,5 @@ export default async function RecepcionPage() {
     )
   }
 
-  return <ReceptionFlow tipoRecepcionId={result.data} />
+  return <ReceptionFlow tipoRecepcionId={result.data} enrichmentEnabled={isEnrichmentEnabled()} />
 }

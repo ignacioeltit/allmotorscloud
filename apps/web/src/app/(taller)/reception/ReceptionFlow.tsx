@@ -26,6 +26,7 @@ import {
   inputXL,
   labelClass,
   sectionLabel,
+  btnPrimary,
   btnSecondary,
   btnLarge,
   card,
@@ -34,6 +35,20 @@ import {
 } from '@/components/ui/styles'
 
 type Mode = 'search' | 'existing' | 'new'
+
+/** Sugerencia de datos vehiculares devuelta por /api/vehiculos/enriquecer. */
+type SuggestedVehicle = {
+  marca?: string
+  modelo?: string
+  anio?: number
+  vin?: string
+  motor?: string
+  combustible?: string
+  transmision?: string
+  color?: string
+  fuente: string
+  fechaConsulta: string
+}
 
 function Field({
   label,
@@ -77,7 +92,14 @@ function Section({
   )
 }
 
-export function ReceptionFlow({ tipoRecepcionId }: { tipoRecepcionId: string }) {
+export function ReceptionFlow({
+  tipoRecepcionId,
+  enrichmentEnabled,
+}: {
+  tipoRecepcionId: string
+  /** true si hay un proveedor de enriquecimiento activo. Si es false, se va directo a ingreso manual. */
+  enrichmentEnabled: boolean
+}) {
   const router = useRouter()
 
   const [mode, setMode] = useState<Mode>('search')
@@ -115,6 +137,11 @@ export function ReceptionFlow({ tipoRecepcionId }: { tipoRecepcionId: string }) 
 
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
+
+  // Enriquecimiento externo por patente (sugerencia para vehículo nuevo)
+  const [enriching, setEnriching] = useState(false)
+  const [enrichSuggestion, setEnrichSuggestion] = useState<SuggestedVehicle | null>(null)
+  const [enrichMessage, setEnrichMessage] = useState<string | null>(null)
 
   const needClienteForm = mode === 'new' || (mode === 'existing' && !ficha?.cliente)
   const ready = mode === 'existing' || mode === 'new'
@@ -181,7 +208,73 @@ export function ReceptionFlow({ tipoRecepcionId }: { tipoRecepcionId: string }) 
     setMode('new')
     setFicha(null)
     setSuggestions([])
-    setPatente((p) => p.trim().toUpperCase())
+    const plate = patente.trim().toUpperCase()
+    setPatente(plate)
+    if (enrichmentEnabled) {
+      // Hay proveedor activo: intentar enriquecimiento externo.
+      void enriquecer(plate)
+    } else {
+      // Sin proveedor: ir directo a ingreso manual con aviso claro (no es un fallo).
+      setEnriching(false)
+      setEnrichSuggestion(null)
+      setEnrichMessage('Consulta automática no configurada. Ingresa los datos manualmente.')
+    }
+  }
+
+  /**
+   * Consulta /api/vehiculos/enriquecer (server-only, sin tokens en el cliente).
+   * NO autocompleta: presenta una sugerencia que el recepcionista confirma o descarta.
+   */
+  async function enriquecer(plate: string) {
+    setEnriching(true)
+    setEnrichSuggestion(null)
+    setEnrichMessage(null)
+    try {
+      const res = await fetch(`/api/vehiculos/enriquecer?patente=${encodeURIComponent(plate)}`)
+      const json = (await res.json()) as
+        | { found: true; data: SuggestedVehicle }
+        | { found: false; reason?: string }
+
+      if (res.ok && json.found && json.data) {
+        setEnrichSuggestion(json.data)
+      } else {
+        const reason = !json.found ? json.reason : undefined
+        setEnrichMessage(
+          reason === 'not_configured'
+            ? 'Consulta automática no configurada. Ingresa los datos manualmente.'
+            : 'No encontramos datos para esta patente. Ingresa los datos manualmente.',
+        )
+      }
+    } catch {
+      setEnrichMessage('No encontramos datos para esta patente. Ingresa los datos manualmente.')
+    } finally {
+      setEnriching(false)
+    }
+  }
+
+  /** Aplica la sugerencia a los campos del formulario (todos siguen editables). */
+  function usarSugerencia() {
+    const d = enrichSuggestion
+    if (!d) return
+    if (d.marca) setVMarca(d.marca)
+    if (d.modelo) setVModelo(d.modelo)
+    if (d.anio != null) setVAnio(String(d.anio))
+    if (d.vin) setVVin(d.vin)
+    if (d.motor) setVMotor(d.motor)
+    if (d.color) setVColor(d.color)
+    if (d.combustible && (COMBUSTIBLES as readonly string[]).includes(d.combustible)) {
+      setVCombustible(d.combustible)
+    }
+    if (d.transmision && (TRANSMISIONES as readonly string[]).includes(d.transmision)) {
+      setVTransmision(d.transmision)
+    }
+    setEnrichSuggestion(null)
+    setEnrichMessage(`Datos aplicados desde ${d.fuente}. Revisa antes de guardar.`)
+  }
+
+  function descartarSugerencia() {
+    setEnrichSuggestion(null)
+    setEnrichMessage('Ingresa los datos del vehículo manualmente.')
   }
 
   function resetSearch() {
@@ -189,6 +282,8 @@ export function ReceptionFlow({ tipoRecepcionId }: { tipoRecepcionId: string }) 
     setFicha(null)
     setSuggestions([])
     setError(null)
+    setEnrichSuggestion(null)
+    setEnrichMessage(null)
   }
 
   function toggleCheck(key: string) {
@@ -391,6 +486,50 @@ export function ReceptionFlow({ tipoRecepcionId }: { tipoRecepcionId: string }) 
                 </div>
               ) : (
                 <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+                  {enriching || enrichSuggestion || enrichMessage ? (
+                    <div className="sm:col-span-3">
+                      {enriching ? (
+                        <p className="text-sm text-neutral-500">Consultando datos del vehículo…</p>
+                      ) : enrichSuggestion ? (
+                        <div className="rounded-xl border border-emerald-500/25 bg-emerald-500/[0.06] p-4">
+                          <div className="flex flex-wrap items-center justify-between gap-2">
+                            <p className="flex items-center gap-2 text-sm font-semibold text-emerald-200">
+                              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                                <path d="M20 6L9 17l-5-5" />
+                              </svg>
+                              Datos encontrados
+                            </p>
+                            <p className="text-xs text-neutral-500">
+                              {enrichSuggestion.fuente} ·{' '}
+                              {new Date(enrichSuggestion.fechaConsulta).toLocaleString('es-CL')}
+                            </p>
+                          </div>
+                          <div className="mt-3 grid grid-cols-2 gap-x-4 gap-y-2 sm:grid-cols-4">
+                            <Info label="Marca" value={enrichSuggestion.marca ?? null} />
+                            <Info label="Modelo" value={enrichSuggestion.modelo ?? null} />
+                            <Info label="Año" value={enrichSuggestion.anio?.toString() ?? null} />
+                            <Info label="Color" value={enrichSuggestion.color ?? null} />
+                            <Info label="VIN" value={enrichSuggestion.vin ?? null} />
+                            <Info label="Motor" value={enrichSuggestion.motor ?? null} />
+                            <Info label="Combustible" value={enrichSuggestion.combustible ?? null} />
+                            <Info label="Transmisión" value={enrichSuggestion.transmision ?? null} />
+                          </div>
+                          <div className="mt-4 flex flex-wrap gap-2.5">
+                            <button type="button" onClick={usarSugerencia} className={btnPrimary}>
+                              Usar datos
+                            </button>
+                            <button type="button" onClick={descartarSugerencia} className={btnSecondary}>
+                              Ingresar manualmente
+                            </button>
+                          </div>
+                        </div>
+                      ) : enrichMessage ? (
+                        <div className="rounded-lg border border-white/10 bg-white/[0.03] px-3.5 py-2.5 text-sm text-neutral-300">
+                          {enrichMessage}
+                        </div>
+                      ) : null}
+                    </div>
+                  ) : null}
                   <Field label="Marca *">
                     <input className={inputClass} value={vMarca} onChange={(e) => setVMarca(e.target.value)} />
                   </Field>
