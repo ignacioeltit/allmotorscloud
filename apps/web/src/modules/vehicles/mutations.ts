@@ -7,7 +7,7 @@
 import type { DbClient } from '@/lib/supabase/types'
 import { getAuthContext } from '@/lib/auth/context'
 import { unwrapWritten } from '@/lib/supabase/result'
-import { validationErrorFromZod } from '@/lib/errors'
+import { validationErrorFromZod, mapPostgrestError } from '@/lib/errors'
 import {
   vehiculoCreateSchema,
   vehiculoUpdateSchema,
@@ -60,19 +60,13 @@ export async function updateVehiculo(
 }
 
 /** Soft-delete del vehículo. No borra físicamente. */
-export async function softDeleteVehiculo(
-  supabase: DbClient,
-  id: string,
-): Promise<Vehiculo> {
-  const { userId, orgId } = await getAuthContext(supabase)
+export async function softDeleteVehiculo(supabase: DbClient, id: string): Promise<void> {
+  const { error } = await supabase.rpc('soft_delete', { p_table: 'vehiculos', p_id: id })
+  if (error) throw mapPostgrestError(error)
+}
 
-  const { data, error } = await supabase
-    .from('vehiculos')
-    .update({ eliminado_en: new Date().toISOString(), eliminado_por: userId })
-    .eq('org_id', orgId)
-    .eq('id', id)
-    .is('eliminado_en', null)
-    .select(COLUMNS)
-
-  return unwrapWritten<Vehiculo>(data, error)
+/** Restaura un vehículo eliminado (requiere admin o jefe_taller). */
+export async function restoreVehiculo(supabase: DbClient, id: string): Promise<void> {
+  const { error } = await supabase.rpc('restore_deleted', { p_table: 'vehiculos', p_id: id })
+  if (error) throw mapPostgrestError(error)
 }

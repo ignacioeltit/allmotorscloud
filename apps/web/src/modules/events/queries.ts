@@ -2,7 +2,7 @@
 
 import type { DbClient } from '@/lib/supabase/types'
 import { getAuthContext } from '@/lib/auth/context'
-import { unwrapList, unwrapRequired } from '@/lib/supabase/result'
+import { unwrapList, unwrapMaybe, unwrapRequired } from '@/lib/supabase/result'
 import { EVENTOS_PAGE_SIZE } from './constants'
 import type { Evento, TipoEvento, ListEventosParams } from './types'
 
@@ -76,4 +76,22 @@ export async function listTiposEvento(supabase: DbClient): Promise<TipoEvento[]>
     .order('nombre', { ascending: true })
 
   return unwrapList<TipoEvento>(data, error)
+}
+
+/** Devuelve el tipo de evento del tenant por slug, o null si no está configurado. */
+export async function getTipoEventoBySlug(
+  supabase: DbClient,
+  slug: string,
+): Promise<TipoEvento | null> {
+  const { orgId } = await getAuthContext(supabase)
+
+  const { data, error } = await supabase
+    .from('tipos_evento')
+    .select('id, org_id, nombre, slug, descripcion, categoria, activo')
+    .eq('org_id', orgId)
+    .eq('slug', slug)
+    .eq('activo', true)
+    .maybeSingle()
+
+  return unwrapMaybe<TipoEvento>(data as TipoEvento | null, error)
 }

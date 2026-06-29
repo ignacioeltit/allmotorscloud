@@ -10,7 +10,7 @@
 import type { DbClient } from '@/lib/supabase/types'
 import { getAuthContext } from '@/lib/auth/context'
 import { unwrapWritten } from '@/lib/supabase/result'
-import { validationErrorFromZod } from '@/lib/errors'
+import { validationErrorFromZod, mapPostgrestError } from '@/lib/errors'
 import {
   eventoCreateSchema,
   eventoUpdateSchema,
@@ -131,16 +131,13 @@ export async function vincularEventoAOrdenTrabajo(
 }
 
 /** Soft-delete del evento. */
-export async function softDeleteEvento(supabase: DbClient, id: string): Promise<Evento> {
-  const { userId, orgId } = await getAuthContext(supabase)
+export async function softDeleteEvento(supabase: DbClient, id: string): Promise<void> {
+  const { error } = await supabase.rpc('soft_delete', { p_table: 'eventos', p_id: id })
+  if (error) throw mapPostgrestError(error)
+}
 
-  const { data, error } = await supabase
-    .from('eventos')
-    .update({ eliminado_en: new Date().toISOString(), eliminado_por: userId })
-    .eq('org_id', orgId)
-    .eq('id', id)
-    .is('eliminado_en', null)
-    .select(COLUMNS)
-
-  return unwrapWritten<Evento>(data, error)
+/** Restaura un evento eliminado (requiere admin o jefe_taller). */
+export async function restoreEvento(supabase: DbClient, id: string): Promise<void> {
+  const { error } = await supabase.rpc('restore_deleted', { p_table: 'eventos', p_id: id })
+  if (error) throw mapPostgrestError(error)
 }

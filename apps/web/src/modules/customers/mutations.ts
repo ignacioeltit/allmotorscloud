@@ -5,7 +5,7 @@
 import type { DbClient } from '@/lib/supabase/types'
 import { getAuthContext } from '@/lib/auth/context'
 import { unwrapWritten } from '@/lib/supabase/result'
-import { validationErrorFromZod } from '@/lib/errors'
+import { validationErrorFromZod, mapPostgrestError } from '@/lib/errors'
 import {
   clienteCreateSchema,
   clienteUpdateSchema,
@@ -84,16 +84,13 @@ export async function vincularPropietario(
 }
 
 /** Soft-delete: marca el cliente como eliminado. No borra físicamente. */
-export async function softDeleteCliente(supabase: DbClient, id: string): Promise<Cliente> {
-  const { userId, orgId } = await getAuthContext(supabase)
+export async function softDeleteCliente(supabase: DbClient, id: string): Promise<void> {
+  const { error } = await supabase.rpc('soft_delete', { p_table: 'clientes', p_id: id })
+  if (error) throw mapPostgrestError(error)
+}
 
-  const { data, error } = await supabase
-    .from('clientes')
-    .update({ eliminado_en: new Date().toISOString(), eliminado_por: userId })
-    .eq('org_id', orgId)
-    .eq('id', id)
-    .is('eliminado_en', null)
-    .select(COLUMNS)
-
-  return unwrapWritten<Cliente>(data, error)
+/** Restaura un cliente eliminado (requiere admin o jefe_taller). */
+export async function restoreCliente(supabase: DbClient, id: string): Promise<void> {
+  const { error } = await supabase.rpc('restore_deleted', { p_table: 'clientes', p_id: id })
+  if (error) throw mapPostgrestError(error)
 }

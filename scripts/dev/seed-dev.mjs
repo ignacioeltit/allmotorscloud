@@ -121,6 +121,7 @@ async function main() {
   const tipos = [
     { slug: 'recepcion', nombre: 'Recepción', categoria: 'inspeccion' },
     { slug: 'diagnostico', nombre: 'Diagnóstico', categoria: 'reparacion' },
+    { slug: 'reparacion', nombre: 'Reparación', categoria: 'reparacion' },
     { slug: 'mantencion', nombre: 'Mantención', categoria: 'mantencion' },
     { slug: 'nota-interna', nombre: 'Nota interna', categoria: 'documentacion' },
   ]
