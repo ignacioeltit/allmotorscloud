@@ -6,6 +6,7 @@ import { createClient } from '@/lib/supabase/client'
 import { crearReparacion, addItemReparacion, softDeleteItemReparacion } from '@/modules/reparaciones/mutations'
 import { TIPOS_ITEM_REPARACION, TIPOS_ITEM_LABEL } from '@/modules/reparaciones/constants'
 import type { ReparacionConItems } from '@/modules/reparaciones/types'
+import type { MecanicoSimple } from '@/modules/users/types'
 import {
   card,
   sectionLabel,
@@ -137,6 +138,7 @@ interface AgregarTrabajoFormProps {
   ordenTrabajoId: string
   historiaId: string
   tipoEventoId: string
+  mecanicos: MecanicoSimple[]
   onDone: () => void
   onCancel: () => void
 }
@@ -145,11 +147,13 @@ function AgregarTrabajoForm({
   ordenTrabajoId,
   historiaId,
   tipoEventoId,
+  mecanicos,
   onDone,
   onCancel,
 }: AgregarTrabajoFormProps) {
   const [descripcion, setDescripcion] = useState('')
   const [observaciones, setObservaciones] = useState('')
+  const [mecanicoId, setMecanicoId] = useState('')
   const [error, setError] = useState<string | null>(null)
   const [pending, startTransition] = useTransition()
 
@@ -165,6 +169,7 @@ function AgregarTrabajoForm({
           tipoEventoId,
           descripcion: descripcion.trim() || undefined,
           observaciones: observaciones.trim() || undefined,
+          mecanicoId: mecanicoId || undefined,
         })
         onDone()
       } catch (e) {
@@ -200,6 +205,24 @@ function AgregarTrabajoForm({
             disabled={pending}
           />
         </div>
+        {mecanicos.length > 0 && (
+          <div>
+            <label className={labelClass}>Mecánico asignado</label>
+            <select
+              className={inputClass}
+              value={mecanicoId}
+              onChange={(e) => setMecanicoId(e.target.value)}
+              disabled={pending}
+            >
+              <option value="">Sin asignar</option>
+              {mecanicos.map((m) => (
+                <option key={m.id} value={m.id}>
+                  {m.nombre}
+                </option>
+              ))}
+            </select>
+          </div>
+        )}
       </div>
       {error && <p className="mt-2 text-xs text-red-400">{error}</p>}
       <div className="mt-4 flex gap-2">
@@ -216,10 +239,11 @@ function AgregarTrabajoForm({
 
 interface TrabajoCardProps {
   reparacion: ReparacionConItems
+  mecanicos: MecanicoSimple[]
   onChanged: () => void
 }
 
-function TrabajoCard({ reparacion, onChanged }: TrabajoCardProps) {
+function TrabajoCard({ reparacion, mecanicos, onChanged }: TrabajoCardProps) {
   const [showAddItem, setShowAddItem] = useState(false)
   const [deletingId, setDeletingId] = useState<string | null>(null)
   const [deleteError, setDeleteError] = useState<string | null>(null)
@@ -249,13 +273,23 @@ function TrabajoCard({ reparacion, onChanged }: TrabajoCardProps) {
             {reparacion.observaciones}
           </p>
         )}
-        <p className="mt-1 text-[11px] text-neutral-600">
-          {new Date(reparacion.creado_en).toLocaleString('es-CL', {
-            day: '2-digit',
-            month: 'short',
-            year: 'numeric',
-          })}
-        </p>
+        <div className="mt-1 flex flex-wrap items-center gap-3">
+          <p className="text-[11px] text-neutral-600">
+            {new Date(reparacion.creado_en).toLocaleString('es-CL', {
+              day: '2-digit',
+              month: 'short',
+              year: 'numeric',
+            })}
+          </p>
+          {reparacion.mecanico_id && (() => {
+            const m = mecanicos.find((x) => x.id === reparacion.mecanico_id)
+            return m ? (
+              <span className="rounded-full border border-sky-500/20 bg-sky-500/10 px-2 py-0.5 text-[10px] font-medium text-sky-400">
+                {m.nombre}
+              </span>
+            ) : null
+          })()}
+        </div>
       </div>
 
       {reparacion.items.length > 0 && (
@@ -316,6 +350,7 @@ interface TrabajosSectionProps {
   historiaId: string
   tipoEventoReparacionId: string | null
   initialReparaciones: ReparacionConItems[]
+  mecanicos: MecanicoSimple[]
 }
 
 export function TrabajosSection({
@@ -323,6 +358,7 @@ export function TrabajosSection({
   historiaId,
   tipoEventoReparacionId,
   initialReparaciones,
+  mecanicos,
 }: TrabajosSectionProps) {
   const router = useRouter()
   const [showAddTrabajo, setShowAddTrabajo] = useState(false)
@@ -356,6 +392,7 @@ export function TrabajosSection({
           ordenTrabajoId={ordenTrabajoId}
           historiaId={historiaId}
           tipoEventoId={tipoEventoReparacionId}
+          mecanicos={mecanicos}
           onDone={() => { setShowAddTrabajo(false); refresh() }}
           onCancel={() => setShowAddTrabajo(false)}
         />
@@ -366,7 +403,7 @@ export function TrabajosSection({
       )}
 
       {initialReparaciones.map((rep) => (
-        <TrabajoCard key={rep.id} reparacion={rep} onChanged={refresh} />
+        <TrabajoCard key={rep.id} reparacion={rep} mecanicos={mecanicos} onChanged={refresh} />
       ))}
     </section>
   )
