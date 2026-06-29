@@ -79,7 +79,7 @@ export async function addItemReparacion(
   if (!parsed.success) throw validationErrorFromZod(parsed.error.flatten())
 
   const { userId, orgId } = await getAuthContext(supabase)
-  const { reparacionId, tipo, descripcion, cantidad, costoUnitario } = parsed.data
+  const { reparacionId, tipo, descripcion, cantidad, costoUnitario, repuestoId } = parsed.data
 
   const costo_total = Math.round(cantidad * costoUnitario * 100) / 100
 
@@ -93,6 +93,7 @@ export async function addItemReparacion(
       cantidad,
       costo_unitario: costoUnitario,
       costo_total,
+      ...(repuestoId ? { repuesto_id: repuestoId } : {}),
       creado_por: userId,
     })
     .select(ITEM_COLUMNS)

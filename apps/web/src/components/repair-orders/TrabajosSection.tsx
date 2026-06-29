@@ -1,12 +1,16 @@
 'use client'
 
-import { useState, useTransition } from 'react'
+import { useState, useTransition, useEffect, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { crearReparacion, addItemReparacion, softDeleteItemReparacion } from '@/modules/reparaciones/mutations'
 import { TIPOS_ITEM_REPARACION, TIPOS_ITEM_LABEL } from '@/modules/reparaciones/constants'
 import type { ReparacionConItems } from '@/modules/reparaciones/types'
 import type { MecanicoSimple } from '@/modules/users/types'
+import { searchRepuestos } from '@/modules/inventory/queries'
+import { consumirStockParaOT } from '@/modules/inventory/mutations'
+import type { RepuestoResumen } from '@/modules/inventory/types'
+import { ESTADO_STOCK_LABEL, ESTADO_STOCK_CLASS } from '@/modules/inventory/constants'
 import {
   card,
   sectionLabel,
@@ -19,6 +23,19 @@ import {
 
 function fmtCLP(n: number): string {
   return n.toLocaleString('es-CL', { style: 'currency', currency: 'CLP', maximumFractionDigits: 0 })
+}
+
+function fmtCLPShort(n: number | null | undefined): string {
+  if (n == null) return '—'
+  return n.toLocaleString('es-CL', { style: 'currency', currency: 'CLP', maximumFractionDigits: 0 })
+}
+
+function StockBadge({ estado }: { estado: string }) {
+  return (
+    <span className={`rounded-full border px-2 py-0.5 text-[10px] font-medium ${ESTADO_STOCK_CLASS[estado] ?? ''}`}>
+      {ESTADO_STOCK_LABEL[estado] ?? estado}
+    </span>
+  )
 }
 
 interface AgregarItemFormProps {
@@ -35,6 +52,51 @@ function AgregarItemForm({ reparacionId, onDone, onCancel }: AgregarItemFormProp
   const [error, setError] = useState<string | null>(null)
   const [pending, startTransition] = useTransition()
 
+  // Inventario: estado de búsqueda
+  const [searchQuery, setSearchQuery] = useState('')
+  const [searchResults, setSearchResults] = useState<RepuestoResumen[]>([])
+  const [searching, setSearching] = useState(false)
+  const [showDropdown, setShowDropdown] = useState(false)
+  const [selectedRepuesto, setSelectedRepuesto] = useState<RepuestoResumen | null>(null)
+  const searchTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  // Debounced search cuando tipo='repuesto'
+  useEffect(() => {
+    if (tipo !== 'repuesto') { setSearchResults([]); return }
+    if (!searchQuery.trim()) { setSearchResults([]); setShowDropdown(false); return }
+
+    if (searchTimerRef.current) clearTimeout(searchTimerRef.current)
+    setSearching(true)
+    searchTimerRef.current = setTimeout(async () => {
+      try {
+        const supabase = createClient()
+        const results = await searchRepuestos(supabase, searchQuery)
+        setSearchResults(results)
+        setShowDropdown(true)
+      } catch {
+        setSearchResults([])
+      } finally {
+        setSearching(false)
+      }
+    }, 300)
+
+    return () => { if (searchTimerRef.current) clearTimeout(searchTimerRef.current) }
+  }, [searchQuery, tipo])
+
+  function selectRepuesto(r: RepuestoResumen) {
+    setSelectedRepuesto(r)
+    setDescripcion(r.nombre + (r.marca ? ` — ${r.marca}` : ''))
+    setCostoUnitario(String(r.precio_venta ?? ''))
+    setShowDropdown(false)
+    setSearchQuery('')
+  }
+
+  function clearRepuesto() {
+    setSelectedRepuesto(null)
+    setDescripcion('')
+    setCostoUnitario('')
+  }
+
   function submit(e: React.FormEvent) {
     e.preventDefault()
     const cantNum = parseFloat(cantidad)
@@ -47,13 +109,28 @@ function AgregarItemForm({ reparacionId, onDone, onCancel }: AgregarItemFormProp
     startTransition(async () => {
       try {
         const supabase = createClient()
-        await addItemReparacion(supabase, {
+        const newItem = await addItemReparacion(supabase, {
           reparacionId,
           tipo,
           descripcion: descripcion.trim(),
           cantidad: cantNum,
           costoUnitario: costoNum,
+          ...(selectedRepuesto ? { repuestoId: selectedRepuesto.id } : {}),
         })
+        // Si hay repuesto con stock, registrar consumo
+        if (selectedRepuesto && selectedRepuesto.stock_actual > 0) {
+          try {
+            await consumirStockParaOT(supabase, {
+              repuestoId: selectedRepuesto.id,
+              itemReparacionId: newItem.id,
+              cantidad: cantNum,
+              stockActual: selectedRepuesto.stock_actual,
+              descripcion: descripcion.trim(),
+            })
+          } catch {
+            // El consumo de stock falla silenciosamente — no bloquea la OT
+          }
+        }
         onDone()
       } catch (e) {
         setError(e instanceof Error ? e.message : 'Error al agregar ítem.')
@@ -75,7 +152,11 @@ function AgregarItemForm({ reparacionId, onDone, onCancel }: AgregarItemFormProp
           <select
             className={inputClass}
             value={tipo}
-            onChange={(e) => setTipo(e.target.value as typeof tipo)}
+            onChange={(e) => {
+              setTipo(e.target.value as typeof tipo)
+              clearRepuesto()
+              setSearchQuery('')
+            }}
             disabled={pending}
           >
             {TIPOS_ITEM_REPARACION.map((t) => (
@@ -85,11 +166,81 @@ function AgregarItemForm({ reparacionId, onDone, onCancel }: AgregarItemFormProp
             ))}
           </select>
         </div>
-        <div>
+
+        {/* Repuesto: búsqueda en inventario */}
+        {tipo === 'repuesto' && !selectedRepuesto && (
+          <div className="relative sm:col-span-1">
+            <label className={labelClass}>Buscar en inventario</label>
+            <input
+              className={inputClass}
+              placeholder="Código o nombre del repuesto…"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              disabled={pending}
+              autoComplete="off"
+            />
+            {searching && (
+              <p className="mt-1 text-[11px] text-neutral-500">Buscando…</p>
+            )}
+            {showDropdown && searchResults.length > 0 && (
+              <div className="absolute z-20 mt-1 w-full rounded-lg border border-white/[0.08] bg-neutral-900 shadow-xl">
+                {searchResults.map((r) => (
+                  <button
+                    key={r.id}
+                    type="button"
+                    onClick={() => selectRepuesto(r)}
+                    className="flex w-full items-start justify-between gap-2 px-3 py-2.5 text-left hover:bg-white/[0.04] first:rounded-t-lg last:rounded-b-lg"
+                  >
+                    <div className="min-w-0">
+                      <p className="truncate text-sm font-medium text-neutral-100">{r.nombre}</p>
+                      <p className="text-[11px] text-neutral-500">
+                        {r.codigo}{r.marca ? ` · ${r.marca}` : ''}
+                      </p>
+                    </div>
+                    <div className="shrink-0 text-right">
+                      <p className="text-xs font-medium text-neutral-200">{fmtCLPShort(r.precio_venta)}</p>
+                      <StockBadge estado={r.estado_stock} />
+                    </div>
+                  </button>
+                ))}
+                {searchResults.length === 8 && (
+                  <p className="px-3 py-1.5 text-[10px] text-neutral-600">Mostrando los primeros 8 resultados</p>
+                )}
+              </div>
+            )}
+            {showDropdown && searchResults.length === 0 && !searching && searchQuery.trim() && (
+              <div className="absolute z-20 mt-1 w-full rounded-lg border border-white/[0.08] bg-neutral-900 px-3 py-2.5 text-sm text-neutral-500">
+                Sin resultados. Puedes completar los datos manualmente.
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Repuesto seleccionado */}
+        {tipo === 'repuesto' && selectedRepuesto && (
+          <div className="flex items-center justify-between gap-2 rounded-lg border border-sky-500/20 bg-sky-500/[0.06] px-3 py-2">
+            <div className="min-w-0">
+              <p className="truncate text-sm font-medium text-neutral-100">{selectedRepuesto.nombre}</p>
+              <div className="mt-0.5 flex items-center gap-1.5">
+                <p className="text-[11px] text-neutral-500">{selectedRepuesto.codigo}</p>
+                <StockBadge estado={selectedRepuesto.estado_stock} />
+              </div>
+            </div>
+            <button
+              type="button"
+              onClick={clearRepuesto}
+              className={`${btnGhost} shrink-0 px-2 py-1 text-xs text-neutral-500`}
+            >
+              ×
+            </button>
+          </div>
+        )}
+
+        <div className={tipo === 'repuesto' && !selectedRepuesto ? 'sm:col-span-2' : ''}>
           <label className={labelClass}>Descripción</label>
           <input
             className={inputClass}
-            placeholder="ej: Cambio de pastillas, Aceite 5W30…"
+            placeholder="ej: Pastillas de freno delanteras Bosch…"
             value={descripcion}
             onChange={(e) => setDescripcion(e.target.value)}
             disabled={pending}
@@ -108,7 +259,7 @@ function AgregarItemForm({ reparacionId, onDone, onCancel }: AgregarItemFormProp
           />
         </div>
         <div>
-          <label className={labelClass}>Costo unitario (CLP)</label>
+          <label className={labelClass}>Precio venta unitario (CLP)</label>
           <input
             className={inputClass}
             type="number"

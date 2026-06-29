@@ -76,6 +76,7 @@ export const addItemReparacionSchema = z.object({
   descripcion: textoCorto,
   cantidad: z.number().positive().multipleOf(0.001),
   costoUnitario: z.number().min(0),
+  repuestoId: uuid.optional(),  // FK → repuestos.id, activada en migration 004
 })
 
 export type CrearReparacionInput = z.infer<typeof crearReparacionSchema>
