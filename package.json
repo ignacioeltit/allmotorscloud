@@ -19,6 +19,7 @@
     "db:reset": "supabase db reset"
   },
   "devDependencies": {
+    "@supabase/supabase-js": "^2.45.0",
     "turbo": "^2.0.0",
     "typescript": "^5.6.3"
   },
