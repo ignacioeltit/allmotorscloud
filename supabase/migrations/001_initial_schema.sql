@@ -160,7 +160,9 @@ BEGIN
         v_ant_hashed := jsonb_set(
           v_ant_hashed,
           ARRAY[v_field],
-          to_jsonb(encode(digest(v_ant_hashed ->> v_field, 'sha256'), 'hex'))
+          -- extensions.digest: pgcrypto vive en el schema `extensions` (Supabase) y la
+          -- función corre con SET search_path = public → se califica el schema explícitamente.
+          to_jsonb(encode(extensions.digest(v_ant_hashed ->> v_field, 'sha256'), 'hex'))
         );
       END IF;
     END LOOP;
@@ -174,7 +176,8 @@ BEGIN
         v_nuevo_hashed := jsonb_set(
           v_nuevo_hashed,
           ARRAY[v_field],
-          to_jsonb(encode(digest(v_nuevo_hashed ->> v_field, 'sha256'), 'hex'))
+          -- extensions.digest: ver nota arriba (pgcrypto en schema `extensions`).
+          to_jsonb(encode(extensions.digest(v_nuevo_hashed ->> v_field, 'sha256'), 'hex'))
         );
       END IF;
     END LOOP;
