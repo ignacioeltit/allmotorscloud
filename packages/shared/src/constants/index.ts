@@ -30,16 +30,25 @@ export const ESTADOS_OT_ACTIVOS: EstadoOT[] = [
 ]
 
 export const ESTADOS_EVENTO = [
-  'abierto',
-  'en_progreso',
-  'completado',
+  'creado',
+  'pendiente',
+  'asignado',
+  'en_ejecucion',
+  'en_espera',
+  'finalizado',
   'cerrado',
   'cancelado',
 ] as const
 
 export type EstadoEvento = (typeof ESTADOS_EVENTO)[number]
 
-export const ROLES_USUARIO = ['admin', 'editor', 'recepcion', 'mecanico', 'viewer'] as const
+export const ROLES_USUARIO = [
+  'admin',
+  'jefe_taller',
+  'recepcionista',
+  'mecanico',
+  'cliente_portal',
+] as const
 export type RolUsuario = (typeof ROLES_USUARIO)[number]
 
 export const RESULTADO_GARANTIA = ['vigente', 'reclamada', 'vencida', 'rechazada'] as const
