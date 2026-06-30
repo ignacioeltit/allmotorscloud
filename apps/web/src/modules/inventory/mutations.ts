@@ -80,6 +80,7 @@ export async function updateRepuesto(
   const { orgId } = await getAuthContext(supabase)
 
   // Excluir stock_actual del update: solo se modifica vía movimientos_stock
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const { stock_actual, ...safeFields } = parsed.data
 
   const { data, error } = await supabase

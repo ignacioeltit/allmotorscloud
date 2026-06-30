@@ -198,7 +198,14 @@ function AgregarItemForm({ reparacionId, onDone, onCancel }: AgregarItemFormProp
                       </p>
                     </div>
                     <div className="shrink-0 text-right">
-                      <p className="text-xs font-medium text-neutral-200">{fmtCLPShort(r.precio_venta)}</p>
+                      <div className="flex items-center justify-end gap-1.5">
+                        <p className="text-xs font-medium text-neutral-200">{fmtCLPShort(r.precio_venta)}</p>
+                        {r.descripcion?.includes('[PRECIO ESTIMADO]') && (
+                          <span className="rounded bg-amber-500/20 px-1 py-0.5 text-[9px] font-semibold uppercase tracking-wide text-amber-400">
+                            EST
+                          </span>
+                        )}
+                      </div>
                       <StockBadge estado={r.estado_stock} />
                     </div>
                   </button>
@@ -218,21 +225,28 @@ function AgregarItemForm({ reparacionId, onDone, onCancel }: AgregarItemFormProp
 
         {/* Repuesto seleccionado */}
         {tipo === 'repuesto' && selectedRepuesto && (
-          <div className="flex items-center justify-between gap-2 rounded-lg border border-sky-500/20 bg-sky-500/[0.06] px-3 py-2">
-            <div className="min-w-0">
-              <p className="truncate text-sm font-medium text-neutral-100">{selectedRepuesto.nombre}</p>
-              <div className="mt-0.5 flex items-center gap-1.5">
-                <p className="text-[11px] text-neutral-500">{selectedRepuesto.codigo}</p>
-                <StockBadge estado={selectedRepuesto.estado_stock} />
+          <div className="sm:col-span-1">
+            <div className="flex items-center justify-between gap-2 rounded-lg border border-sky-500/20 bg-sky-500/[0.06] px-3 py-2">
+              <div className="min-w-0">
+                <p className="truncate text-sm font-medium text-neutral-100">{selectedRepuesto.nombre}</p>
+                <div className="mt-0.5 flex items-center gap-1.5">
+                  <p className="text-[11px] text-neutral-500">{selectedRepuesto.codigo}</p>
+                  <StockBadge estado={selectedRepuesto.estado_stock} />
+                </div>
               </div>
+              <button
+                type="button"
+                onClick={clearRepuesto}
+                className={`${btnGhost} shrink-0 px-2 py-1 text-xs text-neutral-500`}
+              >
+                ×
+              </button>
             </div>
-            <button
-              type="button"
-              onClick={clearRepuesto}
-              className={`${btnGhost} shrink-0 px-2 py-1 text-xs text-neutral-500`}
-            >
-              ×
-            </button>
+            {selectedRepuesto.descripcion?.includes('[PRECIO ESTIMADO]') && (
+              <p className="mt-1.5 rounded-md border border-amber-500/20 bg-amber-500/[0.08] px-2.5 py-1.5 text-[11px] leading-snug text-amber-400">
+                ⚠ Precio estimado automáticamente con 40% sobre costo. Revisar antes de aprobar presupuesto.
+              </p>
+            )}
           </div>
         )}
 

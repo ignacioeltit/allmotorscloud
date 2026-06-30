@@ -66,6 +66,7 @@ export interface RepuestoResumen {
   id: string
   codigo: string
   nombre: string
+  descripcion: string | null
   marca: string | null
   unidad: string
   precio_venta: number | null
@@ -98,6 +99,7 @@ export const repuestoCreateSchema = z.object({
   ubicacion: z.string().trim().max(200).optional(),
   proveedor: z.string().trim().max(300).optional(),
   sucursal_id: uuid.optional(),
+  activo: z.boolean().optional(),
 })
 
 export const repuestoUpdateSchema = repuestoCreateSchema.partial()
@@ -121,6 +123,15 @@ export interface ListRepuestosParams {
   query?: string
   categoria?: string
   solo_bajo_stock?: boolean
+  page?: number
+  pageSize?: number
+  /** @deprecated usar page/pageSize */
   limit?: number
+  /** @deprecated usar page/pageSize */
   offset?: number
+}
+
+export interface ListRepuestosResult {
+  data: Repuesto[]
+  total: number
 }

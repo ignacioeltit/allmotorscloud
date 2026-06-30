@@ -8,6 +8,7 @@ const items = [
   { href: '/dashboard', label: 'Dashboard', icon: 'grid' },
   { href: '/customers', label: 'Clientes', icon: 'users' },
   { href: '/vehicles', label: 'Vehículos', icon: 'car' },
+  { href: '/inventory', label: 'Inventario', icon: 'package' },
 ] as const
 
 function Icon({ name }: { name: string }) {
@@ -46,6 +47,14 @@ function Icon({ name }: { name: string }) {
         <path d="M6 18H5a1 1 0 0 1-1-1v-3a1 1 0 0 1 1-1" />
         <circle cx="7.5" cy="18" r="1.5" />
         <circle cx="16.5" cy="18" r="1.5" />
+      </svg>
+    )
+  if (name === 'package')
+    return (
+      <svg {...common}>
+        <path d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z" />
+        <path d="m3.3 7 8.7 5 8.7-5" />
+        <path d="M12 22V12" />
       </svg>
     )
   return null

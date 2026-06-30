@@ -1,9 +1,9 @@
 'use client'
 
-import { useState, useTransition, useMemo } from 'react'
-import { useRouter } from 'next/navigation'
+import { useState, useEffect, useTransition, useRef, useCallback } from 'react'
+import { useRouter, usePathname } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
-import { createRepuesto, updateRepuesto, softDeleteRepuesto } from '@/modules/inventory/mutations'
+import { createRepuesto, softDeleteRepuesto } from '@/modules/inventory/mutations'
 import { calcularEstadoStock } from '@/modules/inventory/queries'
 import type { Repuesto, RepuestoCreateInput } from '@/modules/inventory/types'
 import {
@@ -15,7 +15,6 @@ import {
   ESTADO_STOCK_CLASS,
 } from '@/modules/inventory/constants'
 import {
-  card,
   sectionLabel,
   inputClass,
   labelClass,
@@ -169,25 +168,112 @@ function FormCreate({ onCreated, onCancel }: FormCreateProps) {
   )
 }
 
+// ── Paginación ─────────────────────────────────────────────────────────────
+
+interface PaginacionProps {
+  currentPage: number
+  totalPages: number
+  total: number
+  pageSize: number
+  onPage: (p: number) => void
+  loading: boolean
+}
+
+function Paginacion({ currentPage, totalPages, total, pageSize, onPage, loading }: PaginacionProps) {
+  const from = Math.min((currentPage - 1) * pageSize + 1, total)
+  const to   = Math.min(currentPage * pageSize, total)
+
+  return (
+    <div className="flex flex-wrap items-center justify-between gap-3 border-t border-white/[0.05] pt-4">
+      <p className="text-xs text-neutral-500">
+        {total === 0 ? 'Sin resultados' : `Mostrando ${from}–${to} de ${total.toLocaleString('es-CL')}`}
+      </p>
+      <div className="flex items-center gap-2">
+        <button
+          onClick={() => onPage(currentPage - 1)}
+          disabled={currentPage <= 1 || loading}
+          className={`${btnSecondary} px-3 py-1.5 text-xs disabled:opacity-30`}
+        >
+          ← Anterior
+        </button>
+        <span className="min-w-[4rem] text-center text-xs text-neutral-400">
+          {currentPage} / {totalPages}
+        </span>
+        <button
+          onClick={() => onPage(currentPage + 1)}
+          disabled={currentPage >= totalPages || loading}
+          className={`${btnSecondary} px-3 py-1.5 text-xs disabled:opacity-30`}
+        >
+          Siguiente →
+        </button>
+      </div>
+    </div>
+  )
+}
+
 // ── Vista principal ────────────────────────────────────────────────────────
 
-export function InventarioClient({ initialRepuestos }: { initialRepuestos: Repuesto[] }) {
-  const router = useRouter()
-  const [query, setQuery] = useState('')
-  const [showForm, setShowForm] = useState(false)
-  const [deletingId, setDeletingId] = useState<string | null>(null)
-  const [deleteError, setDeleteError] = useState<string | null>(null)
+interface InventarioClientProps {
+  repuestos: Repuesto[]
+  total: number
+  currentPage: number
+  pageSize: number
+  totalPages: number
+  initialSearch: string
+}
 
-  const filtered = useMemo(() => {
-    if (!query.trim()) return initialRepuestos
-    const q = query.toLowerCase()
-    return initialRepuestos.filter(
-      (r) =>
-        r.codigo.toLowerCase().includes(q) ||
-        r.nombre.toLowerCase().includes(q) ||
-        (r.marca?.toLowerCase().includes(q) ?? false),
-    )
-  }, [initialRepuestos, query])
+export function InventarioClient({
+  repuestos,
+  total,
+  currentPage,
+  pageSize,
+  totalPages,
+  initialSearch,
+}: InventarioClientProps) {
+  const router   = useRouter()
+  const pathname = usePathname()
+
+  const [inputValue, setInputValue]   = useState(initialSearch)
+  const [showForm, setShowForm]       = useState(false)
+  const [deletingId, setDeletingId]   = useState<string | null>(null)
+  const [deleteError, setDeleteError] = useState<string | null>(null)
+  const [navigating, setNavigating]   = useState(false)
+
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  // Sync inputValue cuando el servidor devuelve nueva búsqueda (ej: volver al listado)
+  useEffect(() => {
+    setInputValue(initialSearch)
+  }, [initialSearch])
+
+  const navigate = useCallback(
+    (search: string, page: number) => {
+      const params = new URLSearchParams()
+      if (search.trim()) params.set('search', search.trim())
+      if (page > 1)      params.set('page', String(page))
+      const qs = params.toString()
+      setNavigating(true)
+      router.replace(`${pathname}${qs ? `?${qs}` : ''}`)
+    },
+    [router, pathname],
+  )
+
+  function handleSearchChange(value: string) {
+    setInputValue(value)
+    if (debounceRef.current) clearTimeout(debounceRef.current)
+    debounceRef.current = setTimeout(() => {
+      navigate(value, 1)
+    }, 300)
+  }
+
+  function handlePage(p: number) {
+    navigate(inputValue, p)
+  }
+
+  // Quitar spinner de navegación cuando cambia la data del servidor
+  useEffect(() => {
+    setNavigating(false)
+  }, [repuestos])
 
   async function eliminar(id: string) {
     if (!confirm('¿Eliminar este repuesto del catálogo?')) return
@@ -204,6 +290,10 @@ export function InventarioClient({ initialRepuestos }: { initialRepuestos: Repue
     }
   }
 
+  const countBajoStock = repuestos.filter(
+    (r) => calcularEstadoStock(r.stock_actual, r.stock_minimo) !== 'en_stock',
+  ).length
+
   return (
     <div className="space-y-5">
       {/* Cabecera */}
@@ -211,7 +301,7 @@ export function InventarioClient({ initialRepuestos }: { initialRepuestos: Repue
         <div>
           <h1 className="text-2xl font-semibold tracking-tight text-neutral-50">Inventario</h1>
           <p className="mt-0.5 text-sm text-neutral-500">
-            {initialRepuestos.length} repuesto{initialRepuestos.length !== 1 ? 's' : ''} en catálogo
+            {total.toLocaleString('es-CL')} repuesto{total !== 1 ? 's' : ''} en catálogo
           </p>
         </div>
         {!showForm && (
@@ -229,13 +319,33 @@ export function InventarioClient({ initialRepuestos }: { initialRepuestos: Repue
         />
       )}
 
-      {/* Búsqueda */}
-      <input
-        className={inputClass}
-        placeholder="Filtrar por código, nombre o marca…"
-        value={query}
-        onChange={(e) => setQuery(e.target.value)}
-      />
+      {/* Búsqueda server-side */}
+      <div className="relative">
+        <input
+          className={inputClass}
+          placeholder="Buscar por código, nombre, marca o proveedor…"
+          value={inputValue}
+          onChange={(e) => handleSearchChange(e.target.value)}
+        />
+        {navigating && (
+          <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-neutral-500 animate-pulse">
+            Buscando…
+          </span>
+        )}
+      </div>
+
+      {/* Alertas bajo stock — solo en sin filtro */}
+      {!initialSearch && countBajoStock > 0 && (
+        <div className="rounded-lg border border-yellow-500/20 bg-yellow-500/[0.06] px-4 py-2.5">
+          <p className="text-xs font-semibold text-yellow-400">
+            {repuestos.filter((r) => calcularEstadoStock(r.stock_actual, r.stock_minimo) === 'sin_stock').length} sin stock
+            {' · '}
+            {repuestos.filter((r) => calcularEstadoStock(r.stock_actual, r.stock_minimo) === 'bajo_stock').length} bajo mínimo
+            {' · '}
+            <span className="font-normal text-yellow-500/70">solo en esta página</span>
+          </p>
+        </div>
+      )}
 
       {deleteError && (
         <p className="rounded-lg border border-red-500/25 bg-red-500/10 px-4 py-2 text-sm text-red-400">
@@ -243,70 +353,87 @@ export function InventarioClient({ initialRepuestos }: { initialRepuestos: Repue
         </p>
       )}
 
-      {/* Alertas bajo stock */}
-      {initialRepuestos.some((r) => calcularEstadoStock(r.stock_actual, r.stock_minimo) !== 'en_stock') && (
-        <div className="rounded-lg border border-yellow-500/20 bg-yellow-500/[0.06] px-4 py-2.5">
-          <p className="text-xs font-semibold text-yellow-400">
-            {initialRepuestos.filter((r) => calcularEstadoStock(r.stock_actual, r.stock_minimo) === 'sin_stock').length} sin stock
-            {' · '}
-            {initialRepuestos.filter((r) => calcularEstadoStock(r.stock_actual, r.stock_minimo) === 'bajo_stock').length} bajo mínimo
-          </p>
-        </div>
-      )}
-
       {/* Lista */}
-      {filtered.length === 0 ? (
-        <p className="text-sm text-neutral-600">
-          {query ? 'Sin resultados para esa búsqueda.' : 'Sin repuestos en el catálogo.'}
-        </p>
-      ) : (
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="border-b border-white/[0.06]">
-                {['Código', 'Nombre', 'Marca', 'Categoría', 'Stock', 'Precio venta', ''].map((h) => (
-                  <th key={h} className="pb-2.5 pr-4 text-left text-[11px] font-semibold uppercase tracking-wider text-neutral-500 first:pl-0">
-                    {h}
-                  </th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {filtered.map((r) => (
-                <tr key={r.id} className="border-b border-white/[0.03] hover:bg-white/[0.02]">
-                  <td className="py-3 pr-4">
-                    <span className="font-mono text-xs text-neutral-300">{r.codigo}</span>
-                  </td>
-                  <td className="py-3 pr-4">
-                    <p className="font-medium text-neutral-100">{r.nombre}</p>
-                    {r.modelo_aplicacion && (
-                      <p className="text-[11px] text-neutral-600">{r.modelo_aplicacion}</p>
-                    )}
-                  </td>
-                  <td className="py-3 pr-4 text-neutral-400">{r.marca ?? '—'}</td>
-                  <td className="py-3 pr-4 text-neutral-500">
-                    {r.categoria ? CATEGORIA_LABEL[r.categoria] ?? r.categoria : '—'}
-                  </td>
-                  <td className="py-3 pr-4">
-                    <StockBadge stock={r.stock_actual} minimo={r.stock_minimo} />
-                  </td>
-                  <td className="py-3 pr-4 font-medium text-neutral-200">{fmtCLP(r.precio_venta)}</td>
-                  <td className="py-3">
-                    <button
-                      onClick={() => void eliminar(r.id)}
-                      disabled={deletingId === r.id}
-                      className={`${btnGhost} px-2 py-1 text-xs text-red-400 hover:text-red-300`}
-                      title="Eliminar repuesto"
+      <div className={`transition-opacity duration-150 ${navigating ? 'opacity-40 pointer-events-none' : 'opacity-100'}`}>
+        {repuestos.length === 0 ? (
+          <div className="py-12 text-center">
+            <p className="text-sm text-neutral-500">
+              {initialSearch ? (
+                <>Sin resultados para <span className="font-mono text-neutral-300">{initialSearch}</span>.</>
+              ) : (
+                'Sin repuestos en el catálogo.'
+              )}
+            </p>
+            {initialSearch && (
+              <p className="mt-1 text-xs text-neutral-700">
+                Verifica el código o nombre. Puedes crear el repuesto con el botón + Nuevo repuesto.
+              </p>
+            )}
+          </div>
+        ) : (
+          <>
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b border-white/[0.06]">
+                    {['Código', 'Nombre', 'Marca', 'Categoría', 'Stock', 'Precio venta', ''].map((h) => (
+                      <th key={h} className="pb-2.5 pr-4 text-left text-[11px] font-semibold uppercase tracking-wider text-neutral-500 first:pl-0">
+                        {h}
+                      </th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {repuestos.map((r) => (
+                    <tr
+                      key={r.id}
+                      className="cursor-pointer border-b border-white/[0.03] hover:bg-white/[0.02]"
+                      onClick={() => router.push(`/inventory/${r.id}`)}
                     >
-                      {deletingId === r.id ? '…' : 'Eliminar'}
-                    </button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      )}
+                      <td className="py-3 pr-4">
+                        <span className="font-mono text-xs text-neutral-300">{r.codigo}</span>
+                      </td>
+                      <td className="py-3 pr-4">
+                        <p className="font-medium text-neutral-100">{r.nombre}</p>
+                        {r.modelo_aplicacion && (
+                          <p className="text-[11px] text-neutral-600">{r.modelo_aplicacion}</p>
+                        )}
+                      </td>
+                      <td className="py-3 pr-4 text-neutral-400">{r.marca ?? '—'}</td>
+                      <td className="py-3 pr-4 text-neutral-500">
+                        {r.categoria ? CATEGORIA_LABEL[r.categoria] ?? r.categoria : '—'}
+                      </td>
+                      <td className="py-3 pr-4">
+                        <StockBadge stock={r.stock_actual} minimo={r.stock_minimo} />
+                      </td>
+                      <td className="py-3 pr-4 font-medium text-neutral-200">{fmtCLP(r.precio_venta)}</td>
+                      <td className="py-3">
+                        <button
+                          onClick={(e) => { e.stopPropagation(); void eliminar(r.id) }}
+                          disabled={deletingId === r.id}
+                          className={`${btnGhost} px-2 py-1 text-xs text-red-400 hover:text-red-300`}
+                          title="Eliminar repuesto"
+                        >
+                          {deletingId === r.id ? '…' : 'Eliminar'}
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+
+            <Paginacion
+              currentPage={currentPage}
+              totalPages={totalPages}
+              total={total}
+              pageSize={pageSize}
+              onPage={handlePage}
+              loading={navigating}
+            />
+          </>
+        )}
+      </div>
     </div>
   )
 }
