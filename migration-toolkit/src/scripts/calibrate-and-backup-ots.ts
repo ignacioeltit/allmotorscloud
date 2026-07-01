@@ -1,15 +1,15 @@
 /**
- * Calibra el ritmo real de la API de TallerGP (no documentado públicamente) mientras
- * respalda el detalle de OTs de verdad — cada request exitosa se guarda como progreso
- * real, no se desperdicia nada.
+ * Respaldo autónomo del historial TallerGP por fases: OTs → presupuestos → facturas.
+ * Cada tanda respeta la cuota real de la API (~100 requests/hora, no documentada):
+ * arranca lento (1 req/15s), acelera gradualmente, y ante un 429 se detiene al
+ * instante anotando cuándo vence el bloqueo para que la próxima corrida del cron
+ * (cada 10 min) sepa si le toca trabajar o salir sin gastar cuota.
  *
- * Estrategia: empieza MUY lento (1 req cada 15s) y acelera gradualmente mientras no
- * haya errores 429. Si aparece un 429, se detiene inmediatamente (sin esperar la hora
- * de cooldown) y reporta el ritmo máximo seguro encontrado. No usa el cliente
- * compartido (client.ts) porque ese reintenta automáticamente esperando el
- * Retry-After completo — acá necesitamos detectar el 429 y parar, no esperarlo.
+ * No usa el cliente compartido (client.ts) porque ese espera el Retry-After
+ * completo dentro del proceso; acá el cron es quien maneja la espera.
  *
- * Ejecutar: npm run calibrate-ots -- [--start-delay=15000] [--max=50]
+ * Resumible por existencia de archivo: listas en <fase>-list/page-NNNNN.json,
+ * detalles en <fase>/<id>.json. Ejecutar: npm run calibrate-ots
  */
 
 import 'dotenv/config'
@@ -20,15 +20,30 @@ import { getBearerToken } from '../api/tallergp/auth.js'
 import { logger } from '../utils/logger.js'
 
 const BACKUP_DIR = resolve(process.env.EXPORT_DIR ?? './exports', 'backup')
-const LIST_DIR = join(BACKUP_DIR, 'repair-orders-list')
-const DETAIL_DIR = join(BACKUP_DIR, 'repair-orders')
 const API_URL = process.env.TALLERGP_API_URL ?? 'https://api.tallergp.com'
+const PER_PAGE = 100
 
 const START_DELAY_MS = Number(process.argv.find((a) => a.startsWith('--start-delay='))?.split('=')[1] ?? 15000)
 const FLOOR_DELAY_MS = 1000
 const MAX_REQUESTS = Number(process.argv.find((a) => a.startsWith('--max='))?.split('=')[1] ?? Infinity)
 const ACCELERATE_EVERY_N_SUCCESSES = 5
 const ACCELERATE_FACTOR = 0.75 // reduce el delay un 25% cada N éxitos seguidos
+
+// Fases en orden: cuando una queda completa (listado + todos los detalles),
+// la siguiente corrida continúa con la próxima automáticamente.
+interface Fase {
+  nombre: string
+  listPath: string
+  listDir: string
+  detailDir: string
+  idField: string
+}
+
+const FASES: Fase[] = [
+  { nombre: 'OTs', listPath: '/repair-orders', listDir: 'repair-orders-list', detailDir: 'repair-orders', idField: 'entry_id' },
+  { nombre: 'Presupuestos', listPath: '/budgets', listDir: 'budgets-list', detailDir: 'budgets', idField: 'budget_id' },
+  { nombre: 'Facturas', listPath: '/invoices', listDir: 'invoices-list', detailDir: 'invoices', idField: 'invoice_id' },
+]
 
 // Compuerta para el cron cada 10 min: tras un 429 se anota cuándo vence el
 // bloqueo (+1 min de margen); las corridas que llegan antes salen sin gastar
@@ -44,6 +59,10 @@ function sleep(ms: number): Promise<void> {
 
 function ensureDir(dir: string): void {
   if (!existsSync(dir)) mkdirSync(dir, { recursive: true })
+}
+
+function pad(n: number): string {
+  return String(n).padStart(5, '0')
 }
 
 function nextAllowedAt(): number {
@@ -85,19 +104,58 @@ function releaseLock(): void {
   }
 }
 
-function loadPendingIds(): string[] {
-  const files = readdirSync(LIST_DIR).filter((f) => f.startsWith('page-') && f.endsWith('.json')).sort()
-  const ids: string[] = []
-  for (const f of files) {
-    const parsed = JSON.parse(readFileSync(join(LIST_DIR, f), 'utf-8'))
-    for (const ot of parsed.data as { entry_id: string }[]) ids.push(ot.entry_id)
-  }
-  return ids.filter((id) => !existsSync(join(DETAIL_DIR, `${id}.json`)))
+// ── Trabajo pendiente por fase ───────────────────────────────────────────────
+
+type Trabajo =
+  | { kind: 'list'; page: number }
+  | { kind: 'detail'; id: string }
+
+/** Estado del listado de una fase: páginas descargadas vs total conocido. */
+function estadoListado(fase: Fase): { paginas: number; totalPaginas: number | null } {
+  const dir = join(BACKUP_DIR, fase.listDir)
+  if (!existsSync(dir)) return { paginas: 0, totalPaginas: null }
+  const files = readdirSync(dir).filter((f) => f.startsWith('page-') && f.endsWith('.json'))
+  if (files.length === 0) return { paginas: 0, totalPaginas: null }
+  const primera = JSON.parse(readFileSync(join(dir, files.sort()[0]!), 'utf-8'))
+  return { paginas: files.length, totalPaginas: Number(primera.pagination.total_pages) }
 }
 
-async function main(): Promise<void> {
-  ensureDir(DETAIL_DIR)
+/** Cola de trabajo de la fase: primero páginas de listado faltantes, luego detalles. */
+function colaDeFase(fase: Fase): Trabajo[] {
+  const listDir = join(BACKUP_DIR, fase.listDir)
+  const detailDir = join(BACKUP_DIR, fase.detailDir)
+  ensureDir(listDir)
+  ensureDir(detailDir)
 
+  const { paginas, totalPaginas } = estadoListado(fase)
+  if (totalPaginas === null || paginas < totalPaginas) {
+    // Listado incompleto: pedir las páginas que falten (los detalles vienen después)
+    const cola: Trabajo[] = []
+    const hasta = totalPaginas ?? 1
+    for (let p = 1; p <= hasta; p++) {
+      if (!existsSync(join(listDir, `page-${pad(p)}.json`))) cola.push({ kind: 'list', page: p })
+    }
+    if (totalPaginas === null) return cola // aún no sabemos cuántas hay: parte con la 1
+    return cola
+  }
+
+  // Listado completo: detalles pendientes
+  const ids: string[] = []
+  for (const f of readdirSync(listDir).filter((x) => x.startsWith('page-')).sort()) {
+    const parsed = JSON.parse(readFileSync(join(listDir, f), 'utf-8'))
+    for (const row of parsed.data as Record<string, string>[]) {
+      const id = row[fase.idField]
+      if (id) ids.push(id)
+    }
+  }
+  return ids
+    .filter((id) => !existsSync(join(detailDir, `${id}.json`)))
+    .map((id) => ({ kind: 'detail', id }))
+}
+
+// ── Main ─────────────────────────────────────────────────────────────────────
+
+async function main(): Promise<void> {
   // Compuerta de cooldown: si el bloqueo del último 429 sigue vigente, salir
   // sin gastar ni un request (el cron reintenta en 10 min).
   const allowedAt = nextAllowedAt()
@@ -112,77 +170,93 @@ async function main(): Promise<void> {
     return
   }
 
-  const pending = loadPendingIds()
-  if (pending.length === 0) {
-    console.log(`\n🏁 RESPALDO COMPLETO: no quedan OTs pendientes. Puedes quitar el cron (crontab -r).`)
-    releaseLock()
-    return
-  }
-
-  console.log(`\n─── Calibración de rate-limit + respaldo real de OTs ───`)
-  console.log(`Pendientes: ${pending.length}. Delay inicial: ${START_DELAY_MS}ms. Máximo esta corrida: ${MAX_REQUESTS}\n`)
-
   const token = await getBearerToken()
   let delayMs = START_DELAY_MS
   let successStreak = 0
   let totalSuccess = 0
   let totalAttempts = 0
 
-  for (const id of pending) {
-    if (totalAttempts >= MAX_REQUESTS) {
-      console.log(`\nLímite de esta corrida alcanzado (${MAX_REQUESTS}). Delay final estable: ${delayMs}ms.`)
-      break
-    }
+  try {
+    for (const fase of FASES) {
+      // La cola se recalcula al entrar a la fase y cada vez que se agota
+      // (ej: al terminar el listado aparecen los detalles).
+      for (;;) {
+        const cola = colaDeFase(fase)
+        if (cola.length === 0) break
 
-    await sleep(delayMs)
-    totalAttempts++
+        console.log(`\n─── Fase ${fase.nombre}: ${cola.length} ítems pendientes (delay actual: ${delayMs}ms) ───`)
 
-    try {
-      const res = await axios.get(`${API_URL}/repair-orders/${id}`, {
-        headers: { Authorization: `Bearer ${token}`, Accept: 'application/json' },
-        timeout: 30_000,
-      })
-      writeFileSync(join(DETAIL_DIR, `${id}.json`), JSON.stringify(res.data, null, 2), 'utf-8')
-      totalSuccess++
-      successStreak++
-      console.log(`  ✓ [${totalSuccess}/${pending.length}] OT ${id} guardada (delay actual: ${delayMs}ms)`)
+        for (const trabajo of cola) {
+          if (totalAttempts >= MAX_REQUESTS) {
+            console.log(`\nLímite de esta corrida alcanzado (${MAX_REQUESTS}).`)
+            return
+          }
 
-      if (successStreak >= ACCELERATE_EVERY_N_SUCCESSES) {
-        const nuevoDelay = Math.max(FLOOR_DELAY_MS, Math.round(delayMs * ACCELERATE_FACTOR))
-        if (nuevoDelay !== delayMs) {
-          console.log(`  ⚡ ${successStreak} éxitos seguidos → acelerando: ${delayMs}ms → ${nuevoDelay}ms`)
+          await sleep(delayMs)
+          totalAttempts++
+
+          const url =
+            trabajo.kind === 'list'
+              ? `${API_URL}${fase.listPath}?page=${trabajo.page}&per_page=${PER_PAGE}`
+              : `${API_URL}${fase.listPath}/${trabajo.id}`
+
+          try {
+            const res = await axios.get(url, {
+              headers: { Authorization: `Bearer ${token}`, Accept: 'application/json' },
+              timeout: 30_000,
+            })
+
+            if (trabajo.kind === 'list') {
+              writeFileSync(
+                join(BACKUP_DIR, fase.listDir, `page-${pad(trabajo.page)}.json`),
+                JSON.stringify(res.data, null, 2),
+                'utf-8',
+              )
+              console.log(`  ✓ ${fase.nombre} listado página ${trabajo.page}/${res.data?.pagination?.total_pages ?? '?'}`)
+            } else {
+              writeFileSync(
+                join(BACKUP_DIR, fase.detailDir, `${trabajo.id}.json`),
+                JSON.stringify(res.data, null, 2),
+                'utf-8',
+              )
+              totalSuccess++
+              if (totalSuccess % 10 === 0) {
+                console.log(`  ✓ ${fase.nombre}: ${totalSuccess} detalles en esta tanda (delay: ${delayMs}ms)`)
+              }
+            }
+
+            successStreak++
+            if (successStreak >= ACCELERATE_EVERY_N_SUCCESSES) {
+              delayMs = Math.max(FLOOR_DELAY_MS, Math.round(delayMs * ACCELERATE_FACTOR))
+              successStreak = 0
+            }
+          } catch (err) {
+            const status = axios.isAxiosError(err) ? err.response?.status : undefined
+            if (status === 429) {
+              const retryAfter = axios.isAxiosError(err) ? err.response?.headers['retry-after'] : undefined
+              writeNextAllowed(Number(retryAfter) || 3600)
+              console.log(`\n🛑 429 en fase ${fase.nombre}. Requests de esta tanda: ${totalAttempts - 1} ok.`)
+              console.log(`   Retry-After: ${retryAfter ?? '?'}s — próxima tanda anotada para dentro de ~61 min.`)
+              return
+            }
+            logger.error(`Error en ${fase.nombre} (${JSON.stringify(trabajo)})`, {
+              status,
+              error: (err as Error).message,
+            })
+          }
         }
-        delayMs = nuevoDelay
-        successStreak = 0
-      }
-    } catch (err) {
-      const status = axios.isAxiosError(err) ? err.response?.status : undefined
-      if (status === 429) {
-        const retryAfter = axios.isAxiosError(err) ? err.response?.headers['retry-after'] : undefined
-        writeNextAllowed(Number(retryAfter) || 3600)
-        console.log(`\n🛑 429 recibido en OT ${id}. Delay que lo disparó: ${delayMs}ms.`)
-        console.log(`   Retry-After del servidor: ${retryAfter ?? '?'}s — próxima tanda anotada para dentro de ~61 min.`)
-        console.log(`\n═══════════════════════════════════════════════════`)
-        console.log(`  RESULTADO DE CALIBRACIÓN`)
-        console.log(`═══════════════════════════════════════════════════`)
-        console.log(`  Requests exitosas antes del límite: ${totalSuccess}`)
-        console.log(`  Delay seguro (último exitoso):       ${successStreak === 0 ? delayMs : delayMs}ms`)
-        console.log(`  Delay que disparó el límite:         ${delayMs}ms`)
-        console.log(`  OTs respaldadas en esta corrida:     ${totalSuccess}`)
-        console.log(`  OTs pendientes en total:              ${pending.length - totalSuccess}`)
-        console.log(`═══════════════════════════════════════════════════\n`)
-        console.log(`No se espera el cooldown — deteniendo de inmediato para no perder tiempo.`)
-        releaseLock()
-        return
-      }
-      logger.error(`Error OT ${id}`, { status, error: (err as Error).message })
-    }
-  }
 
-  console.log(`\n✅ Corrida terminada sin disparar rate-limit.`)
-  console.log(`   Exitosas: ${totalSuccess}. Delay final: ${delayMs}ms.`)
-  console.log(`   Pendientes restantes: ${pending.length - totalSuccess}`)
-  releaseLock()
+        // Cola agotada sin 429: recalcular (pueden aparecer detalles tras el listado)
+      }
+
+      console.log(`\n✅ Fase ${fase.nombre} COMPLETA (listado + detalles).`)
+    }
+
+    console.log(`\n🏁 EXTRACCIÓN COMPLETA: OTs, presupuestos y facturas respaldados.`)
+    console.log(`   Puedes quitar el cron con: crontab -r`)
+  } finally {
+    releaseLock()
+  }
 }
 
 main().catch((err) => {
