@@ -5,12 +5,18 @@ import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { crearReparacion, addItemReparacion, softDeleteItemReparacion } from '@/modules/reparaciones/mutations'
 import { TIPOS_ITEM_REPARACION, TIPOS_ITEM_LABEL } from '@/modules/reparaciones/constants'
-import type { ReparacionConItems } from '@/modules/reparaciones/types'
+import type { ReparacionConItems, ItemReparacion } from '@/modules/reparaciones/types'
 import type { MecanicoSimple } from '@/modules/users/types'
 import { searchRepuestos } from '@/modules/inventory/queries'
 import { consumirStockParaOT } from '@/modules/inventory/mutations'
 import type { RepuestoResumen } from '@/modules/inventory/types'
 import { ESTADO_STOCK_LABEL, ESTADO_STOCK_CLASS } from '@/modules/inventory/constants'
+import { buscarServiciosCatalogo, contarServiciosPendientes } from '@/modules/catalogo/queries'
+import { crearServicioDesdeOT } from '@/modules/catalogo/mutations'
+import type { CatalogoServicio } from '@/modules/catalogo/types'
+import { CATEGORIAS_CATALOGO, CATEGORIA_LABEL, CATEGORIA_COLOR } from '@/modules/catalogo/constants'
+import type { ConfiguracionManoObra } from '@/modules/taller/types'
+import { getValorHoraForServicio } from '@/modules/taller/helpers'
 import {
   card,
   sectionLabel,
@@ -38,21 +44,166 @@ function StockBadge({ estado }: { estado: string }) {
   )
 }
 
-interface AgregarItemFormProps {
-  reparacionId: string
-  onDone: () => void
+// ── Badge de categoría del catálogo ─────────────────────────────────────
+
+function CategoriaBadge({ categoria }: { categoria: string | null }) {
+  if (!categoria) return null
+  const key = categoria as keyof typeof CATEGORIA_COLOR
+  const colorClass = CATEGORIA_COLOR[key] ?? 'border-white/10 bg-white/[0.04] text-neutral-500'
+  const label = CATEGORIA_LABEL[key] ?? categoria
+  return (
+    <span className={`rounded-full border px-2 py-0.5 text-[10px] font-medium ${colorClass}`}>
+      {label}
+    </span>
+  )
+}
+
+// ── Mini-formulario para crear servicio desde OT ─────────────────────────
+
+interface CrearServicioFormProps {
+  nombreInicial: string
+  onCreado: (servicio: CatalogoServicio) => void
   onCancel: () => void
 }
 
-function AgregarItemForm({ reparacionId, onDone, onCancel }: AgregarItemFormProps) {
-  const [tipo, setTipo] = useState<'mano_obra' | 'repuesto'>('mano_obra')
-  const [descripcion, setDescripcion] = useState('')
-  const [cantidad, setCantidad] = useState('1')
-  const [costoUnitario, setCostoUnitario] = useState('')
+function CrearServicioForm({ nombreInicial, onCreado, onCancel }: CrearServicioFormProps) {
+  const [nombre, setNombre] = useState(nombreInicial)
+  const [categoria, setCategoria] = useState('')
+  const [precio, setPrecio] = useState('')
+  const [horas, setHoras] = useState('')
   const [error, setError] = useState<string | null>(null)
   const [pending, startTransition] = useTransition()
 
-  // Inventario: estado de búsqueda
+  function submit() {
+    const precioNum = parseInt(precio, 10)
+    if (nombre.trim().length < 5) { setError('El nombre debe tener al menos 5 caracteres.'); return }
+    if (!categoria) { setError('Selecciona una categoría.'); return }
+    if (isNaN(precioNum) || precioNum < 0) { setError('Precio inválido.'); return }
+    if (precioNum > 2_000_000) { setError('Precio inusualmente alto (máx $2.000.000). Verifica.'); return }
+    setError(null)
+    startTransition(async () => {
+      try {
+        const supabase = createClient()
+        const horasNum = horas.trim() ? parseFloat(horas) : null
+        const servicio = await crearServicioDesdeOT(supabase, {
+          nombre: nombre.trim(),
+          categoria,
+          precioUnitario: precioNum,
+          horasEstandar: horasNum && horasNum > 0 ? horasNum : null,
+        })
+        onCreado(servicio)
+      } catch (e) {
+        setError(e instanceof Error ? e.message : 'Error al crear el servicio.')
+      }
+    })
+  }
+
+  return (
+    <div className="mt-3 rounded-lg border border-amber-500/20 bg-amber-500/[0.04] p-4">
+      <p className="mb-1 text-xs font-semibold uppercase tracking-wider text-amber-400">
+        Nuevo servicio — quedará pendiente de revisión
+      </p>
+      <p className="mb-3 text-[11px] text-neutral-500">
+        Admin o jefe_taller deberán aprobarlo como catálogo oficial.
+      </p>
+      <div className="space-y-3">
+        <div>
+          <label className={labelClass}>Nombre *</label>
+          <input
+            className={inputClass}
+            value={nombre}
+            onChange={(e) => setNombre(e.target.value)}
+            placeholder="ej: REPARACIÓN BOMBA AGUA"
+            disabled={pending}
+            autoFocus
+          />
+        </div>
+        <div className="grid grid-cols-2 gap-3">
+          <div>
+            <label className={labelClass}>Categoría *</label>
+            <select
+              className={inputClass}
+              value={categoria}
+              onChange={(e) => setCategoria(e.target.value)}
+              disabled={pending}
+            >
+              <option value="">Seleccionar…</option>
+              {CATEGORIAS_CATALOGO.map((c) => (
+                <option key={c} value={c}>{CATEGORIA_LABEL[c]}</option>
+              ))}
+            </select>
+          </div>
+          <div>
+            <label className={labelClass}>Precio neto CLP *</label>
+            <input
+              className={inputClass}
+              type="number"
+              min="0"
+              step="1"
+              placeholder="0"
+              value={precio}
+              onChange={(e) => setPrecio(e.target.value)}
+              disabled={pending}
+            />
+          </div>
+        </div>
+        <div className="w-1/2 pr-1.5">
+          <label className={labelClass}>Horas estándar (opcional)</label>
+          <input
+            className={inputClass}
+            type="number"
+            min="0.1"
+            step="0.1"
+            placeholder="ej: 1.5"
+            value={horas}
+            onChange={(e) => setHoras(e.target.value)}
+            disabled={pending}
+          />
+        </div>
+        {error && <p className="text-xs text-red-400">{error}</p>}
+        <div className="flex gap-2">
+          <button type="button" className={btnPrimary} disabled={pending} onClick={submit}>
+            {pending ? 'Creando…' : 'Crear y usar en OT'}
+          </button>
+          <button type="button" className={btnSecondary} onClick={onCancel} disabled={pending}>
+            Cancelar
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// ── Formulario de agregar ítem ───────────────────────────────────────────
+
+interface AgregarItemFormProps {
+  reparacionId: string
+  configuracion: ConfiguracionManoObra
+  onDone: (hasPendiente?: boolean) => void
+  onCancel: () => void
+}
+
+function AgregarItemForm({ reparacionId, configuracion, onDone, onCancel }: AgregarItemFormProps) {
+  const [tipo, setTipo] = useState<'mano_obra' | 'repuesto'>('mano_obra')
+  const [descripcion, setDescripcion] = useState('')
+  const [cantidad, setCantidad] = useState('1')
+  // Mano de obra: el precio unitario es el valor hora (arranca con la tarifa
+  // por defecto de la plantilla; se ajusta según la categoría del servicio).
+  const [costoUnitario, setCostoUnitario] = useState(String(configuracion.valor_hora_mecanica))
+  const [costoCompra, setCostoCompra] = useState('')
+  const [error, setError] = useState<string | null>(null)
+  const [pending, startTransition] = useTransition()
+
+  // ── Estado: buscador de catálogo (mano_obra) ──────────────────────────
+  const [catalogoQuery, setCatalogoQuery] = useState('')
+  const [catalogoResults, setCatalogoResults] = useState<CatalogoServicio[]>([])
+  const [catalogoSearching, setCatalogoSearching] = useState(false)
+  const [showCatalogoDropdown, setShowCatalogoDropdown] = useState(false)
+  const [selectedServicio, setSelectedServicio] = useState<CatalogoServicio | null>(null)
+  const [showCrearForm, setShowCrearForm] = useState(false)
+  const catalogoTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  // ── Estado: buscador de inventario (repuesto) ─────────────────────────
   const [searchQuery, setSearchQuery] = useState('')
   const [searchResults, setSearchResults] = useState<RepuestoResumen[]>([])
   const [searching, setSearching] = useState(false)
@@ -60,7 +211,30 @@ function AgregarItemForm({ reparacionId, onDone, onCancel }: AgregarItemFormProp
   const [selectedRepuesto, setSelectedRepuesto] = useState<RepuestoResumen | null>(null)
   const searchTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
-  // Debounced search cuando tipo='repuesto'
+  // Debounced: búsqueda en catálogo cuando tipo='mano_obra'
+  useEffect(() => {
+    if (tipo !== 'mano_obra') { setCatalogoResults([]); return }
+    if (!catalogoQuery.trim()) { setCatalogoResults([]); setShowCatalogoDropdown(false); return }
+
+    if (catalogoTimerRef.current) clearTimeout(catalogoTimerRef.current)
+    setCatalogoSearching(true)
+    catalogoTimerRef.current = setTimeout(async () => {
+      try {
+        const supabase = createClient()
+        const results = await buscarServiciosCatalogo(supabase, catalogoQuery.trim())
+        setCatalogoResults(results)
+        setShowCatalogoDropdown(true)
+      } catch {
+        setCatalogoResults([])
+      } finally {
+        setCatalogoSearching(false)
+      }
+    }, 300)
+
+    return () => { if (catalogoTimerRef.current) clearTimeout(catalogoTimerRef.current) }
+  }, [catalogoQuery, tipo])
+
+  // Debounced: búsqueda en inventario cuando tipo='repuesto'
   useEffect(() => {
     if (tipo !== 'repuesto') { setSearchResults([]); return }
     if (!searchQuery.trim()) { setSearchResults([]); setShowDropdown(false); return }
@@ -83,10 +257,37 @@ function AgregarItemForm({ reparacionId, onDone, onCancel }: AgregarItemFormProp
     return () => { if (searchTimerRef.current) clearTimeout(searchTimerRef.current) }
   }, [searchQuery, tipo])
 
+  function selectServicio(s: CatalogoServicio) {
+    setSelectedServicio(s)
+    setDescripcion(s.nombre)
+    if (s.unidad_precio === 'hora' && s.horas_estandar != null) {
+      // Mano de obra por hora: la cantidad son las horas (editable — el usuario
+      // ajusta las horas reales), y el precio unitario es el valor hora de la
+      // plantilla según la categoría. total = horas × valor hora.
+      setCantidad(String(s.horas_estandar))
+      setCostoUnitario(String(getValorHoraForServicio(configuracion, s.categoria)))
+    } else {
+      // Servicio de precio fijo: cantidad = 1, precio = precio del catálogo.
+      setCantidad('1')
+      setCostoUnitario(String(s.precio_unitario))
+    }
+    setShowCatalogoDropdown(false)
+    setCatalogoQuery('')
+    setShowCrearForm(false)
+  }
+
+  function clearServicio() {
+    setSelectedServicio(null)
+    setDescripcion('')
+    setCantidad('1')
+    setCostoUnitario(String(configuracion.valor_hora_mecanica))
+  }
+
   function selectRepuesto(r: RepuestoResumen) {
     setSelectedRepuesto(r)
     setDescripcion(r.nombre + (r.marca ? ` — ${r.marca}` : ''))
     setCostoUnitario(String(r.precio_venta ?? ''))
+    setCostoCompra(r.precio_costo != null ? String(r.precio_costo) : '')
     setShowDropdown(false)
     setSearchQuery('')
   }
@@ -95,6 +296,21 @@ function AgregarItemForm({ reparacionId, onDone, onCancel }: AgregarItemFormProp
     setSelectedRepuesto(null)
     setDescripcion('')
     setCostoUnitario('')
+    setCostoCompra('')
+  }
+
+  function changeTipo(t: 'mano_obra' | 'repuesto') {
+    setTipo(t)
+    clearServicio()
+    clearRepuesto()
+    setCantidad('1')
+    setCostoCompra('')
+    setCatalogoQuery('')
+    setSearchQuery('')
+    setShowCrearForm(false)
+    // Mano de obra arranca con la tarifa por defecto de la plantilla;
+    // repuesto arranca vacío (se llena al elegir del inventario).
+    setCostoUnitario(t === 'mano_obra' ? String(configuracion.valor_hora_mecanica) : '')
   }
 
   function submit(e: React.FormEvent) {
@@ -108,6 +324,7 @@ function AgregarItemForm({ reparacionId, onDone, onCancel }: AgregarItemFormProp
     setError(null)
     startTransition(async () => {
       try {
+        const costoCompraNum = costoCompra.trim() !== '' ? parseFloat(costoCompra) : null
         const supabase = createClient()
         const newItem = await addItemReparacion(supabase, {
           reparacionId,
@@ -116,6 +333,24 @@ function AgregarItemForm({ reparacionId, onDone, onCancel }: AgregarItemFormProp
           cantidad: cantNum,
           costoUnitario: costoNum,
           ...(selectedRepuesto ? { repuestoId: selectedRepuesto.id } : {}),
+          ...(costoCompraNum != null && !isNaN(costoCompraNum) ? { costoCompraUnitario: costoCompraNum } : {}),
+          // Snapshots de catálogo — solo cuando hay servicio seleccionado
+          ...(selectedServicio ? (() => {
+            const isHora = selectedServicio.unidad_precio === 'hora' && selectedServicio.horas_estandar != null
+            const valorHora = isHora
+              ? getValorHoraForServicio(configuracion, selectedServicio.categoria)
+              : selectedServicio.precio_unitario
+            const precioCalc = isHora
+              ? Math.round(selectedServicio.horas_estandar! * valorHora)
+              : selectedServicio.precio_unitario
+            return {
+              servicioCatalogoId:     selectedServicio.id,
+              nombreServicioSnapshot: selectedServicio.nombre,
+              horasEstandarSnapshot:  selectedServicio.horas_estandar ?? null,
+              valorHoraSnapshot:      valorHora,
+              precioCatalogoSnapshot: precioCalc,
+            }
+          })() : {}),
         })
         // Si hay repuesto con stock, registrar consumo
         if (selectedRepuesto && selectedRepuesto.stock_actual > 0) {
@@ -131,12 +366,15 @@ function AgregarItemForm({ reparacionId, onDone, onCancel }: AgregarItemFormProp
             // El consumo de stock falla silenciosamente — no bloquea la OT
           }
         }
-        onDone()
+        onDone(selectedServicio?.requiere_revision === true)
       } catch (e) {
         setError(e instanceof Error ? e.message : 'Error al agregar ítem.')
       }
     })
   }
+
+  const sinResultadosCatalogo =
+    showCatalogoDropdown && catalogoResults.length === 0 && !catalogoSearching && catalogoQuery.trim()
 
   return (
     <form
@@ -152,22 +390,114 @@ function AgregarItemForm({ reparacionId, onDone, onCancel }: AgregarItemFormProp
           <select
             className={inputClass}
             value={tipo}
-            onChange={(e) => {
-              setTipo(e.target.value as typeof tipo)
-              clearRepuesto()
-              setSearchQuery('')
-            }}
+            onChange={(e) => changeTipo(e.target.value as typeof tipo)}
             disabled={pending}
           >
             {TIPOS_ITEM_REPARACION.map((t) => (
-              <option key={t} value={t}>
-                {TIPOS_ITEM_LABEL[t]}
-              </option>
+              <option key={t} value={t}>{TIPOS_ITEM_LABEL[t]}</option>
             ))}
           </select>
         </div>
 
-        {/* Repuesto: búsqueda en inventario */}
+        {/* ── Mano de obra: buscador de catálogo ── */}
+        {tipo === 'mano_obra' && !selectedServicio && !showCrearForm && (
+          <div className="relative sm:col-span-1">
+            <label className={labelClass}>Buscar en catálogo</label>
+            <input
+              className={inputClass}
+              placeholder="Nombre o código del servicio…"
+              value={catalogoQuery}
+              onChange={(e) => setCatalogoQuery(e.target.value)}
+              disabled={pending}
+              autoComplete="off"
+            />
+            {catalogoSearching && (
+              <p className="mt-1 text-[11px] text-neutral-500">Buscando…</p>
+            )}
+            {showCatalogoDropdown && catalogoResults.length > 0 && (
+              <div className="absolute z-20 mt-1 w-full rounded-lg border border-white/[0.08] bg-neutral-900 shadow-xl">
+                {catalogoResults.map((s) => (
+                  <button
+                    key={s.id}
+                    type="button"
+                    onClick={() => selectServicio(s)}
+                    className="flex w-full items-start justify-between gap-2 px-3 py-2.5 text-left hover:bg-white/[0.04] first:rounded-t-lg last:rounded-b-lg"
+                  >
+                    <div className="min-w-0">
+                      <p className="truncate text-sm font-medium text-neutral-100">{s.nombre}</p>
+                      <div className="mt-0.5 flex items-center gap-1.5">
+                        {s.codigo && <span className="text-[11px] text-neutral-500">{s.codigo}</span>}
+                        <CategoriaBadge categoria={s.categoria} />
+                      </div>
+                    </div>
+                    <div className="shrink-0 text-right">
+                      <p className="text-xs font-medium text-neutral-200">{fmtCLPShort(s.precio_unitario)}</p>
+                      {s.horas_estandar != null && (
+                        <p className="text-[11px] text-neutral-500">{s.horas_estandar}h</p>
+                      )}
+                    </div>
+                  </button>
+                ))}
+              </div>
+            )}
+            {sinResultadosCatalogo && (
+              <div className="absolute z-20 mt-1 w-full rounded-lg border border-white/[0.08] bg-neutral-900 shadow-xl">
+                <p className="px-3 py-2 text-sm text-neutral-500">
+                  Sin resultados para &ldquo;{catalogoQuery}&rdquo;
+                </p>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowCrearForm(true)
+                    setShowCatalogoDropdown(false)
+                  }}
+                  className="flex w-full items-center gap-2 border-t border-white/[0.06] px-3 py-2.5 text-left text-sm font-medium text-accent-400 hover:bg-white/[0.04]"
+                >
+                  + Crear &ldquo;{catalogoQuery.slice(0, 60)}&rdquo; como nuevo servicio
+                </button>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* ── Servicio seleccionado (chip) ── */}
+        {tipo === 'mano_obra' && selectedServicio && !showCrearForm && (
+          <div className="sm:col-span-1">
+            <div className="flex items-center justify-between gap-2 rounded-lg border border-accent-500/20 bg-accent-500/[0.06] px-3 py-2">
+              <div className="min-w-0">
+                <p className="truncate text-sm font-medium text-neutral-100">{selectedServicio.nombre}</p>
+                <div className="mt-0.5 flex items-center gap-1.5">
+                  <CategoriaBadge categoria={selectedServicio.categoria} />
+                  {selectedServicio.horas_estandar != null && (
+                    <span className="text-[11px] text-neutral-500">{selectedServicio.horas_estandar}h</span>
+                  )}
+                  {selectedServicio.requiere_revision && (
+                    <span className="rounded-full border border-amber-500/30 bg-amber-500/10 px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wide text-amber-400">
+                      Pendiente revisión
+                    </span>
+                  )}
+                </div>
+                {selectedServicio.unidad_precio === 'hora' && selectedServicio.horas_estandar != null && (() => {
+                  const vh = getValorHoraForServicio(configuracion, selectedServicio.categoria)
+                  return (
+                    <p className="mt-1 text-[11px] text-neutral-500">
+                      Plantilla: {selectedServicio.horas_estandar} h × {fmtCLPShort(vh)} /h
+                    </p>
+                  )
+                })()}
+              </div>
+              <button
+                type="button"
+                onClick={clearServicio}
+                className={`${btnGhost} shrink-0 px-2 py-1 text-xs text-neutral-500`}
+              >
+                ×
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* ── Repuesto: búsqueda en inventario ── */}
         {tipo === 'repuesto' && !selectedRepuesto && (
           <div className="relative sm:col-span-1">
             <label className={labelClass}>Buscar en inventario</label>
@@ -223,7 +553,7 @@ function AgregarItemForm({ reparacionId, onDone, onCancel }: AgregarItemFormProp
           </div>
         )}
 
-        {/* Repuesto seleccionado */}
+        {/* ── Repuesto seleccionado ── */}
         {tipo === 'repuesto' && selectedRepuesto && (
           <div className="sm:col-span-1">
             <div className="flex items-center justify-between gap-2 rounded-lg border border-sky-500/20 bg-sky-500/[0.06] px-3 py-2">
@@ -250,30 +580,35 @@ function AgregarItemForm({ reparacionId, onDone, onCancel }: AgregarItemFormProp
           </div>
         )}
 
-        <div className={tipo === 'repuesto' && !selectedRepuesto ? 'sm:col-span-2' : ''}>
+        <div className={
+          (tipo === 'repuesto' && !selectedRepuesto) ||
+          (tipo === 'mano_obra' && !selectedServicio && !showCrearForm)
+            ? 'sm:col-span-2'
+            : ''
+        }>
           <label className={labelClass}>Descripción</label>
           <input
             className={inputClass}
-            placeholder="ej: Pastillas de freno delanteras Bosch…"
+            placeholder={tipo === 'mano_obra' ? 'ej: Revisión de frenos delanteros…' : 'ej: Pastillas de freno Bosch…'}
             value={descripcion}
             onChange={(e) => setDescripcion(e.target.value)}
             disabled={pending}
           />
         </div>
         <div>
-          <label className={labelClass}>Cantidad</label>
+          <label className={labelClass}>{tipo === 'mano_obra' ? 'Cantidad de horas' : 'Cantidad'}</label>
           <input
             className={inputClass}
             type="number"
             min="0.001"
-            step="0.001"
+            step={tipo === 'mano_obra' ? 'any' : '0.001'}
             value={cantidad}
             onChange={(e) => setCantidad(e.target.value)}
             disabled={pending}
           />
         </div>
         <div>
-          <label className={labelClass}>Precio venta unitario (CLP)</label>
+          <label className={labelClass}>{tipo === 'mano_obra' ? 'Valor hora (CLP)' : 'Precio venta unitario (CLP)'}</label>
           <input
             className={inputClass}
             type="number"
@@ -284,11 +619,68 @@ function AgregarItemForm({ reparacionId, onDone, onCancel }: AgregarItemFormProp
             onChange={(e) => setCostoUnitario(e.target.value)}
             disabled={pending}
           />
+          {tipo === 'mano_obra' && (() => {
+            const h = parseFloat(cantidad)
+            const vh = parseFloat(costoUnitario)
+            if (!isNaN(h) && !isNaN(vh) && h > 0 && vh >= 0) {
+              return (
+                <p className="mt-1 text-[11px] font-medium text-accent-400">
+                  Total: {fmtCLPShort(Math.round(h * vh))} ({h} h × {fmtCLPShort(vh)})
+                </p>
+              )
+            }
+            return null
+          })()}
         </div>
+
+        {/* ── Costo de compra: solo repuestos ── */}
+        {tipo === 'repuesto' && (
+          <div>
+            <label className={labelClass}>Costo de compra unitario (CLP)</label>
+            <input
+              className={inputClass}
+              type="number"
+              min="0"
+              step="1"
+              placeholder="0"
+              value={costoCompra}
+              onChange={(e) => setCostoCompra(e.target.value)}
+              disabled={pending}
+            />
+            {costoCompra && costoUnitario && (() => {
+              const compra = parseFloat(costoCompra)
+              const venta = parseFloat(costoUnitario)
+              const cant = parseFloat(cantidad) || 1
+              if (!isNaN(compra) && !isNaN(venta) && venta > 0) {
+                const utilidad = Math.round((venta - compra) * cant)
+                const margen = Math.round(((venta - compra) / venta) * 100)
+                return (
+                  <p className="mt-1 text-[11px] text-neutral-500">
+                    Utilidad: {fmtCLPShort(utilidad)} ({margen}%)
+                  </p>
+                )
+              }
+              return null
+            })()}
+          </div>
+        )}
       </div>
+
+      {/* Mini-formulario de creación de servicio nuevo */}
+      {tipo === 'mano_obra' && showCrearForm && (
+        <CrearServicioForm
+          nombreInicial={catalogoQuery}
+          onCreado={(s) => {
+            selectServicio(s)
+            setShowCrearForm(false)
+          }}
+          onCancel={() => setShowCrearForm(false)}
+        />
+      )}
+
       {error && <p className="mt-2 text-xs text-red-400">{error}</p>}
       <div className="mt-3 flex gap-2">
-        <button type="submit" className={btnPrimary} disabled={pending}>
+        <button type="submit" className={btnPrimary} disabled={pending || showCrearForm}>
           {pending ? 'Guardando…' : 'Agregar ítem'}
         </button>
         <button type="button" className={btnSecondary} onClick={onCancel} disabled={pending}>
@@ -402,13 +794,115 @@ function AgregarTrabajoForm({
   )
 }
 
+// ── Inline edit: costo de compra en ítems de repuesto ya guardados ──────
+
+interface CostoCompraInlineProps {
+  item: ItemReparacion
+  onSaved: () => void
+}
+
+function CostoCompraInline({ item, onSaved }: CostoCompraInlineProps) {
+  const [editing, setEditing] = useState(false)
+  const [value, setValue] = useState(
+    item.costo_compra_unitario != null ? String(item.costo_compra_unitario) : '',
+  )
+  const [saving, setSaving] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  async function save() {
+    const num = value.trim() !== '' ? parseFloat(value) : null
+    if (num !== null && (isNaN(num) || num < 0)) {
+      setError('Valor inválido.')
+      return
+    }
+    setSaving(true)
+    setError(null)
+    try {
+      const supabase = createClient()
+      const { data } = await supabase
+        .from('items_reparacion')
+        .update({ costo_compra_unitario: num })
+        .eq('id', item.id)
+        .select('id')
+      if (!data || data.length === 0) {
+        throw new Error('Sin permiso o sesión expirada.')
+      }
+      setEditing(false)
+      onSaved()
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Error al guardar.')
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  if (!editing) {
+    const costo = item.costo_compra_unitario
+    const utilidad = costo != null ? Math.round((item.costo_unitario - costo) * item.cantidad) : null
+    const margen =
+      costo != null && item.costo_unitario > 0
+        ? Math.round(((item.costo_unitario - costo) / item.costo_unitario) * 100)
+        : null
+
+    return (
+      <button
+        type="button"
+        onClick={() => setEditing(true)}
+        className="mt-1 text-left text-[11px] text-neutral-600 hover:text-neutral-400"
+      >
+        {costo != null
+          ? `Costo compra: ${fmtCLPShort(costo)} · Utilidad: ${fmtCLPShort(utilidad)} (${margen}%)`
+          : '+ Agregar costo de compra'}
+      </button>
+    )
+  }
+
+  return (
+    <div className="mt-1.5 flex flex-wrap items-center gap-2">
+      <input
+        type="number"
+        min="0"
+        step="1"
+        className="w-36 rounded border border-white/[0.08] bg-neutral-900 px-2 py-1 text-xs text-neutral-200 focus:border-accent-500/50 focus:outline-none"
+        placeholder="Costo de compra…"
+        value={value}
+        onChange={(e) => setValue(e.target.value)}
+        disabled={saving}
+        autoFocus
+        onKeyDown={(e) => {
+          if (e.key === 'Enter') void save()
+          if (e.key === 'Escape') setEditing(false)
+        }}
+      />
+      <button
+        type="button"
+        className={`${btnPrimary} py-0.5 text-[11px]`}
+        onClick={() => void save()}
+        disabled={saving}
+      >
+        {saving ? '…' : 'Guardar'}
+      </button>
+      <button
+        type="button"
+        className={`${btnSecondary} py-0.5 text-[11px]`}
+        onClick={() => setEditing(false)}
+        disabled={saving}
+      >
+        Cancelar
+      </button>
+      {error && <p className="text-[11px] text-red-400">{error}</p>}
+    </div>
+  )
+}
+
 interface TrabajoCardProps {
   reparacion: ReparacionConItems
   mecanicos: MecanicoSimple[]
-  onChanged: () => void
+  configuracion: ConfiguracionManoObra
+  onChanged: (hasPendiente?: boolean) => void
 }
 
-function TrabajoCard({ reparacion, mecanicos, onChanged }: TrabajoCardProps) {
+function TrabajoCard({ reparacion, mecanicos, configuracion, onChanged }: TrabajoCardProps) {
   const [showAddItem, setShowAddItem] = useState(false)
   const [deletingId, setDeletingId] = useState<string | null>(null)
   const [deleteError, setDeleteError] = useState<string | null>(null)
@@ -463,28 +957,38 @@ function TrabajoCard({ reparacion, mecanicos, onChanged }: TrabajoCardProps) {
           {reparacion.items.map((item) => (
             <div
               key={item.id}
-              className="flex items-center justify-between gap-3 rounded-lg border border-white/[0.04] bg-white/[0.02] px-3 py-2"
+              className="rounded-lg border border-white/[0.04] bg-white/[0.02] px-3 py-2"
             >
-              <div className="min-w-0">
-                <span className="mr-2 rounded-full border border-white/[0.06] bg-white/[0.04] px-2 py-0.5 text-[10px] text-neutral-500">
-                  {TIPOS_ITEM_LABEL[item.tipo]}
-                </span>
-                <span className="text-sm text-neutral-200">{item.descripcion}</span>
-                {item.cantidad !== 1 && (
-                  <span className="ml-2 text-xs text-neutral-600">× {item.cantidad}</span>
-                )}
+              <div className="flex items-center justify-between gap-3">
+                <div className="min-w-0">
+                  <span className="mr-2 rounded-full border border-white/[0.06] bg-white/[0.04] px-2 py-0.5 text-[10px] text-neutral-500">
+                    {TIPOS_ITEM_LABEL[item.tipo]}
+                  </span>
+                  <span className="text-sm text-neutral-200">{item.descripcion}</span>
+                  {item.tipo === 'repuesto' && item.cantidad !== 1 && (
+                    <span className="ml-2 text-xs text-neutral-600">× {item.cantidad}</span>
+                  )}
+                </div>
+                <div className="flex shrink-0 items-center gap-3">
+                  <span className="text-sm font-medium text-neutral-300">{fmtCLP(item.costo_total)}</span>
+                  <button
+                    onClick={() => void eliminarItem(item.id)}
+                    disabled={deletingId === item.id}
+                    className={`${btnGhost} px-2 py-1 text-red-400 hover:text-red-300`}
+                    title="Eliminar ítem"
+                  >
+                    {deletingId === item.id ? '…' : '×'}
+                  </button>
+                </div>
               </div>
-              <div className="flex shrink-0 items-center gap-3">
-                <span className="text-sm font-medium text-neutral-300">{fmtCLP(item.costo_total)}</span>
-                <button
-                  onClick={() => void eliminarItem(item.id)}
-                  disabled={deletingId === item.id}
-                  className={`${btnGhost} px-2 py-1 text-red-400 hover:text-red-300`}
-                  title="Eliminar ítem"
-                >
-                  {deletingId === item.id ? '…' : '×'}
-                </button>
-              </div>
+              {item.tipo === 'mano_obra' && (
+                <p className="mt-1 text-[11px] text-neutral-600">
+                  {item.cantidad} h × {fmtCLP(item.costo_unitario)} /h
+                </p>
+              )}
+              {item.tipo === 'repuesto' && (
+                <CostoCompraInline item={item} onSaved={onChanged} />
+              )}
             </div>
           ))}
         </div>
@@ -495,7 +999,8 @@ function TrabajoCard({ reparacion, mecanicos, onChanged }: TrabajoCardProps) {
       {showAddItem ? (
         <AgregarItemForm
           reparacionId={reparacion.id}
-          onDone={() => { setShowAddItem(false); onChanged() }}
+          configuracion={configuracion}
+          onDone={(hasPendiente) => { setShowAddItem(false); onChanged(hasPendiente) }}
           onCancel={() => setShowAddItem(false)}
         />
       ) : (
@@ -516,6 +1021,7 @@ interface TrabajosSectionProps {
   tipoEventoReparacionId: string | null
   initialReparaciones: ReparacionConItems[]
   mecanicos: MecanicoSimple[]
+  configuracion: ConfiguracionManoObra
 }
 
 export function TrabajosSection({
@@ -524,18 +1030,44 @@ export function TrabajosSection({
   tipoEventoReparacionId,
   initialReparaciones,
   mecanicos,
+  configuracion,
 }: TrabajosSectionProps) {
   const router = useRouter()
   const [showAddTrabajo, setShowAddTrabajo] = useState(false)
+  const [pendientesCount, setPendientesCount] = useState(0)
 
-  function refresh() {
+  // Carga inicial del conteo de pendientes
+  useEffect(() => {
+    void (async () => {
+      try {
+        const supabase = createClient()
+        const count = await contarServiciosPendientes(supabase)
+        setPendientesCount(count)
+      } catch {
+        // silencioso — el badge no es crítico
+      }
+    })()
+  }, [])
+
+  function refresh(hasPendiente?: boolean) {
+    if (hasPendiente) setPendientesCount((n) => n + 1)
     router.refresh()
   }
 
   return (
     <section className="space-y-4">
       <div className="flex items-center justify-between">
-        <p className={sectionLabel}>Trabajos realizados</p>
+        <div className="flex items-center gap-3">
+          <p className={sectionLabel}>Trabajos realizados</p>
+          {pendientesCount > 0 && (
+            <span
+              className="rounded-full border border-amber-500/30 bg-amber-500/10 px-2 py-0.5 text-[10px] font-semibold text-amber-400"
+              title={`${pendientesCount} servicio${pendientesCount > 1 ? 's' : ''} del catálogo pendiente${pendientesCount > 1 ? 's' : ''} de revisión`}
+            >
+              {pendientesCount} pendiente{pendientesCount > 1 ? 's' : ''}
+            </span>
+          )}
+        </div>
         {tipoEventoReparacionId && !showAddTrabajo && (
           <button
             onClick={() => setShowAddTrabajo(true)}
@@ -568,7 +1100,7 @@ export function TrabajosSection({
       )}
 
       {initialReparaciones.map((rep) => (
-        <TrabajoCard key={rep.id} reparacion={rep} mecanicos={mecanicos} onChanged={refresh} />
+        <TrabajoCard key={rep.id} reparacion={rep} mecanicos={mecanicos} configuracion={configuracion} onChanged={refresh} />
       ))}
     </section>
   )

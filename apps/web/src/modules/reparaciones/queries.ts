@@ -9,7 +9,7 @@ const REP_COLUMNS =
   'id, org_id, orden_trabajo_id, evento_trabajo_id, mecanico_id, descripcion, observaciones, inicio_en, fin_en, creado_en, actualizado_en, creado_por'
 
 const ITEM_COLUMNS =
-  'id, org_id, reparacion_id, item_presupuesto_id, tipo, descripcion, repuesto_id, cantidad, costo_unitario, costo_total, inicio_en, fin_en, creado_en, actualizado_en, creado_por, eliminado_en, eliminado_por'
+  'id, org_id, reparacion_id, item_presupuesto_id, tipo, descripcion, repuesto_id, cantidad, costo_unitario, costo_total, costo_compra_unitario, inicio_en, fin_en, creado_en, actualizado_en, creado_por, eliminado_en, eliminado_por, servicio_catalogo_id, plantilla_id, nombre_servicio_snapshot, horas_estandar_snapshot, valor_hora_snapshot, precio_catalogo_snapshot'
 
 /** Lista las reparaciones de una OT con sus ítems, en orden cronológico. */
 export async function listReparacionesByOT(

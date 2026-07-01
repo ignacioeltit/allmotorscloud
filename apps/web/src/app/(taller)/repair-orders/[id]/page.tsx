@@ -13,6 +13,7 @@ import { getHistoriaByVehiculoId } from '@/modules/technical-history/queries'
 import { listReparacionesByOT } from '@/modules/reparaciones/queries'
 import { getPresupuestoActivoByOT } from '@/modules/estimates/queries'
 import { listMecanicosByOrg } from '@/modules/users/queries'
+import { getConfiguracionManoObra } from '@/modules/taller/queries'
 import { load } from '@/lib/ui/load'
 import { Notice } from '@/components/ui/Notice'
 import { StatusBadge } from '@/components/ui/StatusBadge'
@@ -59,7 +60,7 @@ export default async function OrdenTrabajoDetailPage({
     const supabase = await createClient()
 
     const orden = await getOrdenTrabajoById(supabase, id)
-    const [vehiculo, cliente, eventos, historia, tipoEvento, reparaciones, presupuesto, mecanicos] =
+    const [vehiculo, cliente, eventos, historia, tipoEvento, reparaciones, presupuesto, mecanicos, configuracion] =
       await Promise.all([
         getVehiculoById(supabase, orden.vehiculo_id),
         getPropietarioActivoByVehiculo(supabase, orden.vehiculo_id),
@@ -69,9 +70,10 @@ export default async function OrdenTrabajoDetailPage({
         listReparacionesByOT(supabase, orden.id),
         getPresupuestoActivoByOT(supabase, orden.id),
         listMecanicosByOrg(supabase),
+        getConfiguracionManoObra(supabase),
       ])
 
-    return { orden, vehiculo, cliente, eventos, historia, tipoEvento, reparaciones, presupuesto, mecanicos }
+    return { orden, vehiculo, cliente, eventos, historia, tipoEvento, reparaciones, presupuesto, mecanicos, configuracion }
   })
 
   if (!result.ok) {
@@ -91,7 +93,7 @@ export default async function OrdenTrabajoDetailPage({
     )
   }
 
-  const { orden, vehiculo, cliente, eventos, historia, tipoEvento, reparaciones, presupuesto, mecanicos } =
+  const { orden, vehiculo, cliente, eventos, historia, tipoEvento, reparaciones, presupuesto, mecanicos, configuracion } =
     result.data
 
   const recepcionEvento =
@@ -211,6 +213,7 @@ export default async function OrdenTrabajoDetailPage({
         tipoEventoReparacionId={tipoEvento?.id ?? null}
         initialReparaciones={reparaciones}
         mecanicos={mecanicos}
+        configuracion={configuracion}
       />
 
       {/* ── Presupuesto activo (read-only) ── */}

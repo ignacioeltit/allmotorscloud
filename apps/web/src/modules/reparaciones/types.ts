@@ -43,6 +43,15 @@ export interface ItemReparacion {
   creado_por: string
   eliminado_en: string | null
   eliminado_por: string | null
+  // Snapshot fields (M005) — nullable: null en ítems pre-M005 o sin vínculo a catálogo
+  servicio_catalogo_id: string | null
+  plantilla_id: string | null
+  nombre_servicio_snapshot: string | null
+  horas_estandar_snapshot: number | null
+  valor_hora_snapshot: number | null
+  precio_catalogo_snapshot: number | null
+  // Costo de compra (M009) — solo repuestos; null en ítems pre-M009 o sin dato
+  costo_compra_unitario: number | null
 }
 
 export interface ReparacionConItems extends Reparacion {
@@ -76,7 +85,15 @@ export const addItemReparacionSchema = z.object({
   descripcion: textoCorto,
   cantidad: z.number().positive().multipleOf(0.001),
   costoUnitario: z.number().min(0),
-  repuestoId: uuid.optional(),  // FK → repuestos.id, activada en migration 004
+  repuestoId: uuid.optional(),           // FK → repuestos.id, activada en migration 004
+  // Snapshot fields (M005/M007): solo para tipo='mano_obra' vinculado a catálogo
+  servicioCatalogoId: uuid.optional(),
+  nombreServicioSnapshot: z.string().optional(),
+  horasEstandarSnapshot: z.number().nullable().optional(),
+  valorHoraSnapshot: z.number().nullable().optional(),
+  precioCatalogoSnapshot: z.number().nullable().optional(),
+  // Costo de compra (M009): solo para tipo='repuesto'
+  costoCompraUnitario: z.number().min(0).nullable().optional(),
 })
 
 export type CrearReparacionInput = z.infer<typeof crearReparacionSchema>
