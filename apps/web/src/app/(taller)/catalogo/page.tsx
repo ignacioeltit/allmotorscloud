@@ -30,7 +30,7 @@ function fmtCLP(n: number): string {
 function CategoriaBadge({ categoria }: { categoria: string | null }) {
   const cat = categoria as CategoriaCatalogo | null
   const label = cat && CATEGORIA_LABEL[cat] ? CATEGORIA_LABEL[cat] : (categoria ?? '—')
-  const color = cat && CATEGORIA_COLOR[cat] ? CATEGORIA_COLOR[cat] : 'border-white/10 bg-white/[0.04] text-neutral-500'
+  const color = cat && CATEGORIA_COLOR[cat] ? CATEGORIA_COLOR[cat] : 'border-black/10 bg-black/[0.04] text-neutral-500'
   return (
     <span className={`inline-flex items-center rounded-full border px-2 py-0.5 text-[10px] font-medium ${color}`}>
       {label}
@@ -40,7 +40,7 @@ function CategoriaBadge({ categoria }: { categoria: string | null }) {
 
 function ServicioRow({ s }: { s: CatalogoServicio }) {
   return (
-    <tr className="border-t border-white/[0.05] transition-colors hover:bg-white/[0.02]">
+    <tr className="border-t border-black/[0.05] transition-colors hover:bg-black/[0.02]">
       <td className="px-4 py-3 font-mono text-xs text-neutral-500">{s.codigo ?? '—'}</td>
       <td className="px-4 py-3">
         <span className="text-sm font-medium text-neutral-100">{s.nombre}</span>
@@ -105,9 +105,9 @@ export default async function CatalogoPage({ searchParams }: Props) {
         {canSeePendientes && pendientesCount > 0 && (
           <Link
             href="/catalogo/pendientes"
-            className="inline-flex items-center gap-2 rounded-lg border border-amber-500/30 bg-amber-500/10 px-3.5 py-2 text-sm font-medium text-amber-300 transition-colors hover:bg-amber-500/20"
+            className="inline-flex items-center gap-2 rounded-lg border border-amber-500/30 bg-amber-500/10 px-3.5 py-2 text-sm font-medium text-amber-800 transition-colors hover:bg-amber-500/20"
           >
-            <span className="flex h-5 w-5 items-center justify-center rounded-full bg-amber-500/20 text-xs font-bold text-amber-300">
+            <span className="flex h-5 w-5 items-center justify-center rounded-full bg-amber-500/20 text-xs font-bold text-amber-800">
               {pendientesCount}
             </span>
             Pendientes de revisión
@@ -130,12 +130,12 @@ export default async function CatalogoPage({ searchParams }: Props) {
           name="search"
           defaultValue={search}
           placeholder="Buscar por nombre o código..."
-          className="min-w-[200px] flex-1 rounded-lg border border-white/10 bg-neutral-950/60 px-3.5 py-2 text-sm text-neutral-100 placeholder:text-neutral-600 focus:border-accent-500/60 focus:outline-none focus:ring-2 focus:ring-accent-500/20"
+          className="min-w-[200px] flex-1 rounded-lg border border-black/10 bg-neutral-950/60 px-3.5 py-2 text-sm text-neutral-100 placeholder:text-neutral-600 focus:border-accent-500/60 focus:outline-none focus:ring-2 focus:ring-accent-500/20"
         />
         <select
           name="categoria"
           defaultValue={categoria}
-          className="rounded-lg border border-white/10 bg-neutral-950/60 px-3.5 py-2 text-sm text-neutral-300 focus:border-accent-500/60 focus:outline-none"
+          className="rounded-lg border border-black/10 bg-neutral-950/60 px-3.5 py-2 text-sm text-neutral-300 focus:border-accent-500/60 focus:outline-none"
         >
           <option value="">Todas las categorías</option>
           {CATEGORIAS_CATALOGO.map((c) => (
@@ -146,7 +146,7 @@ export default async function CatalogoPage({ searchParams }: Props) {
         </select>
         <button
           type="submit"
-          className="rounded-lg border border-white/10 bg-white/[0.03] px-4 py-2 text-sm text-neutral-300 transition-colors hover:bg-white/[0.07]"
+          className="rounded-lg border border-black/10 bg-black/[0.03] px-4 py-2 text-sm text-neutral-300 transition-colors hover:bg-black/[0.07]"
         >
           Filtrar
         </button>
@@ -167,10 +167,10 @@ export default async function CatalogoPage({ searchParams }: Props) {
           description={search || categoria ? 'Ningún servicio coincide con los filtros aplicados.' : 'El catálogo está vacío.'}
         />
       ) : (
-        <div className="overflow-x-auto rounded-xl border border-white/[0.06]">
+        <div className="overflow-x-auto rounded-xl border border-black/[0.06]">
           <table className="w-full text-left">
             <thead>
-              <tr className="border-b border-white/[0.06] bg-white/[0.02]">
+              <tr className="border-b border-black/[0.06] bg-black/[0.02]">
                 <th className="px-4 py-3"><span className={sectionLabel}>Código</span></th>
                 <th className="px-4 py-3"><span className={sectionLabel}>Nombre</span></th>
                 <th className="px-4 py-3"><span className={sectionLabel}>Categoría</span></th>
@@ -198,7 +198,7 @@ export default async function CatalogoPage({ searchParams }: Props) {
             {currentPage > 1 && (
               <Link
                 href={`/catalogo?search=${search}&categoria=${categoria}&page=${currentPage - 1}`}
-                className="rounded-lg border border-white/10 px-3 py-1.5 transition-colors hover:bg-white/[0.04]"
+                className="rounded-lg border border-black/10 px-3 py-1.5 transition-colors hover:bg-black/[0.04]"
               >
                 ← Anterior
               </Link>
@@ -206,7 +206,7 @@ export default async function CatalogoPage({ searchParams }: Props) {
             {currentPage < totalPages && (
               <Link
                 href={`/catalogo?search=${search}&categoria=${categoria}&page=${currentPage + 1}`}
-                className="rounded-lg border border-white/10 px-3 py-1.5 transition-colors hover:bg-white/[0.04]"
+                className="rounded-lg border border-black/10 px-3 py-1.5 transition-colors hover:bg-black/[0.04]"
               >
                 Siguiente →
               </Link>

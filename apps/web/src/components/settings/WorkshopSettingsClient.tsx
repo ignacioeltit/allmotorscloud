@@ -114,7 +114,7 @@ export function WorkshopSettingsClient({ initialConfig }: WorkshopSettingsClient
 
   function FieldInput({ field }: { field: FieldRow }) {
     return (
-      <div className="flex items-start justify-between gap-4 border-b border-white/[0.04] pb-4 last:border-0 last:pb-0">
+      <div className="flex items-start justify-between gap-4 border-b border-black/[0.04] pb-4 last:border-0 last:pb-0">
         <div className="min-w-0 flex-1">
           <p className="text-sm font-medium text-neutral-200">{field.label}</p>
           <p className="mt-0.5 text-xs text-neutral-600">{field.description}</p>
@@ -139,7 +139,7 @@ export function WorkshopSettingsClient({ initialConfig }: WorkshopSettingsClient
     <div className="space-y-8 max-w-2xl">
 
       {/* Tarifas hora */}
-      <section className="rounded-xl border border-white/[0.06] bg-neutral-900/50 p-5">
+      <section className="rounded-xl border border-black/[0.06] bg-neutral-900/50 p-5">
         <p className="mb-1 text-xs font-semibold uppercase tracking-wider text-neutral-500">
           Tarifas por hora (CLP)
         </p>
@@ -152,7 +152,7 @@ export function WorkshopSettingsClient({ initialConfig }: WorkshopSettingsClient
       </section>
 
       {/* Precios por evento */}
-      <section className="rounded-xl border border-white/[0.06] bg-neutral-900/50 p-5">
+      <section className="rounded-xl border border-black/[0.06] bg-neutral-900/50 p-5">
         <p className="mb-1 text-xs font-semibold uppercase tracking-wider text-neutral-500">
           Precios por evento (CLP)
         </p>
@@ -165,7 +165,7 @@ export function WorkshopSettingsClient({ initialConfig }: WorkshopSettingsClient
       </section>
 
       {/* Precios por unidad */}
-      <section className="rounded-xl border border-white/[0.06] bg-neutral-900/50 p-5">
+      <section className="rounded-xl border border-black/[0.06] bg-neutral-900/50 p-5">
         <p className="mb-1 text-xs font-semibold uppercase tracking-wider text-neutral-500">
           Precios por unidad (CLP)
         </p>
@@ -175,7 +175,7 @@ export function WorkshopSettingsClient({ initialConfig }: WorkshopSettingsClient
       </section>
 
       {/* IVA */}
-      <section className="rounded-xl border border-white/[0.06] bg-neutral-900/50 p-5">
+      <section className="rounded-xl border border-black/[0.06] bg-neutral-900/50 p-5">
         <p className="mb-4 text-xs font-semibold uppercase tracking-wider text-neutral-500">General</p>
         <div className="flex items-start justify-between gap-4">
           <div>
@@ -196,13 +196,13 @@ export function WorkshopSettingsClient({ initialConfig }: WorkshopSettingsClient
       </section>
 
       {error && (
-        <p className="rounded-lg border border-red-500/20 bg-red-500/10 px-4 py-3 text-sm text-red-300">
+        <p className="rounded-lg border border-red-500/20 bg-red-500/10 px-4 py-3 text-sm text-red-800">
           {error}
         </p>
       )}
 
       {saved && !error && (
-        <p className="rounded-lg border border-green-500/20 bg-green-500/10 px-4 py-3 text-sm text-green-300">
+        <p className="rounded-lg border border-green-500/20 bg-green-500/10 px-4 py-3 text-sm text-green-800">
           Configuración guardada correctamente.
         </p>
       )}

@@ -13,7 +13,7 @@ export function MetricCard({
   return (
     <div
       className={`rounded-xl border p-5 ${
-        accent ? 'border-accent-500/20 bg-accent-500/[0.04]' : 'border-white/[0.06] bg-neutral-900/50'
+        accent ? 'border-accent-500/20 bg-accent-500/[0.04]' : 'border-black/[0.06] bg-neutral-900/50'
       }`}
     >
       <p className="text-[13px] text-neutral-400">{label}</p>

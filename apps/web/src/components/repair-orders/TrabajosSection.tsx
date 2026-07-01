@@ -49,7 +49,7 @@ function StockBadge({ estado }: { estado: string }) {
 function CategoriaBadge({ categoria }: { categoria: string | null }) {
   if (!categoria) return null
   const key = categoria as keyof typeof CATEGORIA_COLOR
-  const colorClass = CATEGORIA_COLOR[key] ?? 'border-white/10 bg-white/[0.04] text-neutral-500'
+  const colorClass = CATEGORIA_COLOR[key] ?? 'border-black/10 bg-black/[0.04] text-neutral-500'
   const label = CATEGORIA_LABEL[key] ?? categoria
   return (
     <span className={`rounded-full border px-2 py-0.5 text-[10px] font-medium ${colorClass}`}>
@@ -100,7 +100,7 @@ function CrearServicioForm({ nombreInicial, onCreado, onCancel }: CrearServicioF
 
   return (
     <div className="mt-3 rounded-lg border border-amber-500/20 bg-amber-500/[0.04] p-4">
-      <p className="mb-1 text-xs font-semibold uppercase tracking-wider text-amber-400">
+      <p className="mb-1 text-xs font-semibold uppercase tracking-wider text-amber-700">
         Nuevo servicio — quedará pendiente de revisión
       </p>
       <p className="mb-3 text-[11px] text-neutral-500">
@@ -160,7 +160,7 @@ function CrearServicioForm({ nombreInicial, onCreado, onCancel }: CrearServicioF
             disabled={pending}
           />
         </div>
-        {error && <p className="text-xs text-red-400">{error}</p>}
+        {error && <p className="text-xs text-red-700">{error}</p>}
         <div className="flex gap-2">
           <button type="button" className={btnPrimary} disabled={pending} onClick={submit}>
             {pending ? 'Creando…' : 'Crear y usar en OT'}
@@ -379,7 +379,7 @@ function AgregarItemForm({ reparacionId, configuracion, onDone, onCancel }: Agre
   return (
     <form
       onSubmit={submit}
-      className="mt-3 rounded-lg border border-white/[0.06] bg-neutral-950/40 p-4"
+      className="mt-3 rounded-lg border border-black/[0.06] bg-neutral-950/40 p-4"
     >
       <p className="mb-3 text-xs font-semibold uppercase tracking-wider text-neutral-400">
         Nuevo ítem
@@ -415,13 +415,13 @@ function AgregarItemForm({ reparacionId, configuracion, onDone, onCancel }: Agre
               <p className="mt-1 text-[11px] text-neutral-500">Buscando…</p>
             )}
             {showCatalogoDropdown && catalogoResults.length > 0 && (
-              <div className="absolute z-20 mt-1 w-full rounded-lg border border-white/[0.08] bg-neutral-900 shadow-xl">
+              <div className="absolute z-20 mt-1 w-full rounded-lg border border-black/[0.08] bg-neutral-900 shadow-xl">
                 {catalogoResults.map((s) => (
                   <button
                     key={s.id}
                     type="button"
                     onClick={() => selectServicio(s)}
-                    className="flex w-full items-start justify-between gap-2 px-3 py-2.5 text-left hover:bg-white/[0.04] first:rounded-t-lg last:rounded-b-lg"
+                    className="flex w-full items-start justify-between gap-2 px-3 py-2.5 text-left hover:bg-black/[0.04] first:rounded-t-lg last:rounded-b-lg"
                   >
                     <div className="min-w-0">
                       <p className="truncate text-sm font-medium text-neutral-100">{s.nombre}</p>
@@ -441,7 +441,7 @@ function AgregarItemForm({ reparacionId, configuracion, onDone, onCancel }: Agre
               </div>
             )}
             {sinResultadosCatalogo && (
-              <div className="absolute z-20 mt-1 w-full rounded-lg border border-white/[0.08] bg-neutral-900 shadow-xl">
+              <div className="absolute z-20 mt-1 w-full rounded-lg border border-black/[0.08] bg-neutral-900 shadow-xl">
                 <p className="px-3 py-2 text-sm text-neutral-500">
                   Sin resultados para &ldquo;{catalogoQuery}&rdquo;
                 </p>
@@ -451,7 +451,7 @@ function AgregarItemForm({ reparacionId, configuracion, onDone, onCancel }: Agre
                     setShowCrearForm(true)
                     setShowCatalogoDropdown(false)
                   }}
-                  className="flex w-full items-center gap-2 border-t border-white/[0.06] px-3 py-2.5 text-left text-sm font-medium text-accent-400 hover:bg-white/[0.04]"
+                  className="flex w-full items-center gap-2 border-t border-black/[0.06] px-3 py-2.5 text-left text-sm font-medium text-accent-400 hover:bg-black/[0.04]"
                 >
                   + Crear &ldquo;{catalogoQuery.slice(0, 60)}&rdquo; como nuevo servicio
                 </button>
@@ -472,7 +472,7 @@ function AgregarItemForm({ reparacionId, configuracion, onDone, onCancel }: Agre
                     <span className="text-[11px] text-neutral-500">{selectedServicio.horas_estandar}h</span>
                   )}
                   {selectedServicio.requiere_revision && (
-                    <span className="rounded-full border border-amber-500/30 bg-amber-500/10 px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wide text-amber-400">
+                    <span className="rounded-full border border-amber-500/30 bg-amber-500/10 px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wide text-amber-700">
                       Pendiente revisión
                     </span>
                   )}
@@ -513,13 +513,13 @@ function AgregarItemForm({ reparacionId, configuracion, onDone, onCancel }: Agre
               <p className="mt-1 text-[11px] text-neutral-500">Buscando…</p>
             )}
             {showDropdown && searchResults.length > 0 && (
-              <div className="absolute z-20 mt-1 w-full rounded-lg border border-white/[0.08] bg-neutral-900 shadow-xl">
+              <div className="absolute z-20 mt-1 w-full rounded-lg border border-black/[0.08] bg-neutral-900 shadow-xl">
                 {searchResults.map((r) => (
                   <button
                     key={r.id}
                     type="button"
                     onClick={() => selectRepuesto(r)}
-                    className="flex w-full items-start justify-between gap-2 px-3 py-2.5 text-left hover:bg-white/[0.04] first:rounded-t-lg last:rounded-b-lg"
+                    className="flex w-full items-start justify-between gap-2 px-3 py-2.5 text-left hover:bg-black/[0.04] first:rounded-t-lg last:rounded-b-lg"
                   >
                     <div className="min-w-0">
                       <p className="truncate text-sm font-medium text-neutral-100">{r.nombre}</p>
@@ -531,7 +531,7 @@ function AgregarItemForm({ reparacionId, configuracion, onDone, onCancel }: Agre
                       <div className="flex items-center justify-end gap-1.5">
                         <p className="text-xs font-medium text-neutral-200">{fmtCLPShort(r.precio_venta)}</p>
                         {r.descripcion?.includes('[PRECIO ESTIMADO]') && (
-                          <span className="rounded bg-amber-500/20 px-1 py-0.5 text-[9px] font-semibold uppercase tracking-wide text-amber-400">
+                          <span className="rounded bg-amber-500/20 px-1 py-0.5 text-[9px] font-semibold uppercase tracking-wide text-amber-700">
                             EST
                           </span>
                         )}
@@ -546,7 +546,7 @@ function AgregarItemForm({ reparacionId, configuracion, onDone, onCancel }: Agre
               </div>
             )}
             {showDropdown && searchResults.length === 0 && !searching && searchQuery.trim() && (
-              <div className="absolute z-20 mt-1 w-full rounded-lg border border-white/[0.08] bg-neutral-900 px-3 py-2.5 text-sm text-neutral-500">
+              <div className="absolute z-20 mt-1 w-full rounded-lg border border-black/[0.08] bg-neutral-900 px-3 py-2.5 text-sm text-neutral-500">
                 Sin resultados. Puedes completar los datos manualmente.
               </div>
             )}
@@ -573,7 +573,7 @@ function AgregarItemForm({ reparacionId, configuracion, onDone, onCancel }: Agre
               </button>
             </div>
             {selectedRepuesto.descripcion?.includes('[PRECIO ESTIMADO]') && (
-              <p className="mt-1.5 rounded-md border border-amber-500/20 bg-amber-500/[0.08] px-2.5 py-1.5 text-[11px] leading-snug text-amber-400">
+              <p className="mt-1.5 rounded-md border border-amber-500/20 bg-amber-500/[0.08] px-2.5 py-1.5 text-[11px] leading-snug text-amber-700">
                 ⚠ Precio estimado automáticamente con 40% sobre costo. Revisar antes de aprobar presupuesto.
               </p>
             )}
@@ -678,7 +678,7 @@ function AgregarItemForm({ reparacionId, configuracion, onDone, onCancel }: Agre
         />
       )}
 
-      {error && <p className="mt-2 text-xs text-red-400">{error}</p>}
+      {error && <p className="mt-2 text-xs text-red-700">{error}</p>}
       <div className="mt-3 flex gap-2">
         <button type="submit" className={btnPrimary} disabled={pending || showCrearForm}>
           {pending ? 'Guardando…' : 'Agregar ítem'}
@@ -738,7 +738,7 @@ function AgregarTrabajoForm({
   return (
     <form
       onSubmit={submit}
-      className="rounded-xl border border-white/[0.06] bg-neutral-900/50 p-5"
+      className="rounded-xl border border-black/[0.06] bg-neutral-900/50 p-5"
     >
       <p className={`${sectionLabel} mb-4`}>Nuevo trabajo técnico</p>
       <div className="space-y-3">
@@ -781,7 +781,7 @@ function AgregarTrabajoForm({
           </div>
         )}
       </div>
-      {error && <p className="mt-2 text-xs text-red-400">{error}</p>}
+      {error && <p className="mt-2 text-xs text-red-700">{error}</p>}
       <div className="mt-4 flex gap-2">
         <button type="submit" className={btnPrimary} disabled={pending}>
           {pending ? 'Creando…' : 'Crear trabajo'}
@@ -863,7 +863,7 @@ function CostoCompraInline({ item, onSaved }: CostoCompraInlineProps) {
         type="number"
         min="0"
         step="1"
-        className="w-36 rounded border border-white/[0.08] bg-neutral-900 px-2 py-1 text-xs text-neutral-200 focus:border-accent-500/50 focus:outline-none"
+        className="w-36 rounded border border-black/[0.08] bg-neutral-900 px-2 py-1 text-xs text-neutral-200 focus:border-accent-500/50 focus:outline-none"
         placeholder="Costo de compra…"
         value={value}
         onChange={(e) => setValue(e.target.value)}
@@ -890,7 +890,7 @@ function CostoCompraInline({ item, onSaved }: CostoCompraInlineProps) {
       >
         Cancelar
       </button>
-      {error && <p className="text-[11px] text-red-400">{error}</p>}
+      {error && <p className="text-[11px] text-red-700">{error}</p>}
     </div>
   )
 }
@@ -943,7 +943,7 @@ function TrabajoCard({ reparacion, mecanicos, configuracion, onChanged }: Trabaj
           {reparacion.mecanico_id && (() => {
             const m = mecanicos.find((x) => x.id === reparacion.mecanico_id)
             return m ? (
-              <span className="rounded-full border border-sky-500/20 bg-sky-500/10 px-2 py-0.5 text-[10px] font-medium text-sky-400">
+              <span className="rounded-full border border-sky-500/20 bg-sky-500/10 px-2 py-0.5 text-[10px] font-medium text-sky-700">
                 {m.nombre}
               </span>
             ) : null
@@ -957,11 +957,11 @@ function TrabajoCard({ reparacion, mecanicos, configuracion, onChanged }: Trabaj
           {reparacion.items.map((item) => (
             <div
               key={item.id}
-              className="rounded-lg border border-white/[0.04] bg-white/[0.02] px-3 py-2"
+              className="rounded-lg border border-black/[0.04] bg-black/[0.02] px-3 py-2"
             >
               <div className="flex items-center justify-between gap-3">
                 <div className="min-w-0">
-                  <span className="mr-2 rounded-full border border-white/[0.06] bg-white/[0.04] px-2 py-0.5 text-[10px] text-neutral-500">
+                  <span className="mr-2 rounded-full border border-black/[0.06] bg-black/[0.04] px-2 py-0.5 text-[10px] text-neutral-500">
                     {TIPOS_ITEM_LABEL[item.tipo]}
                   </span>
                   <span className="text-sm text-neutral-200">{item.descripcion}</span>
@@ -974,7 +974,7 @@ function TrabajoCard({ reparacion, mecanicos, configuracion, onChanged }: Trabaj
                   <button
                     onClick={() => void eliminarItem(item.id)}
                     disabled={deletingId === item.id}
-                    className={`${btnGhost} px-2 py-1 text-red-400 hover:text-red-300`}
+                    className={`${btnGhost} px-2 py-1 text-red-700 hover:text-red-800`}
                     title="Eliminar ítem"
                   >
                     {deletingId === item.id ? '…' : '×'}
@@ -994,7 +994,7 @@ function TrabajoCard({ reparacion, mecanicos, configuracion, onChanged }: Trabaj
         </div>
       )}
 
-      {deleteError && <p className="text-xs text-red-400">{deleteError}</p>}
+      {deleteError && <p className="text-xs text-red-700">{deleteError}</p>}
 
       {showAddItem ? (
         <AgregarItemForm
@@ -1061,7 +1061,7 @@ export function TrabajosSection({
           <p className={sectionLabel}>Trabajos realizados</p>
           {pendientesCount > 0 && (
             <span
-              className="rounded-full border border-amber-500/30 bg-amber-500/10 px-2 py-0.5 text-[10px] font-semibold text-amber-400"
+              className="rounded-full border border-amber-500/30 bg-amber-500/10 px-2 py-0.5 text-[10px] font-semibold text-amber-700"
               title={`${pendientesCount} servicio${pendientesCount > 1 ? 's' : ''} del catálogo pendiente${pendientesCount > 1 ? 's' : ''} de revisión`}
             >
               {pendientesCount} pendiente{pendientesCount > 1 ? 's' : ''}

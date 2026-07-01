@@ -6,7 +6,7 @@ export function Card({
 }: React.ComponentProps<'div'> & { padded?: boolean }) {
   return (
     <div
-      className={`rounded-xl border border-white/[0.06] bg-neutral-900/50 ${padded ? 'p-5' : ''} ${className}`}
+      className={`rounded-xl border border-black/[0.06] bg-neutral-900/50 ${padded ? 'p-5' : ''} ${className}`}
       {...props}
     />
   )

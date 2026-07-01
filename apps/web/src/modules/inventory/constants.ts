@@ -59,7 +59,7 @@ export const ESTADO_STOCK_LABEL: Record<string, string> = {
 }
 
 export const ESTADO_STOCK_CLASS: Record<string, string> = {
-  en_stock:   'border-green-500/25 bg-green-500/10 text-green-400',
-  bajo_stock: 'border-yellow-500/25 bg-yellow-500/10 text-yellow-400',
-  sin_stock:  'border-red-500/25 bg-red-500/10 text-red-400',
+  en_stock:   'border-green-500/25 bg-green-500/10 text-green-700',
+  bajo_stock: 'border-yellow-500/25 bg-yellow-500/10 text-yellow-700',
+  sin_stock:  'border-red-500/25 bg-red-500/10 text-red-700',
 }

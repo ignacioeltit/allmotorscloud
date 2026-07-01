@@ -82,7 +82,7 @@ function Section({
     <section className={card}>
       <div className="mb-4 flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <span className="flex h-6 w-6 items-center justify-center rounded-md bg-white/[0.06] text-[11px] font-semibold text-neutral-400">
+          <span className="flex h-6 w-6 items-center justify-center rounded-md bg-black/[0.06] text-[11px] font-semibold text-neutral-400">
             {step}
           </span>
           <h2 className="text-sm font-semibold text-neutral-100">{title}</h2>
@@ -464,13 +464,13 @@ export function ReceptionFlow({
           }
         >
           {!ready && (
-            <div className="mb-4 inline-flex rounded-lg border border-white/[0.08] bg-white/[0.02] p-1">
+            <div className="mb-4 inline-flex rounded-lg border border-black/[0.08] bg-black/[0.02] p-1">
               <button
                 type="button"
                 onClick={() => setSearchMode('patente')}
                 className={`rounded-md px-3.5 py-1.5 text-sm font-medium transition-colors ${
                   searchMode === 'patente'
-                    ? 'bg-white/[0.08] text-neutral-100'
+                    ? 'bg-black/[0.08] text-neutral-100'
                     : 'text-neutral-500 hover:text-neutral-300'
                 }`}
               >
@@ -481,7 +481,7 @@ export function ReceptionFlow({
                 onClick={() => setSearchMode('cliente')}
                 className={`rounded-md px-3.5 py-1.5 text-sm font-medium transition-colors ${
                   searchMode === 'cliente'
-                    ? 'bg-white/[0.08] text-neutral-100'
+                    ? 'bg-black/[0.08] text-neutral-100'
                     : 'text-neutral-500 hover:text-neutral-300'
                 }`}
               >
@@ -511,13 +511,13 @@ export function ReceptionFlow({
               </div>
 
               {suggestions.length > 0 && (
-                <ul className="mt-3 divide-y divide-white/[0.05] overflow-hidden rounded-lg border border-white/[0.06]">
+                <ul className="mt-3 divide-y divide-black/[0.05] overflow-hidden rounded-lg border border-black/[0.06]">
                   {suggestions.map((v) => (
                     <li key={v.id}>
                       <button
                         type="button"
                         onClick={() => selectVehiculo(v.id)}
-                        className="flex w-full items-center justify-between px-4 py-3 text-left transition-colors hover:bg-white/[0.04]"
+                        className="flex w-full items-center justify-between px-4 py-3 text-left transition-colors hover:bg-black/[0.04]"
                       >
                         <span className="font-semibold tracking-wide text-neutral-100">
                           {v.patente}
@@ -533,7 +533,7 @@ export function ReceptionFlow({
               )}
 
               {patente.trim().length >= 2 && !searching && suggestions.length === 0 && (
-                <div className="mt-3 flex items-center justify-between rounded-lg border border-white/[0.06] bg-white/[0.02] px-4 py-3">
+                <div className="mt-3 flex items-center justify-between rounded-lg border border-black/[0.06] bg-black/[0.02] px-4 py-3">
                   <span className="text-sm text-neutral-400">
                     No hay un vehículo con esa patente.
                   </span>
@@ -552,13 +552,13 @@ export function ReceptionFlow({
                   <p className="mb-3 text-sm text-neutral-400">
                     Vehículos de <span className="text-neutral-200">{clientePreseleccionado?.nombre}</span>:
                   </p>
-                  <ul className="divide-y divide-white/[0.05] overflow-hidden rounded-lg border border-white/[0.06]">
+                  <ul className="divide-y divide-black/[0.05] overflow-hidden rounded-lg border border-black/[0.06]">
                     {vehiculosCliente.map((v) => (
                       <li key={v.id}>
                         <button
                           type="button"
                           onClick={() => selectVehiculo(v.id)}
-                          className="flex w-full items-center justify-between px-4 py-3 text-left transition-colors hover:bg-white/[0.04]"
+                          className="flex w-full items-center justify-between px-4 py-3 text-left transition-colors hover:bg-black/[0.04]"
                         >
                           <span className="font-semibold tracking-wide text-neutral-100">
                             {v.patente}
@@ -594,13 +594,13 @@ export function ReceptionFlow({
                   </p>
 
                   {clienteSuggestions.length > 0 && (
-                    <ul className="mt-3 divide-y divide-white/[0.05] overflow-hidden rounded-lg border border-white/[0.06]">
+                    <ul className="mt-3 divide-y divide-black/[0.05] overflow-hidden rounded-lg border border-black/[0.06]">
                       {clienteSuggestions.map((c) => (
                         <li key={c.id}>
                           <button
                             type="button"
                             onClick={() => selectCliente(c)}
-                            className="flex w-full items-center justify-between px-4 py-3 text-left transition-colors hover:bg-white/[0.04]"
+                            className="flex w-full items-center justify-between px-4 py-3 text-left transition-colors hover:bg-black/[0.04]"
                           >
                             <span className="font-semibold text-neutral-100">{c.nombre}</span>
                             <span className="text-sm text-neutral-400">{c.rut || c.telefono || '—'}</span>
@@ -611,7 +611,7 @@ export function ReceptionFlow({
                   )}
 
                   {clienteQuery.trim().length >= 2 && !searchingClientes && clienteSuggestions.length === 0 && (
-                    <div className="mt-3 rounded-lg border border-white/[0.06] bg-white/[0.02] px-4 py-3">
+                    <div className="mt-3 rounded-lg border border-black/[0.06] bg-black/[0.02] px-4 py-3">
                       <span className="text-sm text-neutral-400">No hay clientes con ese nombre.</span>
                     </div>
                   )}
@@ -622,7 +622,7 @@ export function ReceptionFlow({
 
           {ready && (
             <div className="flex items-center gap-3">
-              <span className="rounded-lg border border-white/10 bg-neutral-950/60 px-4 py-2 text-lg font-semibold tracking-[0.18em] text-neutral-50">
+              <span className="rounded-lg border border-black/10 bg-neutral-950/60 px-4 py-2 text-lg font-semibold tracking-[0.18em] text-neutral-50">
                 {patente.toUpperCase()}
               </span>
               <span className="text-sm text-neutral-500">
@@ -688,7 +688,7 @@ export function ReceptionFlow({
                       ) : enrichSuggestion ? (
                         <div className="rounded-xl border border-emerald-500/25 bg-emerald-500/[0.06] p-4">
                           <div className="flex flex-wrap items-center justify-between gap-2">
-                            <p className="flex items-center gap-2 text-sm font-semibold text-emerald-200">
+                            <p className="flex items-center gap-2 text-sm font-semibold text-emerald-900">
                               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                                 <path d="M20 6L9 17l-5-5" />
                               </svg>
@@ -719,7 +719,7 @@ export function ReceptionFlow({
                           </div>
                         </div>
                       ) : enrichMessage ? (
-                        <div className="rounded-lg border border-white/10 bg-white/[0.03] px-3.5 py-2.5 text-sm text-neutral-300">
+                        <div className="rounded-lg border border-black/10 bg-black/[0.03] px-3.5 py-2.5 text-sm text-neutral-300">
                           {enrichMessage}
                         </div>
                       ) : null}
@@ -776,7 +776,7 @@ export function ReceptionFlow({
               )}
 
               {mode === 'existing' && ficha && (ficha.eventos.length > 0 || ficha.ordenes.length > 0) && (
-                <div className="mt-5 grid grid-cols-1 gap-4 border-t border-white/[0.06] pt-4 sm:grid-cols-2">
+                <div className="mt-5 grid grid-cols-1 gap-4 border-t border-black/[0.06] pt-4 sm:grid-cols-2">
                   <div>
                     <p className={sectionLabel}>Últimas OT</p>
                     <ul className="mt-2 space-y-1.5">
@@ -852,13 +852,13 @@ export function ReceptionFlow({
                         onClick={() => toggleCheck(item.key)}
                         className={`flex items-center gap-2.5 rounded-lg border px-3 py-2.5 text-left text-sm transition-colors ${
                           on
-                            ? 'border-emerald-500/30 bg-emerald-500/10 text-emerald-200'
-                            : 'border-white/[0.07] bg-white/[0.02] text-neutral-400 hover:border-white/15'
+                            ? 'border-emerald-500/30 bg-emerald-500/10 text-emerald-900'
+                            : 'border-black/[0.07] bg-black/[0.02] text-neutral-400 hover:border-black/15'
                         }`}
                       >
                         <span
                           className={`flex h-4 w-4 items-center justify-center rounded border ${
-                            on ? 'border-emerald-400 bg-emerald-500 text-neutral-950' : 'border-white/20'
+                            on ? 'border-emerald-400 bg-emerald-500 text-neutral-950' : 'border-black/20'
                           }`}
                         >
                           {on && (
@@ -876,7 +876,7 @@ export function ReceptionFlow({
             </Section>
 
             {error && (
-              <div className="rounded-xl border border-red-500/25 bg-red-500/[0.08] px-4 py-3 text-sm text-red-200">
+              <div className="rounded-xl border border-red-500/25 bg-red-500/[0.08] px-4 py-3 text-sm text-red-900">
                 {error}
               </div>
             )}
@@ -886,7 +886,7 @@ export function ReceptionFlow({
 
       {/* Barra de acción fija */}
       {ready && (
-        <div className="fixed inset-x-0 bottom-0 z-20 border-t border-white/[0.08] bg-neutral-950/80 backdrop-blur md:pl-64">
+        <div className="fixed inset-x-0 bottom-0 z-20 border-t border-black/[0.08] bg-neutral-950/80 backdrop-blur md:pl-64">
           <div className="mx-auto flex max-w-6xl items-center justify-between gap-4 px-5 py-3.5 md:px-8">
             <p className="text-sm text-neutral-500">
               {mode === 'existing' ? 'Vehículo existente' : 'Vehículo nuevo'} ·{' '}

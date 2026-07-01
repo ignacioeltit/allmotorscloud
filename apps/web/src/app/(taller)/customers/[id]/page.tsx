@@ -97,7 +97,7 @@ export default async function ClienteDetailPage({
               <li key={v.id}>
                 <Link
                   href={`/vehicles/${v.id}`}
-                  className={`${card} block transition-colors hover:border-white/[0.14]`}
+                  className={`${card} block transition-colors hover:border-black/[0.14]`}
                 >
                   <div className="flex items-center justify-between gap-3">
                     <p className="font-medium text-neutral-100">

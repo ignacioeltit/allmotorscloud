@@ -67,7 +67,7 @@ function StockBadge({ stock, minimo }: { stock: number; minimo: number }) {
 
 function InfoRow({ label, value }: { label: string; value: React.ReactNode }) {
   return (
-    <div className="flex min-h-[2rem] items-start gap-3 border-b border-white/[0.04] py-2.5 last:border-0">
+    <div className="flex min-h-[2rem] items-start gap-3 border-b border-black/[0.04] py-2.5 last:border-0">
       <span className="w-36 shrink-0 text-[11px] font-medium uppercase tracking-wide text-neutral-500">
         {label}
       </span>
@@ -118,7 +118,7 @@ function AjusteStockForm({ repuestoId, stockActual, onDone, onCancel }: AjusteSt
   }
 
   return (
-    <form onSubmit={submit} className="space-y-3 rounded-xl border border-white/[0.08] bg-neutral-900/70 p-4">
+    <form onSubmit={submit} className="space-y-3 rounded-xl border border-black/[0.08] bg-neutral-900/70 p-4">
       <p className={`${sectionLabel} mb-1`}>Ajustar stock</p>
       <p className="text-xs text-neutral-500">Stock actual: <span className="font-semibold text-neutral-300">{stockActual}</span></p>
       <div className="grid grid-cols-2 gap-3">
@@ -141,7 +141,7 @@ function AjusteStockForm({ repuestoId, stockActual, onDone, onCancel }: AjusteSt
         <input className={inputClass} placeholder="ej: Compra a proveedor, Inventario físico…"
           value={motivo} onChange={(e) => setMotivo(e.target.value)} disabled={pending} />
       </div>
-      {err && <p className="text-xs text-red-400">{err}</p>}
+      {err && <p className="text-xs text-red-700">{err}</p>}
       <div className="flex gap-2">
         <button type="submit" className={btnPrimary} disabled={pending}>
           {pending ? 'Guardando…' : 'Registrar'}
@@ -287,14 +287,14 @@ function EditForm({ repuesto, onSaved, onCancel }: EditFormProps) {
             disabled={pending} />
         </div>
         <div className="flex items-center gap-2 pt-6">
-          <input id="activo" type="checkbox" className="h-4 w-4 rounded border-white/20 accent-accent-500"
+          <input id="activo" type="checkbox" className="h-4 w-4 rounded border-black/20 accent-accent-500"
             checked={fields.activo ?? true}
             onChange={(e) => set('activo', e.target.checked)}
             disabled={pending} />
           <label htmlFor="activo" className={labelClass + ' mb-0'}>Activo en catálogo</label>
         </div>
       </div>
-      {err && <p className="text-xs text-red-400">{err}</p>}
+      {err && <p className="text-xs text-red-700">{err}</p>}
       <div className="flex gap-2">
         <button type="submit" className={btnPrimary} disabled={pending}>
           {pending ? 'Guardando…' : 'Guardar cambios'}
@@ -355,7 +355,7 @@ export function RepuestoDetailClient({ repuesto: initialRepuesto, movimientos, u
           <h1 className="text-2xl font-semibold tracking-tight text-neutral-50">{repuesto.nombre}</h1>
           <p className="mt-0.5 font-mono text-sm text-neutral-500">{repuesto.codigo}</p>
           {!repuesto.activo && (
-            <span className="mt-1.5 inline-block rounded-full border border-red-500/25 bg-red-500/10 px-2 py-0.5 text-[11px] font-medium text-red-400">
+            <span className="mt-1.5 inline-block rounded-full border border-red-500/25 bg-red-500/10 px-2 py-0.5 text-[11px] font-medium text-red-700">
               Inactivo
             </span>
           )}
@@ -375,7 +375,7 @@ export function RepuestoDetailClient({ repuesto: initialRepuesto, movimientos, u
       {/* Banner precio estimado */}
       {precioEst && mode === 'view' && (
         <div className="rounded-lg border border-amber-500/20 bg-amber-500/[0.07] px-4 py-3">
-          <p className="text-sm font-medium text-amber-400">
+          <p className="text-sm font-medium text-amber-700">
             ⚠ Precio de venta estimado automáticamente
           </p>
           <p className="mt-0.5 text-xs text-amber-500/80">
@@ -428,8 +428,8 @@ export function RepuestoDetailClient({ repuesto: initialRepuesto, movimientos, u
               <InfoRow label="Unidad" value={UNIDADES_MEDIDA_LABEL[repuesto.unidad] ?? repuesto.unidad} />
               <InfoRow label="Origen precio" value={
                 precioEst
-                  ? <span className="rounded bg-amber-500/20 px-1.5 py-0.5 text-[11px] font-medium text-amber-400">Estimado TallerGP ×1.40</span>
-                  : <span className="rounded bg-sky-500/10 px-1.5 py-0.5 text-[11px] font-medium text-sky-400">Importado / manual</span>
+                  ? <span className="rounded bg-amber-500/20 px-1.5 py-0.5 text-[11px] font-medium text-amber-700">Estimado TallerGP ×1.40</span>
+                  : <span className="rounded bg-sky-500/10 px-1.5 py-0.5 text-[11px] font-medium text-sky-700">Importado / manual</span>
               } />
             </div>
 
@@ -457,7 +457,7 @@ export function RepuestoDetailClient({ repuesto: initialRepuesto, movimientos, u
                 </div>
                 <InfoRow label="Stock mínimo" value={String(repuesto.stock_minimo)} />
                 <InfoRow label="Diferencia" value={
-                  <span className={repuesto.stock_actual - repuesto.stock_minimo >= 0 ? 'text-green-400' : 'text-red-400'}>
+                  <span className={repuesto.stock_actual - repuesto.stock_minimo >= 0 ? 'text-green-700' : 'text-red-700'}>
                     {repuesto.stock_actual - repuesto.stock_minimo >= 0 ? '+' : ''}
                     {(repuesto.stock_actual - repuesto.stock_minimo).toFixed(repuesto.stock_minimo % 1 !== 0 ? 3 : 0)}
                   </span>
@@ -481,7 +481,7 @@ export function RepuestoDetailClient({ repuesto: initialRepuesto, movimientos, u
               <div className="overflow-x-auto">
                 <table className="w-full text-sm">
                   <thead>
-                    <tr className="border-b border-white/[0.06]">
+                    <tr className="border-b border-black/[0.06]">
                       {['Fecha', 'Tipo', 'Cantidad', 'Stock antes', 'Stock después', 'Motivo'].map((h) => (
                         <th key={h} className="pb-2.5 pr-4 text-left text-[11px] font-semibold uppercase tracking-wider text-neutral-500">
                           {h}
@@ -491,23 +491,23 @@ export function RepuestoDetailClient({ repuesto: initialRepuesto, movimientos, u
                   </thead>
                   <tbody>
                     {movimientos.map((m) => (
-                      <tr key={m.id} className="border-b border-white/[0.03] hover:bg-white/[0.02]">
+                      <tr key={m.id} className="border-b border-black/[0.03] hover:bg-black/[0.02]">
                         <td className="py-2.5 pr-4 text-xs text-neutral-500 whitespace-nowrap">
                           {fmtDatetime(m.creado_en)}
                         </td>
                         <td className="py-2.5 pr-4">
                           <span className={`rounded-full border px-2 py-0.5 text-[10px] font-medium ${
                             m.tipo === 'entrada' || m.tipo === 'devolucion'
-                              ? 'border-green-500/25 bg-green-500/10 text-green-400'
+                              ? 'border-green-500/25 bg-green-500/10 text-green-700'
                               : m.tipo === 'consumo_ot' || m.tipo === 'salida'
-                              ? 'border-red-500/25 bg-red-500/10 text-red-400'
+                              ? 'border-red-500/25 bg-red-500/10 text-red-700'
                               : 'border-neutral-500/25 bg-neutral-500/10 text-neutral-400'
                           }`}>
                             {TIPO_MOVIMIENTO_LABEL[m.tipo] ?? m.tipo}
                           </span>
                         </td>
                         <td className={`py-2.5 pr-4 font-mono text-sm font-medium tabular-nums ${
-                          m.tipo === 'entrada' || m.tipo === 'devolucion' ? 'text-green-400' : 'text-red-400'
+                          m.tipo === 'entrada' || m.tipo === 'devolucion' ? 'text-green-700' : 'text-red-700'
                         }`}>
                           {m.tipo === 'entrada' || m.tipo === 'devolucion' ? '+' : '-'}{m.cantidad}
                         </td>
@@ -539,7 +539,7 @@ export function RepuestoDetailClient({ repuesto: initialRepuesto, movimientos, u
               <div className="overflow-x-auto">
                 <table className="w-full text-sm">
                   <thead>
-                    <tr className="border-b border-white/[0.06]">
+                    <tr className="border-b border-black/[0.06]">
                       {['OT', 'Descripción', 'Cantidad', 'Total', 'Fecha'].map((h) => (
                         <th key={h} className="pb-2.5 pr-4 text-left text-[11px] font-semibold uppercase tracking-wider text-neutral-500">
                           {h}
@@ -549,12 +549,12 @@ export function RepuestoDetailClient({ repuesto: initialRepuesto, movimientos, u
                   </thead>
                   <tbody>
                     {usosEnOts.map((uso) => (
-                      <tr key={uso.id} className="border-b border-white/[0.03] hover:bg-white/[0.02]">
+                      <tr key={uso.id} className="border-b border-black/[0.03] hover:bg-black/[0.02]">
                         <td className="py-2.5 pr-4">
                           {uso.ot_id ? (
                             <Link
                               href={`/repair-orders/${uso.ot_id}`}
-                              className="font-mono text-xs font-medium text-sky-400 hover:text-sky-300 transition-colors"
+                              className="font-mono text-xs font-medium text-sky-700 hover:text-sky-800 transition-colors"
                             >
                               {uso.ot_numero ?? uso.ot_id.slice(0, 8)}
                             </Link>

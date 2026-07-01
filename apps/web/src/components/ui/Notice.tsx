@@ -3,9 +3,9 @@ type NoticeTone = 'info' | 'warning' | 'error' | 'empty'
 
 const toneClasses: Record<NoticeTone, string> = {
   info: 'border-accent-500/20 bg-accent-500/[0.07] text-accent-200',
-  warning: 'border-amber-500/25 bg-amber-500/[0.08] text-amber-200',
-  error: 'border-red-500/25 bg-red-500/[0.08] text-red-200',
-  empty: 'border-white/[0.06] bg-white/[0.02] text-neutral-500',
+  warning: 'border-amber-500/25 bg-amber-500/[0.08] text-amber-900',
+  error: 'border-red-500/25 bg-red-500/[0.08] text-red-900',
+  empty: 'border-black/[0.06] bg-black/[0.02] text-neutral-500',
 }
 
 export function Notice({

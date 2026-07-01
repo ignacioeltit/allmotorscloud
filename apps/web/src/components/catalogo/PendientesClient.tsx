@@ -36,7 +36,7 @@ function CategoriaBadge({ categoria }: { categoria: string | null }) {
   const label = cat && CATEGORIA_LABEL[cat] ? CATEGORIA_LABEL[cat] : (categoria ?? 'Sin categoría')
   const color = cat && CATEGORIA_COLOR[cat]
     ? CATEGORIA_COLOR[cat]
-    : 'border-white/10 bg-white/[0.04] text-neutral-500'
+    : 'border-black/10 bg-black/[0.04] text-neutral-500'
   return (
     <span className={`inline-flex items-center rounded-full border px-2 py-0.5 text-[10px] font-medium ${color}`}>
       {label}
@@ -145,7 +145,7 @@ function PendienteCard({
               <div className="flex flex-wrap items-center gap-2">
                 <span className="text-sm font-semibold text-neutral-100">{s.nombre}</span>
                 <CategoriaBadge categoria={s.categoria} />
-                <span className="rounded-full border border-amber-500/25 bg-amber-500/10 px-2.5 py-0.5 text-[10px] font-medium text-amber-400">
+                <span className="rounded-full border border-amber-500/25 bg-amber-500/10 px-2.5 py-0.5 text-[10px] font-medium text-amber-700">
                   Pendiente
                 </span>
               </div>
@@ -173,7 +173,7 @@ function PendienteCard({
           </div>
 
           {/* Acciones */}
-          <div className="mt-3 flex flex-wrap items-center gap-2 border-t border-white/[0.05] pt-3">
+          <div className="mt-3 flex flex-wrap items-center gap-2 border-t border-black/[0.05] pt-3">
             <button
               type="button"
               onClick={onAproveDirect}
@@ -208,7 +208,7 @@ function PendienteCard({
               type="button"
               onClick={onRejectStart}
               disabled={saving}
-              className="inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium text-red-400 transition-colors hover:bg-red-500/10 disabled:cursor-not-allowed disabled:opacity-50"
+              className="inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium text-red-700 transition-colors hover:bg-red-500/10 disabled:cursor-not-allowed disabled:opacity-50"
             >
               <svg className="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
                 <line x1="18" y1="6" x2="6" y2="18" />
@@ -219,7 +219,7 @@ function PendienteCard({
           </div>
 
           {error && (
-            <p className="mt-2 text-xs text-red-400">{error}</p>
+            <p className="mt-2 text-xs text-red-700">{error}</p>
           )}
         </>
       )}
@@ -259,7 +259,7 @@ function PendienteCard({
             </button>
           </div>
           {error && (
-            <p className="text-xs text-red-400">{error}</p>
+            <p className="text-xs text-red-700">{error}</p>
           )}
         </div>
       )}
@@ -278,7 +278,7 @@ function PendienteCard({
             {/* Nombre */}
             <div className="sm:col-span-2">
               <label className={labelClass}>
-                Nombre <span className="text-red-400">*</span>
+                Nombre <span className="text-red-700">*</span>
               </label>
               <input
                 type="text"
@@ -307,7 +307,7 @@ function PendienteCard({
             {/* Categoría */}
             <div>
               <label className={labelClass}>
-                Categoría <span className="text-red-400">*</span>
+                Categoría <span className="text-red-700">*</span>
               </label>
               <select
                 value={editForm.categoria}
@@ -341,7 +341,7 @@ function PendienteCard({
             {/* Precio */}
             <div>
               <label className={labelClass}>
-                Precio unitario (CLP) <span className="text-red-400">*</span>
+                Precio unitario (CLP) <span className="text-red-700">*</span>
               </label>
               <input
                 type="number"
@@ -370,12 +370,12 @@ function PendienteCard({
           </div>
 
           {error && (
-            <p className="rounded-lg border border-red-500/25 bg-red-500/[0.08] px-3 py-2 text-xs text-red-300">
+            <p className="rounded-lg border border-red-500/25 bg-red-500/[0.08] px-3 py-2 text-xs text-red-800">
               {error}
             </p>
           )}
 
-          <div className="flex flex-wrap items-center gap-2 border-t border-white/[0.05] pt-3">
+          <div className="flex flex-wrap items-center gap-2 border-t border-black/[0.05] pt-3">
             <button
               type="button"
               onClick={onAproveWithEdit}

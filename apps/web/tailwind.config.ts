@@ -13,15 +13,35 @@ const config: Config = {
         success: colors.success,
         warning: colors.warning,
         danger: colors.danger,
-        // Escala de acento completa para el tema oscuro (DMS). Independiente de
-        // design-tokens.brand (que solo trae algunos tonos) para usar accent-400/500/600 libremente.
+        // Escala de acento — ámbar/naranja (tema claro "acero de taller").
+        // 300/400 se usan como texto (links, badges) sobre fondo claro, por eso
+        // son más oscuros que 500/600 (fondos sólidos de botón).
         accent: {
-          300: '#93c5fd',
-          400: '#60a5fa',
-          500: '#3b82f6',
-          600: '#2563eb',
-          700: '#1d4ed8',
-          950: '#172554',
+          200: '#7c2d12',
+          300: '#9a3412',
+          400: '#c2410c',
+          500: '#f97316',
+          600: '#ea580c',
+          700: '#c2410c',
+          950: '#431407',
+        },
+        // Paleta neutral invertida para el tema claro "acero de taller":
+        // los mismos nombres de clase (bg-neutral-950, text-neutral-100, etc.)
+        // que antes daban un tema oscuro ahora resuelven a un tema claro,
+        // sin tener que tocar cada componente que ya usa estas clases.
+        //   950/900 → superficies (950 = fondo de página gris acero, 900 = tarjetas claras)
+        //   50-700  → texto, de más a menos prominente
+        neutral: {
+          50: '#0a0a0b',
+          100: '#18181b',
+          200: '#27272a',
+          300: '#3f3f46',
+          400: '#52525b',
+          500: '#71717a',
+          600: '#94949c',
+          700: '#b4b4ba',
+          900: '#f6f7f8',
+          950: '#d9dce0',
         },
       },
       fontFamily: {

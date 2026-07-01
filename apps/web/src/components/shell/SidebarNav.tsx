@@ -116,8 +116,8 @@ export function SidebarNav({ pendientesCatalogo = 0, rolUsuario }: SidebarNavPro
             href={item.href}
             className={`flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors ${
               active
-                ? 'bg-white/[0.07] text-neutral-50'
-                : 'text-neutral-400 hover:bg-white/[0.04] hover:text-neutral-200'
+                ? 'bg-black/[0.07] text-neutral-50'
+                : 'text-neutral-400 hover:bg-black/[0.04] hover:text-neutral-200'
             }`}
           >
             <span className={active ? 'text-accent-400' : 'text-neutral-500'}>
@@ -125,7 +125,7 @@ export function SidebarNav({ pendientesCatalogo = 0, rolUsuario }: SidebarNavPro
             </span>
             <span className="flex-1">{item.label}</span>
             {showBadge && (
-              <span className="flex h-5 min-w-[20px] items-center justify-center rounded-full bg-amber-500/20 px-1.5 text-[10px] font-bold text-amber-400">
+              <span className="flex h-5 min-w-[20px] items-center justify-center rounded-full bg-amber-500/20 px-1.5 text-[10px] font-bold text-amber-700">
                 {pendientesCatalogo > 99 ? '99+' : pendientesCatalogo}
               </span>
             )}
@@ -140,8 +140,8 @@ export function SidebarNav({ pendientesCatalogo = 0, rolUsuario }: SidebarNavPro
             href="/settings/workshop"
             className={`flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors ${
               active
-                ? 'bg-white/[0.07] text-neutral-50'
-                : 'text-neutral-400 hover:bg-white/[0.04] hover:text-neutral-200'
+                ? 'bg-black/[0.07] text-neutral-50'
+                : 'text-neutral-400 hover:bg-black/[0.04] hover:text-neutral-200'
             }`}
           >
             <span className={active ? 'text-accent-400' : 'text-neutral-500'}>

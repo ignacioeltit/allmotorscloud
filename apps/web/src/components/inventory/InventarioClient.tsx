@@ -89,7 +89,7 @@ function FormCreate({ onCreated, onCancel }: FormCreateProps) {
   }
 
   return (
-    <form onSubmit={submit} className="rounded-xl border border-white/[0.08] bg-neutral-900/70 p-5">
+    <form onSubmit={submit} className="rounded-xl border border-black/[0.08] bg-neutral-900/70 p-5">
       <p className={`${sectionLabel} mb-4`}>Nuevo repuesto</p>
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
         <div>
@@ -155,7 +155,7 @@ function FormCreate({ onCreated, onCancel }: FormCreateProps) {
             onChange={(e) => set('proveedor', e.target.value)} disabled={pending} />
         </div>
       </div>
-      {err && <p className="mt-2 text-xs text-red-400">{err}</p>}
+      {err && <p className="mt-2 text-xs text-red-700">{err}</p>}
       <div className="mt-4 flex gap-2">
         <button type="submit" className={btnPrimary} disabled={pending}>
           {pending ? 'Creando…' : 'Crear repuesto'}
@@ -184,7 +184,7 @@ function Paginacion({ currentPage, totalPages, total, pageSize, onPage, loading 
   const to   = Math.min(currentPage * pageSize, total)
 
   return (
-    <div className="flex flex-wrap items-center justify-between gap-3 border-t border-white/[0.05] pt-4">
+    <div className="flex flex-wrap items-center justify-between gap-3 border-t border-black/[0.05] pt-4">
       <p className="text-xs text-neutral-500">
         {total === 0 ? 'Sin resultados' : `Mostrando ${from}–${to} de ${total.toLocaleString('es-CL')}`}
       </p>
@@ -337,7 +337,7 @@ export function InventarioClient({
       {/* Alertas bajo stock — solo en sin filtro */}
       {!initialSearch && countBajoStock > 0 && (
         <div className="rounded-lg border border-yellow-500/20 bg-yellow-500/[0.06] px-4 py-2.5">
-          <p className="text-xs font-semibold text-yellow-400">
+          <p className="text-xs font-semibold text-yellow-700">
             {repuestos.filter((r) => calcularEstadoStock(r.stock_actual, r.stock_minimo) === 'sin_stock').length} sin stock
             {' · '}
             {repuestos.filter((r) => calcularEstadoStock(r.stock_actual, r.stock_minimo) === 'bajo_stock').length} bajo mínimo
@@ -348,7 +348,7 @@ export function InventarioClient({
       )}
 
       {deleteError && (
-        <p className="rounded-lg border border-red-500/25 bg-red-500/10 px-4 py-2 text-sm text-red-400">
+        <p className="rounded-lg border border-red-500/25 bg-red-500/10 px-4 py-2 text-sm text-red-700">
           {deleteError}
         </p>
       )}
@@ -375,7 +375,7 @@ export function InventarioClient({
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
                 <thead>
-                  <tr className="border-b border-white/[0.06]">
+                  <tr className="border-b border-black/[0.06]">
                     {['Código', 'Nombre', 'Marca', 'Categoría', 'Stock', 'Precio venta', ''].map((h) => (
                       <th key={h} className="pb-2.5 pr-4 text-left text-[11px] font-semibold uppercase tracking-wider text-neutral-500 first:pl-0">
                         {h}
@@ -387,7 +387,7 @@ export function InventarioClient({
                   {repuestos.map((r) => (
                     <tr
                       key={r.id}
-                      className="cursor-pointer border-b border-white/[0.03] hover:bg-white/[0.02]"
+                      className="cursor-pointer border-b border-black/[0.03] hover:bg-black/[0.02]"
                       onClick={() => router.push(`/inventory/${r.id}`)}
                     >
                       <td className="py-3 pr-4">
@@ -411,7 +411,7 @@ export function InventarioClient({
                         <button
                           onClick={(e) => { e.stopPropagation(); void eliminar(r.id) }}
                           disabled={deletingId === r.id}
-                          className={`${btnGhost} px-2 py-1 text-xs text-red-400 hover:text-red-300`}
+                          className={`${btnGhost} px-2 py-1 text-xs text-red-700 hover:text-red-800`}
                           title="Eliminar repuesto"
                         >
                           {deletingId === r.id ? '…' : 'Eliminar'}

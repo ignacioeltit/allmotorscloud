@@ -90,12 +90,12 @@ export default async function PendientesPage({ searchParams }: Props) {
           name="search"
           defaultValue={search}
           placeholder="Buscar por nombre..."
-          className="min-w-[200px] flex-1 rounded-lg border border-white/10 bg-neutral-950/60 px-3.5 py-2 text-sm text-neutral-100 placeholder:text-neutral-600 focus:border-accent-500/60 focus:outline-none focus:ring-2 focus:ring-accent-500/20"
+          className="min-w-[200px] flex-1 rounded-lg border border-black/10 bg-neutral-950/60 px-3.5 py-2 text-sm text-neutral-100 placeholder:text-neutral-600 focus:border-accent-500/60 focus:outline-none focus:ring-2 focus:ring-accent-500/20"
         />
         <select
           name="categoria"
           defaultValue={categoria}
-          className="rounded-lg border border-white/10 bg-neutral-950/60 px-3.5 py-2 text-sm text-neutral-300 focus:border-accent-500/60 focus:outline-none"
+          className="rounded-lg border border-black/10 bg-neutral-950/60 px-3.5 py-2 text-sm text-neutral-300 focus:border-accent-500/60 focus:outline-none"
         >
           <option value="">Todas las categorías</option>
           {CATEGORIAS_CATALOGO.map((c) => (
@@ -106,7 +106,7 @@ export default async function PendientesPage({ searchParams }: Props) {
         </select>
         <button
           type="submit"
-          className="rounded-lg border border-white/10 bg-white/[0.03] px-4 py-2 text-sm text-neutral-300 transition-colors hover:bg-white/[0.07]"
+          className="rounded-lg border border-black/10 bg-black/[0.03] px-4 py-2 text-sm text-neutral-300 transition-colors hover:bg-black/[0.07]"
         >
           Filtrar
         </button>

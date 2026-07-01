@@ -30,7 +30,7 @@ export default async function VehiclesPage() {
       ) : (
         <div className={`${card} overflow-x-auto p-0`}>
           <table className="w-full text-sm">
-            <thead className="border-b border-white/[0.06] bg-white/[0.02] text-left text-[11px] uppercase tracking-wider text-neutral-500">
+            <thead className="border-b border-black/[0.06] bg-black/[0.02] text-left text-[11px] uppercase tracking-wider text-neutral-500">
               <tr>
                 <th className="px-4 py-3 font-medium">Patente</th>
                 <th className="px-4 py-3 font-medium">Marca</th>
@@ -41,7 +41,7 @@ export default async function VehiclesPage() {
             </thead>
             <tbody>
               {result.data.map((v) => (
-                <tr key={v.id} className="border-b border-white/[0.04] last:border-0">
+                <tr key={v.id} className="border-b border-black/[0.04] last:border-0">
                   <td className="px-4 py-3 font-medium tracking-wide text-neutral-50">{v.patente}</td>
                   <td className="px-4 py-3 text-neutral-400">{v.marca}</td>
                   <td className="px-4 py-3 text-neutral-400">{v.modelo}</td>

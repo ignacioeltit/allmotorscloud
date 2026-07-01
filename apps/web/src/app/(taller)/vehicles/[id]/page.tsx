@@ -138,7 +138,7 @@ export default async function VehiculoDetailPage({
           <ul className="space-y-2">
             {ordenes.map((ot) => (
               <li key={ot.id}>
-                <Link href={`/repair-orders/${ot.id}`} className={`${card} block transition-colors hover:border-white/[0.14]`}>
+                <Link href={`/repair-orders/${ot.id}`} className={`${card} block transition-colors hover:border-black/[0.14]`}>
                   <div className="flex items-center justify-between gap-3">
                     <p className="font-medium text-neutral-100">{ot.numero_ot}</p>
                     <span className={otEstadoBadge(ot.estado)}>{otEstadoLabel(ot.estado)}</span>

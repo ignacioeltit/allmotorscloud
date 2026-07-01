@@ -11,11 +11,11 @@ export function Section({
   children: React.ReactNode
 }) {
   return (
-    <section className="rounded-xl border border-white/[0.06] bg-neutral-900/50 p-5">
+    <section className="rounded-xl border border-black/[0.06] bg-neutral-900/50 p-5">
       <div className="mb-4 flex items-center justify-between gap-3">
         <div className="flex items-center gap-3">
           {step ? (
-            <span className="flex h-6 w-6 items-center justify-center rounded-md bg-white/[0.06] text-[11px] font-semibold text-neutral-400">
+            <span className="flex h-6 w-6 items-center justify-center rounded-md bg-black/[0.06] text-[11px] font-semibold text-neutral-400">
               {step}
             </span>
           ) : null}

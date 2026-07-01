@@ -148,7 +148,7 @@ export default async function OrdenTrabajoDetailPage({
       </div>
 
       {/* ── Acciones ── */}
-      <div className="rounded-xl border border-white/[0.06] bg-neutral-900/50 p-4">
+      <div className="rounded-xl border border-black/[0.06] bg-neutral-900/50 p-4">
         <p className={`${sectionLabel} mb-2.5`}>Acciones</p>
         <OrdenTrabajoActions id={orden.id} estado={orden.estado} vehiculoId={orden.vehiculo_id} />
       </div>
@@ -196,7 +196,7 @@ export default async function OrdenTrabajoDetailPage({
             <p className="mt-3 text-sm leading-relaxed text-neutral-200">{orden.notas}</p>
           )}
           {recepcionEvento?.descripcion && (
-            <div className={orden.notas ? 'mt-4 border-t border-white/[0.06] pt-3' : 'mt-3'}>
+            <div className={orden.notas ? 'mt-4 border-t border-black/[0.06] pt-3' : 'mt-3'}>
               <p className={`${sectionLabel} mb-2`}>Detalle de recepción</p>
               <pre className="whitespace-pre-wrap font-sans text-xs leading-relaxed text-neutral-400">
                 {recepcionEvento.descripcion}
@@ -221,7 +221,7 @@ export default async function OrdenTrabajoDetailPage({
         <section className={card}>
           <div className="flex items-center justify-between gap-3">
             <p className={sectionLabel}>Presupuesto v{presupuesto.version}</p>
-            <span className="rounded-full border border-sky-500/25 bg-sky-500/10 px-2.5 py-0.5 text-xs font-medium text-sky-300">
+            <span className="rounded-full border border-sky-500/25 bg-sky-500/10 px-2.5 py-0.5 text-xs font-medium text-sky-800">
               {ESTADO_PRESUPUESTO_LABEL[presupuesto.estado]}
             </span>
           </div>
@@ -230,7 +230,7 @@ export default async function OrdenTrabajoDetailPage({
               {presupuesto.items.map((item) => (
                 <div
                   key={item.id}
-                  className="flex items-center justify-between gap-3 rounded-lg border border-white/[0.04] bg-white/[0.02] px-3 py-2 text-sm"
+                  className="flex items-center justify-between gap-3 rounded-lg border border-black/[0.04] bg-black/[0.02] px-3 py-2 text-sm"
                 >
                   <span className="text-neutral-300">{item.descripcion}</span>
                   <span className="shrink-0 font-medium text-neutral-200">
@@ -238,7 +238,7 @@ export default async function OrdenTrabajoDetailPage({
                   </span>
                 </div>
               ))}
-              <div className="mt-3 flex justify-between border-t border-white/[0.06] pt-3 text-sm font-semibold">
+              <div className="mt-3 flex justify-between border-t border-black/[0.06] pt-3 text-sm font-semibold">
                 <span className="text-neutral-400">Total neto</span>
                 <span className="text-neutral-100">{fmtCLP(presupuesto.total_neto)}</span>
               </div>
@@ -254,7 +254,7 @@ export default async function OrdenTrabajoDetailPage({
 
       {/* ── Totales de trabajos registrados ── */}
       {totalOT > 0 && (
-        <section className="rounded-xl border border-white/[0.06] bg-neutral-900/30 px-5 py-4">
+        <section className="rounded-xl border border-black/[0.06] bg-neutral-900/30 px-5 py-4">
           <p className={`${sectionLabel} mb-3`}>Totales de trabajos</p>
           <div className="grid grid-cols-3 gap-4">
             <div>

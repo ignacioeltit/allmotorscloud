@@ -67,7 +67,7 @@ export function OrdenTrabajoActions({
           Ver ficha vehículo
         </Link>
       </div>
-      {error ? <p className="text-sm text-red-300">{error}</p> : null}
+      {error ? <p className="text-sm text-red-800">{error}</p> : null}
     </div>
   )
 }

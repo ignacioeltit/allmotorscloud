@@ -31,7 +31,7 @@ export default async function CustomersPage() {
       ) : (
         <div className={`${card} overflow-x-auto p-0`}>
           <table className="w-full text-sm">
-            <thead className="border-b border-white/[0.06] bg-white/[0.02] text-left text-[11px] uppercase tracking-wider text-neutral-500">
+            <thead className="border-b border-black/[0.06] bg-black/[0.02] text-left text-[11px] uppercase tracking-wider text-neutral-500">
               <tr>
                 <th className="px-4 py-3 font-medium">Nombre</th>
                 <th className="px-4 py-3 font-medium">Tipo</th>
@@ -43,7 +43,7 @@ export default async function CustomersPage() {
               {result.data.map((c) => (
                 <tr
                   key={c.id}
-                  className="border-b border-white/[0.04] transition-colors last:border-0 hover:bg-white/[0.03]"
+                  className="border-b border-black/[0.04] transition-colors last:border-0 hover:bg-black/[0.03]"
                 >
                   <td className="px-4 py-3 text-neutral-100">
                     <Link href={`/customers/${c.id}`} className="block font-medium hover:text-white">

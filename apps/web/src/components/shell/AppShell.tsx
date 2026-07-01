@@ -13,7 +13,7 @@ interface AppShellProps {
 export function AppShell({ children, pendientesCatalogo = 0, rolUsuario }: AppShellProps) {
   return (
     <div className="flex min-h-screen">
-      <aside className="sticky top-0 hidden h-screen w-64 shrink-0 flex-col border-r border-white/[0.06] bg-neutral-900/30 px-4 py-5 md:flex">
+      <aside className="sticky top-0 hidden h-screen w-64 shrink-0 flex-col border-r border-black/[0.06] bg-neutral-900/30 px-4 py-5 md:flex">
         <Link href="/dashboard" className="mb-6 flex items-center gap-2.5 px-2">
           <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-accent-600 text-sm font-bold text-white">
             A
@@ -25,13 +25,13 @@ export function AppShell({ children, pendientesCatalogo = 0, rolUsuario }: AppSh
 
         <SidebarNav pendientesCatalogo={pendientesCatalogo} rolUsuario={rolUsuario} />
 
-        <div className="mt-auto border-t border-white/[0.06] pt-4">
+        <div className="mt-auto border-t border-black/[0.06] pt-4">
           <LogoutButton />
         </div>
       </aside>
 
       <div className="flex min-w-0 flex-1 flex-col">
-        <header className="flex items-center justify-between border-b border-white/[0.06] px-4 py-3 md:hidden">
+        <header className="flex items-center justify-between border-b border-black/[0.06] px-4 py-3 md:hidden">
           <Link href="/dashboard" className="text-sm font-semibold text-neutral-100">
             All Motors <span className="text-neutral-500">Cloud</span>
           </Link>
