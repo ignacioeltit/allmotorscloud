@@ -40,6 +40,39 @@ export async function listClientes(
   return unwrapList<Cliente>(data, error)
 }
 
+/**
+ * Lista clientes con búsqueda server-side (nombre, RUT o teléfono),
+ * paginación y conteo total — para el listado principal /customers.
+ */
+export async function listClientesPaged(
+  supabase: DbClient,
+  params: { query?: string; page?: number; pageSize?: number } = {},
+): Promise<{ data: Cliente[]; total: number }> {
+  const { orgId } = await getAuthContext(supabase)
+  const pageSize = params.pageSize ?? CLIENTES_PAGE_SIZE
+  const page = Math.max(1, params.page ?? 1)
+  const from = (page - 1) * pageSize
+
+  let q = supabase
+    .from('clientes')
+    .select(COLUMNS, { count: 'exact' })
+    .eq('org_id', orgId)
+    .is('eliminado_en', null)
+
+  const term = params.query?.trim()
+  if (term) {
+    const escaped = term.replace(/%/g, '\\%').replace(/_/g, '\\_')
+    q = q.or(`nombre.ilike.%${escaped}%,rut.ilike.%${escaped}%,telefono.ilike.%${escaped}%`)
+  }
+
+  const { data, error, count } = await q
+    .order('nombre', { ascending: true })
+    .range(from, from + pageSize - 1)
+
+  if (error) throw new Error(error.message)
+  return { data: (data ?? []) as Cliente[], total: count ?? 0 }
+}
+
 /** Obtiene un cliente por id dentro del tenant. Lanza NotFoundError si no existe. */
 export async function getClienteById(supabase: DbClient, id: string): Promise<Cliente> {
   const { orgId } = await getAuthContext(supabase)

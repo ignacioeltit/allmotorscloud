@@ -38,6 +38,41 @@ export async function listVehiculos(
   return unwrapList<Vehiculo>(data, error)
 }
 
+/**
+ * Lista vehículos con búsqueda server-side (patente, VIN, marca o modelo),
+ * paginación y conteo total — para el listado principal /vehicles.
+ */
+export async function listVehiculosPaged(
+  supabase: DbClient,
+  params: { query?: string; page?: number; pageSize?: number } = {},
+): Promise<{ data: Vehiculo[]; total: number }> {
+  const { orgId } = await getAuthContext(supabase)
+  const pageSize = params.pageSize ?? VEHICULOS_PAGE_SIZE
+  const page = Math.max(1, params.page ?? 1)
+  const from = (page - 1) * pageSize
+
+  let q = supabase
+    .from('vehiculos')
+    .select(COLUMNS, { count: 'exact' })
+    .eq('org_id', orgId)
+    .is('eliminado_en', null)
+
+  const term = params.query?.trim()
+  if (term) {
+    const escaped = term.replace(/%/g, '\\%').replace(/_/g, '\\_')
+    q = q.or(
+      `patente.ilike.%${escaped}%,vin.ilike.%${escaped}%,marca.ilike.%${escaped}%,modelo.ilike.%${escaped}%`,
+    )
+  }
+
+  const { data, error, count } = await q
+    .order('patente', { ascending: true })
+    .range(from, from + pageSize - 1)
+
+  if (error) throw new Error(error.message)
+  return { data: (data ?? []) as Vehiculo[], total: count ?? 0 }
+}
+
 /** Obtiene un vehículo por id. Lanza NotFoundError si no existe en el tenant. */
 export async function getVehiculoById(supabase: DbClient, id: string): Promise<Vehiculo> {
   const { orgId } = await getAuthContext(supabase)
