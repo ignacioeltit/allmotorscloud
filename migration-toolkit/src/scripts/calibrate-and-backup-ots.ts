@@ -14,7 +14,7 @@
 
 import 'dotenv/config'
 import axios from 'axios'
-import { writeFileSync, existsSync, mkdirSync, readFileSync, readdirSync } from 'fs'
+import { writeFileSync, existsSync, mkdirSync, readFileSync, readdirSync, unlinkSync } from 'fs'
 import { resolve, join } from 'path'
 import { getBearerToken } from '../api/tallergp/auth.js'
 import { logger } from '../utils/logger.js'
@@ -30,12 +30,59 @@ const MAX_REQUESTS = Number(process.argv.find((a) => a.startsWith('--max='))?.sp
 const ACCELERATE_EVERY_N_SUCCESSES = 5
 const ACCELERATE_FACTOR = 0.75 // reduce el delay un 25% cada N éxitos seguidos
 
+// Compuerta para el cron cada 10 min: tras un 429 se anota cuándo vence el
+// bloqueo (+1 min de margen); las corridas que llegan antes salen sin gastar
+// requests. El lockfile evita dos tandas simultáneas (eso fue lo que agotó
+// la cuota la primera vez).
+const STATE_PATH = join(BACKUP_DIR, '_ot-backup-state.json')
+const LOCK_PATH = join(BACKUP_DIR, '_ot-backup.lock')
+const COOLDOWN_MARGIN_MS = 60_000
+
 function sleep(ms: number): Promise<void> {
   return new Promise((r) => setTimeout(r, ms))
 }
 
 function ensureDir(dir: string): void {
   if (!existsSync(dir)) mkdirSync(dir, { recursive: true })
+}
+
+function nextAllowedAt(): number {
+  if (!existsSync(STATE_PATH)) return 0
+  try {
+    return Number(JSON.parse(readFileSync(STATE_PATH, 'utf-8')).nextAllowedAt ?? 0)
+  } catch {
+    return 0
+  }
+}
+
+function writeNextAllowed(retryAfterSeconds: number): void {
+  const nextAt = Date.now() + retryAfterSeconds * 1000 + COOLDOWN_MARGIN_MS
+  writeFileSync(STATE_PATH, JSON.stringify({ nextAllowedAt: nextAt, updatedAt: new Date().toISOString() }), 'utf-8')
+}
+
+/** true si otro proceso tiene el lock y sigue vivo. */
+function acquireLock(): boolean {
+  if (existsSync(LOCK_PATH)) {
+    try {
+      const pid = Number(readFileSync(LOCK_PATH, 'utf-8'))
+      process.kill(pid, 0) // no mata: solo verifica existencia
+      return false // proceso vivo → no tomar el lock
+    } catch {
+      // pid muerto o ilegible → lock huérfano, se puede tomar
+    }
+  }
+  writeFileSync(LOCK_PATH, String(process.pid), 'utf-8')
+  return true
+}
+
+function releaseLock(): void {
+  try {
+    if (existsSync(LOCK_PATH) && readFileSync(LOCK_PATH, 'utf-8') === String(process.pid)) {
+      unlinkSync(LOCK_PATH)
+    }
+  } catch {
+    /* best effort */
+  }
 }
 
 function loadPendingIds(): string[] {
@@ -50,7 +97,28 @@ function loadPendingIds(): string[] {
 
 async function main(): Promise<void> {
   ensureDir(DETAIL_DIR)
+
+  // Compuerta de cooldown: si el bloqueo del último 429 sigue vigente, salir
+  // sin gastar ni un request (el cron reintenta en 10 min).
+  const allowedAt = nextAllowedAt()
+  if (Date.now() < allowedAt) {
+    const min = Math.ceil((allowedAt - Date.now()) / 60000)
+    console.log(`[${new Date().toISOString()}] Cooldown vigente: faltan ~${min} min. Salgo sin consumir cuota.`)
+    return
+  }
+
+  if (!acquireLock()) {
+    console.log(`[${new Date().toISOString()}] Otra tanda sigue corriendo (lock activo). Salgo.`)
+    return
+  }
+
   const pending = loadPendingIds()
+  if (pending.length === 0) {
+    console.log(`\n🏁 RESPALDO COMPLETO: no quedan OTs pendientes. Puedes quitar el cron (crontab -r).`)
+    releaseLock()
+    return
+  }
+
   console.log(`\n─── Calibración de rate-limit + respaldo real de OTs ───`)
   console.log(`Pendientes: ${pending.length}. Delay inicial: ${START_DELAY_MS}ms. Máximo esta corrida: ${MAX_REQUESTS}\n`)
 
@@ -91,8 +159,9 @@ async function main(): Promise<void> {
       const status = axios.isAxiosError(err) ? err.response?.status : undefined
       if (status === 429) {
         const retryAfter = axios.isAxiosError(err) ? err.response?.headers['retry-after'] : undefined
+        writeNextAllowed(Number(retryAfter) || 3600)
         console.log(`\n🛑 429 recibido en OT ${id}. Delay que lo disparó: ${delayMs}ms.`)
-        console.log(`   Retry-After del servidor: ${retryAfter ?? '?'}s`)
+        console.log(`   Retry-After del servidor: ${retryAfter ?? '?'}s — próxima tanda anotada para dentro de ~61 min.`)
         console.log(`\n═══════════════════════════════════════════════════`)
         console.log(`  RESULTADO DE CALIBRACIÓN`)
         console.log(`═══════════════════════════════════════════════════`)
@@ -103,6 +172,7 @@ async function main(): Promise<void> {
         console.log(`  OTs pendientes en total:              ${pending.length - totalSuccess}`)
         console.log(`═══════════════════════════════════════════════════\n`)
         console.log(`No se espera el cooldown — deteniendo de inmediato para no perder tiempo.`)
+        releaseLock()
         return
       }
       logger.error(`Error OT ${id}`, { status, error: (err as Error).message })
@@ -112,9 +182,11 @@ async function main(): Promise<void> {
   console.log(`\n✅ Corrida terminada sin disparar rate-limit.`)
   console.log(`   Exitosas: ${totalSuccess}. Delay final: ${delayMs}ms.`)
   console.log(`   Pendientes restantes: ${pending.length - totalSuccess}`)
+  releaseLock()
 }
 
 main().catch((err) => {
   logger.error('Error fatal en calibrate-and-backup-ots', { error: err.message })
+  releaseLock()
   process.exit(1)
 })
