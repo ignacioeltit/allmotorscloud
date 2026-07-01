@@ -4,7 +4,13 @@ import Link from 'next/link'
 import { SidebarNav } from './SidebarNav'
 import { LogoutButton } from '@/components/auth/LogoutButton'
 
-export function AppShell({ children }: { children: React.ReactNode }) {
+interface AppShellProps {
+  children: React.ReactNode
+  pendientesCatalogo?: number
+  rolUsuario?: string
+}
+
+export function AppShell({ children, pendientesCatalogo = 0, rolUsuario }: AppShellProps) {
   return (
     <div className="flex min-h-screen">
       <aside className="sticky top-0 hidden h-screen w-64 shrink-0 flex-col border-r border-white/[0.06] bg-neutral-900/30 px-4 py-5 md:flex">
@@ -17,7 +23,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           </span>
         </Link>
 
-        <SidebarNav />
+        <SidebarNav pendientesCatalogo={pendientesCatalogo} rolUsuario={rolUsuario} />
 
         <div className="mt-auto border-t border-white/[0.06] pt-4">
           <LogoutButton />
