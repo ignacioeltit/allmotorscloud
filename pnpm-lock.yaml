@@ -154,6 +154,9 @@ importers:
 
   migration-toolkit:
     dependencies:
+      '@supabase/supabase-js':
+        specifier: ^2.45.0
+        version: 2.108.2
       axios:
         specifier: ^1.7.7
         version: 1.18.1
