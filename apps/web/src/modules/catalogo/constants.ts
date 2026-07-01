@@ -1,0 +1,39 @@
+// Constantes del módulo catálogo.
+
+export const CATEGORIAS_CATALOGO = [
+  'mecanica',
+  'mantencion',
+  'frenos',
+  'neumaticos',
+  'electronica',
+  'diagnostico',
+  'inspeccion',
+  'transmision',
+  'otro',
+] as const
+
+export type CategoriaCatalogo = (typeof CATEGORIAS_CATALOGO)[number]
+
+export const CATEGORIA_LABEL: Record<CategoriaCatalogo, string> = {
+  mecanica: 'Mecánica',
+  mantencion: 'Mantención',
+  frenos: 'Frenos',
+  neumaticos: 'Neumáticos',
+  electronica: 'Electrónica',
+  diagnostico: 'Diagnóstico',
+  inspeccion: 'Inspección',
+  transmision: 'Transmisión',
+  otro: 'Otro',
+}
+
+export const CATEGORIA_COLOR: Record<CategoriaCatalogo, string> = {
+  mecanica:    'border-neutral-500/30 bg-neutral-500/10 text-neutral-400',
+  mantencion:  'border-sky-500/30 bg-sky-500/10 text-sky-400',
+  frenos:      'border-red-500/30 bg-red-500/10 text-red-400',
+  neumaticos:  'border-amber-500/30 bg-amber-500/10 text-amber-400',
+  electronica: 'border-violet-500/30 bg-violet-500/10 text-violet-400',
+  diagnostico: 'border-cyan-500/30 bg-cyan-500/10 text-cyan-400',
+  inspeccion:  'border-emerald-500/30 bg-emerald-500/10 text-emerald-400',
+  transmision: 'border-orange-500/30 bg-orange-500/10 text-orange-400',
+  otro:        'border-white/10 bg-white/[0.04] text-neutral-500',
+}
