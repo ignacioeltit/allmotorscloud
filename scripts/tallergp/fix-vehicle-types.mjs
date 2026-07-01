@@ -8,6 +8,8 @@
 //   dry-run: node --env-file=apps/web/.env.local scripts/tallergp/fix-vehicle-types.mjs
 //   apply:   node --env-file=apps/web/.env.local scripts/tallergp/fix-vehicle-types.mjs --apply
 
+import { clasificar } from './lib/vehicle-type-classifier.mjs'
+
 const APPLY = process.argv.includes('--apply')
 const BATCH_SIZE = 200
 
@@ -17,63 +19,6 @@ const SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY
 if (!SUPABASE_URL || !SERVICE_KEY) {
   console.error('\nERROR: Ejecutar con: node --env-file=apps/web/.env.local ...\n')
   process.exit(1)
-}
-
-// ─── Clasificación ────────────────────────────────────────────────────────────
-// Tokens con borde de palabra (evita que VAN matchee AVANZA, o H1 matchee CH1).
-// El orden importa: camión antes que furgón (CANTER es camión aunque parezca van).
-
-const REGLAS = [
-  {
-    tipo: 'camion',
-    tokens: [
-      'CANTER', 'FRR', 'FTR', 'NPR', 'NPR70', 'NKR', 'NHR', 'NQR', 'ATEGO',
-      'ACCELO', 'DYNA', 'FORWARD', 'DELIVERY', 'WORKER',
-    ],
-  },
-  {
-    tipo: 'furgon',
-    tokens: [
-      'SPRINTER', 'PARTNER', 'BERLINGO', 'BOXER', 'TRANSIT', 'H1', 'H-1', 'H100',
-      'STARIA', 'MASTER', 'DUCATO', 'HIACE', 'HI-ACE', 'KANGOO', 'EXPRESS',
-      'TRAFIC', 'CRAFTER', 'VAN', 'JUMPER', 'JUMPY', 'DOBLO', 'PORTER',
-    ],
-  },
-  {
-    tipo: 'camioneta',
-    tokens: [
-      'L200', 'HILUX', 'T60', 'RANGER', 'NP300', 'AMAROK', 'BT-50', 'BT50',
-      'FRONTIER', 'NAVARA', 'F150', 'F-150', 'F250', 'F-250', 'POER', 'ACTYON',
-      'D-MAX', 'DMAX', 'T8', 'T6', 'T7', 'T9', 'COLORADO', 'SAVEIRO', 'MONTANA',
-      'TERRALORD', 'LANDTREK', 'DEER', 'WINGLE', 'HAVAL', 'PICKUP', 'DAKAR',
-      'RAM', 'TORNADO', 'PETER', 'S10', 'S-10', 'LUV', 'B2500', 'BT2500',
-    ],
-  },
-  {
-    tipo: 'moto',
-    tokens: ['MOTO', 'MOTOCICLETA', 'SCOOTER', 'CB190', 'CBR', 'GN125'],
-  },
-]
-
-// Frases (substring directo, para multi-palabra)
-const FRASES = [
-  { tipo: 'camioneta', frase: 'PICK UP' },
-  { tipo: 'camioneta', frase: 'PICK-UP' },
-]
-
-function clasificar(marca, modelo) {
-  const texto = `${marca ?? ''} ${modelo ?? ''}`.toUpperCase()
-  const tokens = new Set(texto.split(/[^A-Z0-9-]+/).filter(Boolean))
-
-  for (const { tipo, frase } of FRASES) {
-    if (texto.includes(frase)) return tipo
-  }
-  for (const regla of REGLAS) {
-    for (const t of regla.tokens) {
-      if (tokens.has(t)) return regla.tipo
-    }
-  }
-  return null // sin evidencia → se queda como está
 }
 
 // ─── Supabase REST ────────────────────────────────────────────────────────────
