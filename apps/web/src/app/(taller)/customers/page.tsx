@@ -1,12 +1,14 @@
 // Listado de clientes. Server Component (lectura con server client + RLS).
 export const dynamic = 'force-dynamic'
 
+import Link from 'next/link'
 import { createClient } from '@/lib/supabase/server'
 import { listClientes } from '@/modules/customers/queries'
 import { load } from '@/lib/ui/load'
 import { PageHeader } from '@/components/ui/PageHeader'
 import { Notice } from '@/components/ui/Notice'
 import { card } from '@/components/ui/styles'
+import { TIPO_CLIENTE_LABEL } from '@/modules/customers/constants'
 
 export default async function CustomersPage() {
   const result = await load(async () => {
@@ -39,9 +41,16 @@ export default async function CustomersPage() {
             </thead>
             <tbody>
               {result.data.map((c) => (
-                <tr key={c.id} className="border-b border-white/[0.04] last:border-0">
-                  <td className="px-4 py-3 text-neutral-100">{c.nombre}</td>
-                  <td className="px-4 py-3 text-neutral-400">{c.tipo}</td>
+                <tr
+                  key={c.id}
+                  className="border-b border-white/[0.04] transition-colors last:border-0 hover:bg-white/[0.03]"
+                >
+                  <td className="px-4 py-3 text-neutral-100">
+                    <Link href={`/customers/${c.id}`} className="block font-medium hover:text-white">
+                      {c.nombre}
+                    </Link>
+                  </td>
+                  <td className="px-4 py-3 text-neutral-400">{TIPO_CLIENTE_LABEL[c.tipo]}</td>
                   <td className="px-4 py-3 text-neutral-400">{c.rut ?? '—'}</td>
                   <td className="px-4 py-3 text-neutral-400">{c.telefono ?? '—'}</td>
                 </tr>

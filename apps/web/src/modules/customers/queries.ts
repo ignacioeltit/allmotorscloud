@@ -7,9 +7,13 @@ import { getAuthContext } from '@/lib/auth/context'
 import { unwrapList, unwrapMaybe, unwrapRequired } from '@/lib/supabase/result'
 import { CLIENTES_PAGE_SIZE } from './constants'
 import type { Cliente, ListClientesParams } from './types'
+import type { Vehiculo } from '@/modules/vehicles/types'
 
 const COLUMNS =
   'id, org_id, tipo, nombre, rut, telefono, email, direccion, notas, creado_en, actualizado_en, creado_por, eliminado_en, eliminado_por'
+
+const VEHICULO_COLUMNS =
+  'id, org_id, patente, vin, marca, modelo, anio, color, tipo, km_actual, notas, creado_en, actualizado_en, creado_por, eliminado_en, eliminado_por'
 
 /** Lista los clientes activos (no eliminados) del tenant, ordenados por nombre. */
 export async function listClientes(
@@ -49,6 +53,38 @@ export async function getClienteById(supabase: DbClient, id: string): Promise<Cl
     .maybeSingle()
 
   return unwrapRequired<Cliente>(data as Cliente | null, error)
+}
+
+/**
+ * Lista los vehículos actualmente asociados a un cliente (propiedad activa:
+ * propietarios_vehiculo con fecha_fin = null), ordenados por fecha de creación desc.
+ */
+export async function listVehiculosByCliente(
+  supabase: DbClient,
+  clienteId: string,
+): Promise<Vehiculo[]> {
+  const { orgId } = await getAuthContext(supabase)
+
+  const { data: rels, error: relErr } = await supabase
+    .from('propietarios_vehiculo')
+    .select('vehiculo_id')
+    .eq('org_id', orgId)
+    .eq('cliente_id', clienteId)
+    .is('fecha_fin', null)
+
+  const relRows = unwrapList<{ vehiculo_id: string }>(rels, relErr)
+  if (relRows.length === 0) return []
+
+  const vehiculoIds = relRows.map((r) => r.vehiculo_id)
+  const { data, error } = await supabase
+    .from('vehiculos')
+    .select(VEHICULO_COLUMNS)
+    .eq('org_id', orgId)
+    .in('id', vehiculoIds)
+    .is('eliminado_en', null)
+    .order('creado_en', { ascending: false })
+
+  return unwrapList<Vehiculo>(data, error)
 }
 
 /**

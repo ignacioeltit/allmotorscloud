@@ -7,6 +7,7 @@ import { useRef, useState, type FormEvent } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { listVehiculos, getVehiculoByPatente } from '@/modules/vehicles/queries'
+import { listClientes, listVehiculosByCliente } from '@/modules/customers/queries'
 import { cargarFichaVehiculo } from '@/modules/reception/queries'
 import { recibirVehiculo } from '@/modules/reception/mutations'
 import {
@@ -19,6 +20,7 @@ import {
 } from '@/modules/reception/constants'
 import { TIPOS_VEHICULO } from '@/modules/vehicles/constants'
 import type { Vehiculo } from '@/modules/vehicles/types'
+import type { Cliente } from '@/modules/customers/types'
 import type { FichaVehiculo, RecibirVehiculoInput } from '@/modules/reception/types'
 import { toErrorMessage } from '@/lib/ui/error-message'
 import {
@@ -109,6 +111,15 @@ export function ReceptionFlow({
   const [ficha, setFicha] = useState<FichaVehiculo | null>(null)
   const searchTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
 
+  // Búsqueda: por patente (default) o por cliente
+  const [searchMode, setSearchMode] = useState<'patente' | 'cliente'>('patente')
+  const [clienteQuery, setClienteQuery] = useState('')
+  const [clienteSuggestions, setClienteSuggestions] = useState<Cliente[]>([])
+  const [searchingClientes, setSearchingClientes] = useState(false)
+  const [clientePreseleccionado, setClientePreseleccionado] = useState<Cliente | null>(null)
+  const [vehiculosCliente, setVehiculosCliente] = useState<Vehiculo[] | null>(null)
+  const clienteSearchTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+
   // Cliente nuevo
   const [cNombre, setCNombre] = useState('')
   const [cRut, setCRut] = useState('')
@@ -143,7 +154,8 @@ export function ReceptionFlow({
   const [enrichSuggestion, setEnrichSuggestion] = useState<SuggestedVehicle | null>(null)
   const [enrichMessage, setEnrichMessage] = useState<string | null>(null)
 
-  const needClienteForm = mode === 'new' || (mode === 'existing' && !ficha?.cliente)
+  const needClienteForm =
+    (mode === 'new' && !clientePreseleccionado) || (mode === 'existing' && !ficha?.cliente)
   const ready = mode === 'existing' || mode === 'new'
 
   // ── Búsqueda de patente ──────────────────────────────────────────────────
@@ -195,6 +207,8 @@ export function ReceptionFlow({
       setFicha(f)
       setMode('existing')
       setSuggestions([])
+      setClientePreseleccionado(null)
+      setVehiculosCliente(null)
       setPatente(f.vehiculo.patente)
       if (f.vehiculo.km_actual != null) setKm(String(f.vehiculo.km_actual))
     } catch (err) {
@@ -202,6 +216,66 @@ export function ReceptionFlow({
     } finally {
       setSearching(false)
     }
+  }
+
+  // ── Búsqueda de cliente ──────────────────────────────────────────────────
+  function onClienteQueryChange(value: string) {
+    setClienteQuery(value)
+    setError(null)
+    setVehiculosCliente(null)
+    if (clienteSearchTimer.current) clearTimeout(clienteSearchTimer.current)
+    const q = value.trim()
+    if (q.length < 2) {
+      setClienteSuggestions([])
+      return
+    }
+    clienteSearchTimer.current = setTimeout(async () => {
+      setSearchingClientes(true)
+      try {
+        const supabase = createClient()
+        setClienteSuggestions(await listClientes(supabase, { search: q, limit: 6 }))
+      } catch {
+        /* búsqueda silenciosa */
+      } finally {
+        setSearchingClientes(false)
+      }
+    }, 300)
+  }
+
+  /** Selecciona un cliente de la búsqueda: carga directo si tiene 1 vehículo,
+   *  muestra selector si tiene varios, o pasa a ingreso de patente nueva si no tiene ninguno. */
+  async function selectCliente(cliente: Cliente) {
+    setSearchingClientes(true)
+    setError(null)
+    try {
+      const supabase = createClient()
+      const vehiculos = await listVehiculosByCliente(supabase, cliente.id)
+      const unico = vehiculos.length === 1 ? vehiculos[0] : undefined
+      if (unico) {
+        await selectVehiculo(unico.id)
+      } else if (vehiculos.length === 0) {
+        setClientePreseleccionado(cliente)
+        setClienteSuggestions([])
+        setVehiculosCliente(null)
+        setSearchMode('patente')
+        setPatente('')
+      } else {
+        setClientePreseleccionado(cliente)
+        setVehiculosCliente(vehiculos)
+        setClienteSuggestions([])
+      }
+    } catch (err) {
+      setError(toErrorMessage(err))
+    } finally {
+      setSearchingClientes(false)
+    }
+  }
+
+  /** Desde el selector de vehículos de un cliente: registrar un vehículo nuevo para él. */
+  function nuevoVehiculoParaCliente() {
+    setVehiculosCliente(null)
+    setSearchMode('patente')
+    setPatente('')
   }
 
   function startNew() {
@@ -284,6 +358,11 @@ export function ReceptionFlow({
     setError(null)
     setEnrichSuggestion(null)
     setEnrichMessage(null)
+    setSearchMode('patente')
+    setClienteQuery('')
+    setClienteSuggestions([])
+    setClientePreseleccionado(null)
+    setVehiculosCliente(null)
   }
 
   function toggleCheck(key: string) {
@@ -305,9 +384,16 @@ export function ReceptionFlow({
       const kmNum = km.trim() ? Number.parseInt(km, 10) : undefined
       const anioNum = vAnio.trim() ? Number.parseInt(vAnio, 10) : undefined
 
+      const clienteIdPreexistente =
+        mode === 'existing' && ficha?.cliente
+          ? ficha.cliente.id
+          : mode === 'new' && clientePreseleccionado
+            ? clientePreseleccionado.id
+            : null
+
       const input: RecibirVehiculoInput = {
         tipoEventoRecepcionId: tipoRecepcionId,
-        clienteId: mode === 'existing' && ficha?.cliente ? ficha.cliente.id : null,
+        clienteId: clienteIdPreexistente,
         clienteNuevo: needClienteForm
           ? {
               nombre: cNombre.trim(),
@@ -365,10 +451,10 @@ export function ReceptionFlow({
       </header>
 
       <div className="space-y-5">
-        {/* Sección 1 — Patente */}
+        {/* Sección 1 — Búsqueda */}
         <Section
           step="1"
-          title="Patente"
+          title={searchMode === 'patente' ? 'Patente' : 'Cliente'}
           action={
             ready ? (
               <button type="button" onClick={resetSearch} className={btnSecondary}>
@@ -377,7 +463,34 @@ export function ReceptionFlow({
             ) : null
           }
         >
-          {!ready ? (
+          {!ready && (
+            <div className="mb-4 inline-flex rounded-lg border border-white/[0.08] bg-white/[0.02] p-1">
+              <button
+                type="button"
+                onClick={() => setSearchMode('patente')}
+                className={`rounded-md px-3.5 py-1.5 text-sm font-medium transition-colors ${
+                  searchMode === 'patente'
+                    ? 'bg-white/[0.08] text-neutral-100'
+                    : 'text-neutral-500 hover:text-neutral-300'
+                }`}
+              >
+                Por patente
+              </button>
+              <button
+                type="button"
+                onClick={() => setSearchMode('cliente')}
+                className={`rounded-md px-3.5 py-1.5 text-sm font-medium transition-colors ${
+                  searchMode === 'cliente'
+                    ? 'bg-white/[0.08] text-neutral-100'
+                    : 'text-neutral-500 hover:text-neutral-300'
+                }`}
+              >
+                Por cliente
+              </button>
+            </div>
+          )}
+
+          {!ready && searchMode === 'patente' && (
             <form onSubmit={onPatenteSubmit}>
               <input
                 autoFocus
@@ -389,7 +502,11 @@ export function ReceptionFlow({
               />
               <div className="mt-2 flex items-center justify-between">
                 <p className="text-xs text-neutral-600">
-                  {searching ? 'Buscando…' : 'Escribe y presiona Enter para buscar.'}
+                  {clientePreseleccionado
+                    ? `Vehículo nuevo para ${clientePreseleccionado.nombre}. Escribe la patente.`
+                    : searching
+                      ? 'Buscando…'
+                      : 'Escribe y presiona Enter para buscar.'}
                 </p>
               </div>
 
@@ -426,13 +543,91 @@ export function ReceptionFlow({
                 </div>
               )}
             </form>
-          ) : (
+          )}
+
+          {!ready && searchMode === 'cliente' && (
+            <div>
+              {vehiculosCliente ? (
+                <div>
+                  <p className="mb-3 text-sm text-neutral-400">
+                    Vehículos de <span className="text-neutral-200">{clientePreseleccionado?.nombre}</span>:
+                  </p>
+                  <ul className="divide-y divide-white/[0.05] overflow-hidden rounded-lg border border-white/[0.06]">
+                    {vehiculosCliente.map((v) => (
+                      <li key={v.id}>
+                        <button
+                          type="button"
+                          onClick={() => selectVehiculo(v.id)}
+                          className="flex w-full items-center justify-between px-4 py-3 text-left transition-colors hover:bg-white/[0.04]"
+                        >
+                          <span className="font-semibold tracking-wide text-neutral-100">
+                            {v.patente}
+                          </span>
+                          <span className="text-sm text-neutral-400">
+                            {v.marca} {v.modelo}
+                            {v.anio ? ` · ${v.anio}` : ''}
+                          </span>
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                  <button
+                    type="button"
+                    onClick={nuevoVehiculoParaCliente}
+                    className={`${btnSecondary} mt-3`}
+                  >
+                    Registrar otro vehículo para este cliente
+                  </button>
+                </div>
+              ) : (
+                <>
+                  <input
+                    autoFocus
+                    value={clienteQuery}
+                    onChange={(e) => onClienteQueryChange(e.target.value)}
+                    placeholder="Nombre del cliente"
+                    className={inputXL}
+                    aria-label="Cliente"
+                  />
+                  <p className="mt-2 text-xs text-neutral-600">
+                    {searchingClientes ? 'Buscando…' : 'Escribe al menos 2 letras.'}
+                  </p>
+
+                  {clienteSuggestions.length > 0 && (
+                    <ul className="mt-3 divide-y divide-white/[0.05] overflow-hidden rounded-lg border border-white/[0.06]">
+                      {clienteSuggestions.map((c) => (
+                        <li key={c.id}>
+                          <button
+                            type="button"
+                            onClick={() => selectCliente(c)}
+                            className="flex w-full items-center justify-between px-4 py-3 text-left transition-colors hover:bg-white/[0.04]"
+                          >
+                            <span className="font-semibold text-neutral-100">{c.nombre}</span>
+                            <span className="text-sm text-neutral-400">{c.rut || c.telefono || '—'}</span>
+                          </button>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+
+                  {clienteQuery.trim().length >= 2 && !searchingClientes && clienteSuggestions.length === 0 && (
+                    <div className="mt-3 rounded-lg border border-white/[0.06] bg-white/[0.02] px-4 py-3">
+                      <span className="text-sm text-neutral-400">No hay clientes con ese nombre.</span>
+                    </div>
+                  )}
+                </>
+              )}
+            </div>
+          )}
+
+          {ready && (
             <div className="flex items-center gap-3">
               <span className="rounded-lg border border-white/10 bg-neutral-950/60 px-4 py-2 text-lg font-semibold tracking-[0.18em] text-neutral-50">
                 {patente.toUpperCase()}
               </span>
               <span className="text-sm text-neutral-500">
                 {mode === 'existing' ? 'Vehículo encontrado' : 'Vehículo nuevo'}
+                {mode === 'new' && clientePreseleccionado ? ` · ${clientePreseleccionado.nombre}` : ''}
               </span>
             </div>
           )}
@@ -442,12 +637,12 @@ export function ReceptionFlow({
           <>
             {/* Sección 2 — Cliente */}
             <Section step="2" title="Cliente">
-              {mode === 'existing' && ficha?.cliente ? (
+              {(mode === 'existing' && ficha?.cliente) || (mode === 'new' && clientePreseleccionado) ? (
                 <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
-                  <Info label="Nombre" value={ficha.cliente.nombre} />
-                  <Info label="RUT" value={ficha.cliente.rut} />
-                  <Info label="Teléfono" value={ficha.cliente.telefono} />
-                  <Info label="Email" value={ficha.cliente.email} />
+                  <Info label="Nombre" value={(ficha?.cliente ?? clientePreseleccionado)?.nombre ?? null} />
+                  <Info label="RUT" value={(ficha?.cliente ?? clientePreseleccionado)?.rut ?? null} />
+                  <Info label="Teléfono" value={(ficha?.cliente ?? clientePreseleccionado)?.telefono ?? null} />
+                  <Info label="Email" value={(ficha?.cliente ?? clientePreseleccionado)?.email ?? null} />
                 </div>
               ) : (
                 <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
