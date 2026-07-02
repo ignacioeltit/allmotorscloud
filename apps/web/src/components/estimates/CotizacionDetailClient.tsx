@@ -66,6 +66,9 @@ export function CotizacionDetailClient({
   const esBorrador = p.estado === 'borrador'
   const conItems = p.items.length > 0
   const respondida = p.estado === 'autorizado' || p.estado === 'rechazado'
+  // Motivo de la cita = detalle cotizado (descripciones de los ítems), para que
+  // al agendar se arrastre qué trabajo se autorizó.
+  const motivoDesdeItems = p.items.map((i) => i.descripcion).join(', ').slice(0, 200)
 
   // origin se resuelve tras el montaje para no romper la hidratación (el server
   // no tiene window). Render inicial server/cliente coincide con origin = ''.
@@ -178,6 +181,8 @@ export function CotizacionDetailClient({
                   ...(p.cliente?.id ? { cliente_id: p.cliente.id } : {}),
                   vehiculo: [p.vehiculo.patente, p.vehiculo.marca, p.vehiculo.modelo].filter(Boolean).join(' · '),
                   ...(p.cliente?.nombre ? { cliente: p.cliente.nombre } : {}),
+                  ...(motivoDesdeItems ? { motivo: motivoDesdeItems } : {}),
+                  ...(p.nota_cliente ? { notas: p.nota_cliente } : {}),
                 },
               }}
               className="mt-3 inline-flex items-center gap-2 rounded-lg bg-accent-600 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-accent-500"

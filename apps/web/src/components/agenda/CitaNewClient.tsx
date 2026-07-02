@@ -28,6 +28,7 @@ export interface CitaPrefill {
   vehiculoLabel: string
   clienteNombre: string | null
   motivo: string
+  notas: string
 }
 
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
@@ -56,7 +57,7 @@ export function CitaNewClient({ prefill }: { prefill?: CitaPrefill }) {
   const [fecha, setFecha] = useState(hoyYMD())
   const [hora, setHora] = useState('09:00')
   const [motivo, setMotivo] = useState(prefill?.motivo ?? '')
-  const [notas, setNotas] = useState('')
+  const [notas, setNotas] = useState(prefill?.notas ?? '')
 
   const [error, setError] = useState<string | null>(null)
   const [creando, setCreando] = useState(false)

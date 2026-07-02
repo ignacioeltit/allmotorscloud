@@ -12,6 +12,7 @@ interface Props {
     vehiculo?: string
     cliente?: string
     motivo?: string
+    notas?: string
   }>
 }
 
@@ -25,6 +26,7 @@ export default async function NuevaCitaPage({ searchParams }: Props) {
         vehiculoLabel: sp.vehiculo ?? 'Vehículo',
         clienteNombre: sp.cliente ?? null,
         motivo: sp.motivo ?? '',
+        notas: sp.notas ?? '',
       }
     : undefined
 
