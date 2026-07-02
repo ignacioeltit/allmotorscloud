@@ -95,6 +95,36 @@ export async function addItemPresupuesto(
 }
 
 /**
+ * Genera (o devuelve) el token del enlace público de una cotización. El token es
+ * un UUID imposible de adivinar; se crea una sola vez y se reutiliza.
+ */
+export async function generarEnlacePublico(
+  supabase: DbClient,
+  presupuestoId: string,
+): Promise<string> {
+  const { orgId } = await getAuthContext(supabase)
+
+  const { data: existing } = await supabase
+    .from('presupuestos')
+    .select('token_publico')
+    .eq('org_id', orgId)
+    .eq('id', presupuestoId)
+    .maybeSingle()
+
+  const actual = (existing as { token_publico: string | null } | null)?.token_publico
+  if (actual) return actual
+
+  const token = crypto.randomUUID()
+  const { error } = await supabase
+    .from('presupuestos')
+    .update({ token_publico: token })
+    .eq('org_id', orgId)
+    .eq('id', presupuestoId)
+  if (error) throw mapPostgrestError(error)
+  return token
+}
+
+/**
  * Agrega varias líneas de una vez (ficha de ingreso): un solo INSERT y un solo
  * recálculo de totales. Ignora líneas vacías desde la UI; acá ya llegan validadas.
  */

@@ -30,6 +30,9 @@ export interface PresupuestoListado {
 export interface CotizacionDetalle extends PresupuestoConItems {
   cliente: { id: string; nombre: string; rut: string | null; telefono: string | null } | null
   vehiculo: { id: string; patente: string; marca: string; modelo: string; anio: number | null } | null
+  token_publico: string | null
+  nota_cliente: string | null
+  agendar_solicitado: boolean
 }
 
 /** Obtiene una cotización (o presupuesto) por id, con ítems, cliente y vehículo. */
@@ -41,16 +44,20 @@ export async function getCotizacionById(
 
   const { data, error } = await supabase
     .from('presupuestos')
-    .select(PRES_COLUMNS + ', cliente_id, vehiculo_id')
+    .select(PRES_COLUMNS + ', cliente_id, vehiculo_id, token_publico, nota_cliente, agendar_solicitado')
     .eq('org_id', orgId)
     .eq('id', id)
     .is('eliminado_en', null)
     .maybeSingle()
 
-  const pres = unwrapMaybe<Presupuesto & { cliente_id: string | null; vehiculo_id: string | null }>(
-    data as (Presupuesto & { cliente_id: string | null; vehiculo_id: string | null }) | null,
-    error,
-  )
+  type PresExtra = Presupuesto & {
+    cliente_id: string | null
+    vehiculo_id: string | null
+    token_publico: string | null
+    nota_cliente: string | null
+    agendar_solicitado: boolean
+  }
+  const pres = unwrapMaybe<PresExtra>(data as PresExtra | null, error)
   if (!pres) return null
 
   const { data: itemsData, error: itemsError } = await supabase

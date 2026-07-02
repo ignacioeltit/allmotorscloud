@@ -4,11 +4,11 @@
 // agregar ítems y marcar como enviada. La conversión a OT (Fase C) se engancha
 // con el botón "Convertir a OT" cuando esté disponible.
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
-import { enviarPresupuesto } from '@/modules/estimates/mutations'
+import { enviarPresupuesto, generarEnlacePublico } from '@/modules/estimates/mutations'
 import { ESTADO_PRESUPUESTO_LABEL, TIPO_ITEM_LABEL } from '@/modules/estimates/constants'
 import type { CotizacionDetalle } from '@/modules/estimates/queries'
 import { toErrorMessage } from '@/lib/ui/error-message'
@@ -29,8 +29,8 @@ function telefonoWhatsapp(telefono: string | null): string | null {
   return d || null
 }
 
-/** Arma el enlace de WhatsApp con un resumen de la cotización. */
-function enlaceWhatsapp(p: CotizacionDetalle, tallerNombre: string): string {
+/** Arma el enlace de WhatsApp con un resumen de la cotización (y el link de aprobación si existe). */
+function enlaceWhatsapp(p: CotizacionDetalle, tallerNombre: string, enlaceCliente: string | null): string {
   const tel = telefonoWhatsapp(p.cliente?.telefono ?? null)
   const veh = [p.vehiculo?.marca, p.vehiculo?.modelo, p.vehiculo?.patente ? `(${p.vehiculo.patente})` : null]
     .filter(Boolean)
@@ -41,10 +41,11 @@ function enlaceWhatsapp(p: CotizacionDetalle, tallerNombre: string): string {
     '',
     ...p.items.map((it) => `• ${it.descripcion}: ${fmtCLP(it.precio_total)}`),
     '',
-    `Neto: ${fmtCLP(p.total_neto)}`,
-    `IVA: ${fmtCLP(iva)}`,
-    `Total: ${fmtCLP(p.total_neto + iva)}`,
+    `Total (con IVA): ${fmtCLP(p.total_neto + iva)}`,
     '',
+    ...(enlaceCliente
+      ? [`Puedes ver el detalle y autorizarla aquí:`, enlaceCliente, '']
+      : []),
     'Quedamos atentos a cualquier consulta.',
   ]
   const texto = encodeURIComponent(lineas.join('\n'))
@@ -62,10 +63,44 @@ export function CotizacionDetailClient({
   const [showAdd, setShowAdd] = useState(false)
   const [enviando, setEnviando] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [token, setToken] = useState<string | null>(cotizacion.token_publico)
+  const [generando, setGenerando] = useState(false)
+  const [copiado, setCopiado] = useState(false)
   const p = cotizacion
   const esBorrador = p.estado === 'borrador'
   const conItems = p.items.length > 0
-  const waUrl = enlaceWhatsapp(p, tallerNombre)
+  const respondida = p.estado === 'autorizado' || p.estado === 'rechazado'
+
+  // origin se resuelve tras el montaje para no romper la hidratación (el server
+  // no tiene window). Render inicial server/cliente coincide con origin = ''.
+  const [origin, setOrigin] = useState('')
+  useEffect(() => setOrigin(window.location.origin), [])
+  const enlaceCliente = token ? `${origin}/cotizacion/${token}` : null
+  const waUrl = enlaceWhatsapp(p, tallerNombre, enlaceCliente)
+
+  async function generarEnlace() {
+    setGenerando(true)
+    setError(null)
+    try {
+      const t = await generarEnlacePublico(createClient(), p.id)
+      setToken(t)
+    } catch (e) {
+      setError(toErrorMessage(e))
+    } finally {
+      setGenerando(false)
+    }
+  }
+
+  async function copiarEnlace() {
+    if (!enlaceCliente) return
+    try {
+      await navigator.clipboard.writeText(enlaceCliente)
+      setCopiado(true)
+      setTimeout(() => setCopiado(false), 2000)
+    } catch {
+      /* ignore */
+    }
+  }
 
   async function enviar() {
     setEnviando(true)
@@ -97,6 +132,53 @@ export function CotizacionDetailClient({
             Enviar por WhatsApp
           </a>
         </div>
+      )}
+
+      {/* Enlace de aprobación del cliente */}
+      {conItems && (
+        <section className={card}>
+          <p className={sectionLabel}>Enlace de aprobación del cliente</p>
+          {enlaceCliente ? (
+            <div className="mt-2 space-y-2">
+              <div className="flex flex-wrap items-center gap-2">
+                <code className="min-w-0 flex-1 truncate rounded-lg border border-black/10 bg-black/[0.02] px-3 py-2 text-xs text-neutral-400">
+                  {enlaceCliente}
+                </code>
+                <button onClick={() => void copiarEnlace()} className={`${btnSecondary} text-xs`}>
+                  {copiado ? 'Copiado ✓' : 'Copiar'}
+                </button>
+              </div>
+              <p className="text-xs text-neutral-500">
+                El cliente puede ver la cotización y autorizarla o rechazarla desde este enlace, sin necesidad de cuenta.
+              </p>
+            </div>
+          ) : (
+            <div className="mt-2">
+              <button onClick={() => void generarEnlace()} disabled={generando} className={`${btnGhost} text-xs`}>
+                {generando ? 'Generando…' : '+ Generar enlace para el cliente'}
+              </button>
+            </div>
+          )}
+        </section>
+      )}
+
+      {/* Respuesta del cliente */}
+      {respondida && (
+        <section
+          className={`rounded-xl border p-4 text-sm ${
+            p.estado === 'autorizado'
+              ? 'border-emerald-500/30 bg-emerald-500/10 text-emerald-800'
+              : 'border-red-500/30 bg-red-500/10 text-red-800'
+          }`}
+        >
+          <p className="font-semibold">
+            {p.estado === 'autorizado' ? '✓ El cliente autorizó la cotización' : 'El cliente rechazó la cotización'}
+          </p>
+          {p.agendar_solicitado && (
+            <p className="mt-1 font-medium">El cliente quiere agendar — contáctalo para coordinar la hora.</p>
+          )}
+          {p.nota_cliente && <p className="mt-1 text-neutral-600">Nota del cliente: “{p.nota_cliente}”</p>}
+        </section>
       )}
 
       {/* Cliente + vehículo */}
