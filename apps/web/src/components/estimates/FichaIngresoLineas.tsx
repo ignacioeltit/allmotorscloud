@@ -9,7 +9,9 @@ import { createClient } from '@/lib/supabase/client'
 import { addItemsPresupuesto } from '@/modules/estimates/mutations'
 import type { AddItemsPresupuestoInput } from '@/modules/estimates/types'
 import { toErrorMessage } from '@/lib/ui/error-message'
-import { btnPrimary, btnGhost } from '@/components/ui/styles'
+import { btnPrimary, btnGhost, btnSecondary } from '@/components/ui/styles'
+import { BuscadorLineaCatalogo } from './BuscadorLineaCatalogo'
+import { buscarPlantillas, expandirPlantilla, type PlantillaResumen } from '@/modules/plantillas/queries'
 
 const FILAS_INICIALES = 5
 
@@ -48,16 +50,26 @@ const inputCell =
 function Grilla({
   titulo,
   labelCantidad,
+  grupo,
   lineas,
   setLineas,
 }: {
   titulo: string
   labelCantidad: string
+  grupo: Grupo
   lineas: Linea[]
   setLineas: (fn: (prev: Linea[]) => Linea[]) => void
 }) {
   function set(i: number, campo: keyof Linea, valor: string) {
     setLineas((prev) => prev.map((l, idx) => (idx === i ? { ...l, [campo]: valor } : l)))
+  }
+
+  function elegirDelCatalogo(i: number, descripcion: string, precio: number | null) {
+    setLineas((prev) =>
+      prev.map((l, idx) =>
+        idx === i ? { ...l, descripcion, ...(precio != null ? { precio: String(precio) } : {}) } : l,
+      ),
+    )
   }
 
   const subtotal = lineas.reduce((acc, l) => acc + totalLinea(l), 0)
@@ -84,11 +96,13 @@ function Grilla({
             {lineas.map((l, i) => (
               <tr key={i} className="border-b border-black/[0.03] last:border-0">
                 <td className="px-2 py-1.5">
-                  <input
+                  <BuscadorLineaCatalogo
+                    grupo={grupo}
                     className={inputCell}
-                    placeholder={i === 0 ? 'ej: Cambio de pastillas de freno' : ''}
+                    placeholder={i === 0 ? 'Buscar en catálogo o escribir…' : ''}
                     value={l.descripcion}
-                    onChange={(e) => set(i, 'descripcion', e.target.value)}
+                    onChangeText={(text) => set(i, 'descripcion', text)}
+                    onPick={(s) => elegirDelCatalogo(i, s.descripcion, s.precio)}
                   />
                 </td>
                 <td className="px-2 py-1.5">
@@ -144,6 +158,19 @@ export function FichaIngresoLineas({
   const [error, setError] = useState<string | null>(null)
   const [pending, startTransition] = useTransition()
 
+  // Paquetes: cargar sus líneas expandidas en las grillas
+  async function agregarPaquete(pl: PlantillaResumen) {
+    try {
+      const lineas = await expandirPlantilla(createClient(), pl)
+      const mo = lineas.filter((l) => l.grupo === 'mano_obra').map(expandidaALinea)
+      const mat = lineas.filter((l) => l.grupo === 'repuesto').map(expandidaALinea)
+      if (mo.length) setManoObra((prev) => [...prev.filter(tieneContenido), ...mo])
+      if (mat.length) setMateriales((prev) => [...prev.filter(tieneContenido), ...mat])
+    } catch (e) {
+      setError(toErrorMessage(e))
+    }
+  }
+
   const items: AddItemsPresupuestoInput['items'] = [
     ...manoObra.filter(tieneContenido).map((l) => ({ tipo: 'mano_obra' as Grupo, ...aItem(l) })),
     ...materiales.filter(tieneContenido).map((l) => ({ tipo: 'repuesto' as Grupo, ...aItem(l) })),
@@ -171,8 +198,12 @@ export function FichaIngresoLineas({
 
   return (
     <div className="space-y-6">
-      <Grilla titulo="Mano de obra" labelCantidad="Horas" lineas={manoObra} setLineas={setManoObra} />
-      <Grilla titulo="Materiales / Repuestos" labelCantidad="Cantidad" lineas={materiales} setLineas={setMateriales} />
+      <div className="flex justify-end">
+        <PaquetePicker onElegir={agregarPaquete} />
+      </div>
+
+      <Grilla titulo="Mano de obra" labelCantidad="Horas" grupo="mano_obra" lineas={manoObra} setLineas={setManoObra} />
+      <Grilla titulo="Materiales / Repuestos" labelCantidad="Cantidad" grupo="repuesto" lineas={materiales} setLineas={setMateriales} />
 
       {error && <p className="text-xs text-red-800">{error}</p>}
 
@@ -196,4 +227,66 @@ function aItem(l: Linea) {
     precioUnitario: parseFloat(l.precio),
     descuentoPorcentaje: parseFloat(l.descuento) || 0,
   }
+}
+
+function expandidaALinea(l: { descripcion: string; cantidad: number; precio: number }): Linea {
+  return {
+    descripcion: l.descripcion,
+    cantidad: String(l.cantidad),
+    precio: String(l.precio),
+    descuento: '0',
+  }
+}
+
+// Selector de paquete: abre un dropdown con los paquetes activos.
+function PaquetePicker({ onElegir }: { onElegir: (p: PlantillaResumen) => void }) {
+  const [abierto, setAbierto] = useState(false)
+  const [plantillas, setPlantillas] = useState<PlantillaResumen[]>([])
+  const [cargado, setCargado] = useState(false)
+
+  async function toggle() {
+    const next = !abierto
+    setAbierto(next)
+    if (next && !cargado) {
+      try {
+        setPlantillas(await buscarPlantillas(createClient()))
+      } catch {
+        /* silencioso */
+      } finally {
+        setCargado(true)
+      }
+    }
+  }
+
+  return (
+    <div className="relative">
+      <button type="button" onClick={() => void toggle()} className={`${btnSecondary} text-xs`}>
+        + Agregar paquete
+      </button>
+      {abierto && (
+        <div className="absolute right-0 top-full z-20 mt-1 w-72 overflow-hidden rounded-lg border border-black/10 bg-neutral-900 shadow-xl shadow-black/20">
+          {!cargado ? (
+            <p className="px-3 py-2 text-xs text-neutral-500">Cargando…</p>
+          ) : plantillas.length === 0 ? (
+            <p className="px-3 py-2 text-xs text-neutral-500">No hay paquetes configurados.</p>
+          ) : (
+            <ul className="max-h-72 overflow-auto">
+              {plantillas.map((p) => (
+                <li key={p.id}>
+                  <button
+                    type="button"
+                    onClick={() => { onElegir(p); setAbierto(false) }}
+                    className="flex w-full flex-col gap-0.5 px-3 py-2 text-left transition-colors hover:bg-black/[0.04]"
+                  >
+                    <span className="text-sm text-neutral-200">{p.nombre}</span>
+                    {p.codigo && <span className="text-[11px] text-neutral-500">{p.codigo}</span>}
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+      )}
+    </div>
+  )
 }
