@@ -16,6 +16,7 @@ export interface Presupuesto {
   estado: EstadoPresupuesto
   total_mano_obra: number
   total_repuestos: number
+  total_otros: number
   total_descuentos: number
   total_neto: number
   notas: string | null

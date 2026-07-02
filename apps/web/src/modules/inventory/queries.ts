@@ -1,4 +1,5 @@
 import type { DbClient } from '@/lib/supabase/types'
+import { normalizarBusqueda } from '@/lib/search/normalize'
 import type {
   Repuesto,
   RepuestoResumen,
@@ -78,10 +79,9 @@ export async function searchRepuestos(
     .order('nombre')
     .limit(8)
 
-  // Búsqueda por palabras: cada token debe aparecer en código, nombre o marca.
-  for (const token of query.trim().split(/\s+/)) {
-    const t = token.replace(/[%,()]/g, '')
-    if (t) req = req.or(`codigo.ilike.%${t}%,nombre.ilike.%${t}%,marca.ilike.%${t}%`)
+  // Búsqueda por palabras e insensible a tildes sobre la columna generada `busqueda`.
+  for (const token of normalizarBusqueda(query).split(/\s+/)) {
+    if (token) req = req.ilike('busqueda', `%${token}%`)
   }
 
   const { data, error } = await req

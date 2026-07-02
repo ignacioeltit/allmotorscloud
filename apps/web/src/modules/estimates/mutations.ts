@@ -27,7 +27,7 @@ import {
 } from './types'
 
 const PRES_COLUMNS =
-  'id, org_id, orden_trabajo_id, presupuesto_anterior_id, version, estado, total_mano_obra, total_repuestos, total_descuentos, total_neto, notas, enviado_en, autorizado_en, autorizado_por_nombre, rechazado_en, razon_rechazo, creado_en, actualizado_en, creado_por, eliminado_en, eliminado_por'
+  'id, org_id, orden_trabajo_id, presupuesto_anterior_id, version, estado, total_mano_obra, total_repuestos, total_otros, total_descuentos, total_neto, notas, enviado_en, autorizado_en, autorizado_por_nombre, rechazado_en, razon_rechazo, creado_en, actualizado_en, creado_por, eliminado_en, eliminado_por'
 
 const ITEM_COLUMNS =
   'id, org_id, presupuesto_id, tipo, descripcion, repuesto_id, cantidad, precio_unitario, descuento_porcentaje, precio_total, autorizador_id, creado_en, actualizado_en, creado_por, eliminado_en, eliminado_por'
@@ -147,15 +147,17 @@ export async function recalcularTotalesPresupuesto(
 
   let total_mano_obra = 0
   let total_repuestos = 0
+  let total_otros = 0
   for (const item of (itemsData ?? []) as { tipo: string; precio_total: number }[]) {
     if (item.tipo === 'mano_obra') total_mano_obra += item.precio_total
+    else if (item.tipo === 'otros') total_otros += item.precio_total
     else total_repuestos += item.precio_total
   }
-  const total_neto = total_mano_obra + total_repuestos
+  const total_neto = total_mano_obra + total_repuestos + total_otros
 
   const { error } = await supabase
     .from('presupuestos')
-    .update({ total_mano_obra, total_repuestos, total_neto })
+    .update({ total_mano_obra, total_repuestos, total_otros, total_neto })
     .eq('id', presupuestoId)
     .eq('org_id', orgId)
 

@@ -8,7 +8,7 @@ import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { enviarPresupuesto } from '@/modules/estimates/mutations'
-import { ESTADO_PRESUPUESTO_LABEL } from '@/modules/estimates/constants'
+import { ESTADO_PRESUPUESTO_LABEL, TIPO_ITEM_LABEL } from '@/modules/estimates/constants'
 import type { CotizacionDetalle } from '@/modules/estimates/queries'
 import { toErrorMessage } from '@/lib/ui/error-message'
 import { card, sectionLabel, btnSecondary, btnGhost } from '@/components/ui/styles'
@@ -74,7 +74,7 @@ export function CotizacionDetailClient({ cotizacion }: { cotizacion: CotizacionD
               <div key={item.id} className="flex items-center justify-between gap-3 rounded-lg border border-black/[0.05] bg-black/[0.02] px-3 py-2 text-sm">
                 <div className="min-w-0">
                   <span className="mr-2 rounded-full border border-black/[0.08] bg-black/[0.04] px-2 py-0.5 text-[10px] text-neutral-500">
-                    {item.tipo === 'mano_obra' ? 'Mano de obra' : 'Repuesto'}
+                    {TIPO_ITEM_LABEL[item.tipo]}
                   </span>
                   <span className="text-neutral-300">{item.descripcion}</span>
                   {item.cantidad !== 1 && <span className="ml-2 text-xs text-neutral-500">× {item.cantidad}</span>}
@@ -90,6 +90,12 @@ export function CotizacionDetailClient({ cotizacion }: { cotizacion: CotizacionD
               <span className="text-neutral-500">Repuestos</span>
               <span className="text-neutral-300">{fmtCLP(p.total_repuestos)}</span>
             </div>
+            {p.total_otros > 0 && (
+              <div className="flex justify-between text-sm">
+                <span className="text-neutral-500">Otros</span>
+                <span className="text-neutral-300">{fmtCLP(p.total_otros)}</span>
+              </div>
+            )}
             <div className="flex justify-between text-sm font-semibold">
               <span className="text-neutral-400">Total neto</span>
               <span className="text-neutral-100">{fmtCLP(p.total_neto)}</span>

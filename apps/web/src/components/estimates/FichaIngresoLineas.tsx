@@ -15,7 +15,7 @@ import { buscarPlantillas, expandirPlantilla, type PlantillaResumen } from '@/mo
 
 const FILAS_INICIALES = 5
 
-type Grupo = 'mano_obra' | 'repuesto'
+type Grupo = 'mano_obra' | 'repuesto' | 'otros'
 
 interface Linea {
   descripcion: string
@@ -96,14 +96,23 @@ function Grilla({
             {lineas.map((l, i) => (
               <tr key={i} className="border-b border-black/[0.03] last:border-0">
                 <td className="px-2 py-1.5">
-                  <BuscadorLineaCatalogo
-                    grupo={grupo}
-                    className={inputCell}
-                    placeholder={i === 0 ? 'Buscar en catálogo o escribir…' : ''}
-                    value={l.descripcion}
-                    onChangeText={(text) => set(i, 'descripcion', text)}
-                    onPick={(s) => elegirDelCatalogo(i, s.descripcion, s.precio)}
-                  />
+                  {grupo === 'otros' ? (
+                    <input
+                      className={inputCell}
+                      placeholder={i === 0 ? 'Ej: Insumos, gestión, traslado…' : ''}
+                      value={l.descripcion}
+                      onChange={(e) => set(i, 'descripcion', e.target.value)}
+                    />
+                  ) : (
+                    <BuscadorLineaCatalogo
+                      grupo={grupo}
+                      className={inputCell}
+                      placeholder={i === 0 ? 'Buscar en catálogo o escribir…' : ''}
+                      value={l.descripcion}
+                      onChangeText={(text) => set(i, 'descripcion', text)}
+                      onPick={(s) => elegirDelCatalogo(i, s.descripcion, s.precio)}
+                    />
+                  )}
                 </td>
                 <td className="px-2 py-1.5">
                   <input type="number" min="0" step="any" className={inputCell} value={l.cantidad} onChange={(e) => set(i, 'cantidad', e.target.value)} />
@@ -153,8 +162,9 @@ export function FichaIngresoLineas({
   presupuestoId: string
   onGuardado: () => void
 }) {
-  const [manoObra, setManoObra] = useState<Linea[]>(() => Array.from({ length: FILAS_INICIALES }, filaVacia))
   const [materiales, setMateriales] = useState<Linea[]>(() => Array.from({ length: FILAS_INICIALES }, filaVacia))
+  const [manoObra, setManoObra] = useState<Linea[]>(() => Array.from({ length: FILAS_INICIALES }, filaVacia))
+  const [otros, setOtros] = useState<Linea[]>(() => Array.from({ length: FILAS_INICIALES }, filaVacia))
   const [error, setError] = useState<string | null>(null)
   const [pending, startTransition] = useTransition()
 
@@ -172,8 +182,9 @@ export function FichaIngresoLineas({
   }
 
   const items: AddItemsPresupuestoInput['items'] = [
-    ...manoObra.filter(tieneContenido).map((l) => ({ tipo: 'mano_obra' as Grupo, ...aItem(l) })),
     ...materiales.filter(tieneContenido).map((l) => ({ tipo: 'repuesto' as Grupo, ...aItem(l) })),
+    ...manoObra.filter(tieneContenido).map((l) => ({ tipo: 'mano_obra' as Grupo, ...aItem(l) })),
+    ...otros.filter(tieneContenido).map((l) => ({ tipo: 'otros' as Grupo, ...aItem(l) })),
   ]
   const totalGeneral = items.reduce(
     (acc, it) => acc + Math.round(it.cantidad * it.precioUnitario * (1 - (it.descuentoPorcentaje ?? 0) / 100) * 100) / 100,
@@ -202,8 +213,9 @@ export function FichaIngresoLineas({
         <PaquetePicker onElegir={agregarPaquete} />
       </div>
 
-      <Grilla titulo="Mano de obra" labelCantidad="Horas" grupo="mano_obra" lineas={manoObra} setLineas={setManoObra} />
       <Grilla titulo="Materiales / Repuestos" labelCantidad="Cantidad" grupo="repuesto" lineas={materiales} setLineas={setMateriales} />
+      <Grilla titulo="Mano de obra" labelCantidad="Horas" grupo="mano_obra" lineas={manoObra} setLineas={setManoObra} />
+      <Grilla titulo="Otros" labelCantidad="Cantidad" grupo="otros" lineas={otros} setLineas={setOtros} />
 
       {error && <p className="text-xs text-red-800">{error}</p>}
 

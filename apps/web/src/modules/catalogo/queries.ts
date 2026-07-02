@@ -3,6 +3,7 @@
 import type { DbClient } from '@/lib/supabase/types'
 import { getAuthContext } from '@/lib/auth/context'
 import { unwrapList } from '@/lib/supabase/result'
+import { normalizarBusqueda } from '@/lib/search/normalize'
 import type { CatalogoServicio } from './types'
 
 const SERVICIO_COLUMNS =
@@ -30,12 +31,11 @@ export async function buscarServiciosCatalogo(
     .order('frecuencia_uso', { ascending: false, nullsFirst: false })
     .limit(10)
 
-  // Búsqueda por palabras: cada token debe aparecer (en nombre o código), en
-  // cualquier orden. Chaining de .or() se combina con AND en PostgREST, así que
-  // "cambio aceite" matchea "RENOVAR ACEITE..." solo si están todos los tokens.
-  for (const token of query.trim().split(/\s+/)) {
-    const t = token.replace(/[%,()]/g, '')
-    if (t) req = req.or(`nombre.ilike.%${t}%,codigo.ilike.%${t}%`)
+  // Búsqueda por palabras e insensible a tildes: se normaliza el término (sin
+  // acentos, minúsculas) y se filtra sobre la columna generada `busqueda`. Cada
+  // token debe aparecer (AND vía chaining de ilike).
+  for (const token of normalizarBusqueda(query).split(/\s+/)) {
+    if (token) req = req.ilike('busqueda', `%${token}%`)
   }
 
   if (categoria) {
