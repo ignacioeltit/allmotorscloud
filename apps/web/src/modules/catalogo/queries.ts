@@ -27,9 +27,16 @@ export async function buscarServiciosCatalogo(
     .eq('activo', true)
     .eq('requiere_revision', false)
     .is('eliminado_en', null)
-    .or(`nombre.ilike.%${query}%,codigo.ilike.${query}%`)
     .order('frecuencia_uso', { ascending: false, nullsFirst: false })
     .limit(10)
+
+  // Búsqueda por palabras: cada token debe aparecer (en nombre o código), en
+  // cualquier orden. Chaining de .or() se combina con AND en PostgREST, así que
+  // "cambio aceite" matchea "RENOVAR ACEITE..." solo si están todos los tokens.
+  for (const token of query.trim().split(/\s+/)) {
+    const t = token.replace(/[%,()]/g, '')
+    if (t) req = req.or(`nombre.ilike.%${t}%,codigo.ilike.%${t}%`)
+  }
 
   if (categoria) {
     req = req.eq('categoria', categoria)

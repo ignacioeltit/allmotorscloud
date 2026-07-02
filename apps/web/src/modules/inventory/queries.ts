@@ -71,13 +71,20 @@ export async function searchRepuestos(
 ): Promise<RepuestoResumen[]> {
   if (!query.trim()) return []
 
-  const { data, error } = await supabase
+  let req = supabase
     .from('repuestos')
     .select(REPUESTO_RESUMEN_COLUMNS)
     .eq('activo', true)
-    .or(`codigo.ilike.%${query.trim()}%,nombre.ilike.%${query.trim()}%,marca.ilike.%${query.trim()}%`)
     .order('nombre')
     .limit(8)
+
+  // Búsqueda por palabras: cada token debe aparecer en código, nombre o marca.
+  for (const token of query.trim().split(/\s+/)) {
+    const t = token.replace(/[%,()]/g, '')
+    if (t) req = req.or(`codigo.ilike.%${t}%,nombre.ilike.%${t}%,marca.ilike.%${t}%`)
+  }
+
+  const { data, error } = await req
 
   if (error) throw new Error(error.message)
 
