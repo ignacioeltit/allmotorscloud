@@ -18,10 +18,12 @@ import { validationErrorFromZod, mapPostgrestError } from '@/lib/errors'
 import {
   crearPresupuestoSchema,
   addItemPresupuestoSchema,
+  addItemsPresupuestoSchema,
   type Presupuesto,
   type ItemPresupuesto,
   type CrearPresupuestoInput,
   type AddItemPresupuestoInput,
+  type AddItemsPresupuestoInput,
 } from './types'
 
 const PRES_COLUMNS =
@@ -90,6 +92,41 @@ export async function addItemPresupuesto(
   const item = unwrapWritten<ItemPresupuesto>(data, error)
   await recalcularTotalesPresupuesto(supabase, presupuestoId)
   return item
+}
+
+/**
+ * Agrega varias líneas de una vez (ficha de ingreso): un solo INSERT y un solo
+ * recálculo de totales. Ignora líneas vacías desde la UI; acá ya llegan validadas.
+ */
+export async function addItemsPresupuesto(
+  supabase: DbClient,
+  input: AddItemsPresupuestoInput,
+): Promise<void> {
+  const parsed = addItemsPresupuestoSchema.safeParse(input)
+  if (!parsed.success) throw validationErrorFromZod(parsed.error.flatten())
+
+  const { userId, orgId } = await getAuthContext(supabase)
+  const { presupuestoId, items } = parsed.data
+
+  const rows = items.map((it) => {
+    const descuento = it.descuentoPorcentaje ?? 0
+    const precio_total = Math.round(it.cantidad * it.precioUnitario * (1 - descuento / 100) * 100) / 100
+    return {
+      org_id: orgId,
+      presupuesto_id: presupuestoId,
+      tipo: it.tipo,
+      descripcion: it.descripcion,
+      cantidad: it.cantidad,
+      precio_unitario: it.precioUnitario,
+      descuento_porcentaje: descuento,
+      precio_total,
+      creado_por: userId,
+    }
+  })
+
+  const { error } = await supabase.from('items_presupuesto').insert(rows)
+  if (error) throw mapPostgrestError(error)
+  await recalcularTotalesPresupuesto(supabase, presupuestoId)
 }
 
 /** Recalcula y persiste los totales del presupuesto a partir de sus ítems activos. */

@@ -4,91 +4,18 @@
 // agregar ítems y marcar como enviada. La conversión a OT (Fase C) se engancha
 // con el botón "Convertir a OT" cuando esté disponible.
 
-import { useState, useTransition } from 'react'
+import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
-import { addItemPresupuesto, enviarPresupuesto } from '@/modules/estimates/mutations'
-import { TIPOS_ITEM_PRESUPUESTO, ESTADO_PRESUPUESTO_LABEL } from '@/modules/estimates/constants'
+import { enviarPresupuesto } from '@/modules/estimates/mutations'
+import { ESTADO_PRESUPUESTO_LABEL } from '@/modules/estimates/constants'
 import type { CotizacionDetalle } from '@/modules/estimates/queries'
 import { toErrorMessage } from '@/lib/ui/error-message'
-import { card, sectionLabel, inputClass, labelClass, btnPrimary, btnSecondary, btnGhost } from '@/components/ui/styles'
+import { card, sectionLabel, btnSecondary, btnGhost } from '@/components/ui/styles'
+import { FichaIngresoLineas } from './FichaIngresoLineas'
 
 function fmtCLP(n: number): string {
   return n.toLocaleString('es-CL', { style: 'currency', currency: 'CLP', maximumFractionDigits: 0 })
-}
-
-function AgregarItemForm({ presupuestoId, onDone, onCancel }: { presupuestoId: string; onDone: () => void; onCancel: () => void }) {
-  const [tipo, setTipo] = useState<'mano_obra' | 'repuesto'>('mano_obra')
-  const [descripcion, setDescripcion] = useState('')
-  const [cantidad, setCantidad] = useState('1')
-  const [precio, setPrecio] = useState('')
-  const [descuento, setDescuento] = useState('0')
-  const [error, setError] = useState<string | null>(null)
-  const [pending, startTransition] = useTransition()
-
-  function submit(e: React.FormEvent) {
-    e.preventDefault()
-    const cant = parseFloat(cantidad)
-    const prec = parseFloat(precio)
-    const desc = parseFloat(descuento) || 0
-    if (!descripcion.trim() || isNaN(cant) || cant <= 0 || isNaN(prec) || prec < 0) {
-      setError('Completa los campos correctamente.')
-      return
-    }
-    setError(null)
-    startTransition(async () => {
-      try {
-        await addItemPresupuesto(createClient(), {
-          presupuestoId,
-          tipo,
-          descripcion: descripcion.trim(),
-          cantidad: cant,
-          precioUnitario: prec,
-          descuentoPorcentaje: desc,
-        })
-        onDone()
-      } catch (e) {
-        setError(toErrorMessage(e))
-      }
-    })
-  }
-
-  return (
-    <form onSubmit={submit} className="mt-3 rounded-lg border border-black/[0.08] bg-black/[0.02] p-4">
-      <p className="mb-3 text-xs font-semibold uppercase tracking-wider text-neutral-500">Nuevo ítem</p>
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-        <div>
-          <label className={labelClass}>Tipo</label>
-          <select className={inputClass} value={tipo} onChange={(e) => setTipo(e.target.value as typeof tipo)} disabled={pending}>
-            {TIPOS_ITEM_PRESUPUESTO.map((t) => (
-              <option key={t} value={t}>{t === 'mano_obra' ? 'Mano de obra' : 'Repuesto / material'}</option>
-            ))}
-          </select>
-        </div>
-        <div className="sm:col-span-2">
-          <label className={labelClass}>Descripción</label>
-          <input className={inputClass} placeholder="ej: Cambio de batería 90AMP" value={descripcion} onChange={(e) => setDescripcion(e.target.value)} disabled={pending} />
-        </div>
-        <div>
-          <label className={labelClass}>Cantidad</label>
-          <input className={inputClass} type="number" min="0.001" step="any" value={cantidad} onChange={(e) => setCantidad(e.target.value)} disabled={pending} />
-        </div>
-        <div>
-          <label className={labelClass}>Precio unitario (CLP)</label>
-          <input className={inputClass} type="number" min="0" step="1" placeholder="0" value={precio} onChange={(e) => setPrecio(e.target.value)} disabled={pending} />
-        </div>
-        <div>
-          <label className={labelClass}>Descuento (%)</label>
-          <input className={inputClass} type="number" min="0" max="100" step="1" value={descuento} onChange={(e) => setDescuento(e.target.value)} disabled={pending} />
-        </div>
-      </div>
-      {error && <p className="mt-2 text-xs text-red-800">{error}</p>}
-      <div className="mt-3 flex gap-2">
-        <button type="submit" className={btnPrimary} disabled={pending}>{pending ? 'Guardando…' : 'Agregar ítem'}</button>
-        <button type="button" className={btnSecondary} onClick={onCancel} disabled={pending}>Cancelar</button>
-      </div>
-    </form>
-  )
 }
 
 export function CotizacionDetailClient({ cotizacion }: { cotizacion: CotizacionDetalle }) {
@@ -177,10 +104,16 @@ export function CotizacionDetailClient({ cotizacion }: { cotizacion: CotizacionD
 
         {esBorrador &&
           (showAdd ? (
-            <AgregarItemForm presupuestoId={p.id} onDone={() => { setShowAdd(false); router.refresh() }} onCancel={() => setShowAdd(false)} />
+            <div className="rounded-lg border border-black/[0.08] bg-black/[0.02] p-4">
+              <div className="mb-3 flex items-center justify-between">
+                <p className="text-xs font-semibold uppercase tracking-wider text-neutral-500">Cargar líneas</p>
+                <button onClick={() => setShowAdd(false)} className={`${btnGhost} text-xs`}>Cerrar</button>
+              </div>
+              <FichaIngresoLineas presupuestoId={p.id} onGuardado={() => { setShowAdd(false); router.refresh() }} />
+            </div>
           ) : (
             <div className="flex flex-wrap gap-2">
-              <button onClick={() => setShowAdd(true)} className={`${btnGhost} text-xs`}>+ Agregar ítem</button>
+              <button onClick={() => setShowAdd(true)} className={`${btnGhost} text-xs`}>+ Cargar líneas</button>
               {p.items.length > 0 && (
                 <button onClick={() => void enviar()} disabled={enviando} className={`${btnSecondary} text-xs`}>
                   {enviando ? 'Enviando…' : 'Marcar como enviada'}

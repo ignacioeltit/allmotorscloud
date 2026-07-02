@@ -74,5 +74,22 @@ export const addItemPresupuestoSchema = z.object({
   repuestoId: uuid.optional(),
 })
 
+/** Carga por lote: varias líneas de una vez (ficha de ingreso). */
+export const addItemsPresupuestoSchema = z.object({
+  presupuestoId: uuid,
+  items: z
+    .array(
+      z.object({
+        tipo: z.enum(TIPOS_ITEM_PRESUPUESTO),
+        descripcion: textoCorto,
+        cantidad: z.number().positive().multipleOf(0.001),
+        precioUnitario: z.number().min(0),
+        descuentoPorcentaje: z.number().min(0).max(100).optional(),
+      }),
+    )
+    .min(1, 'Agrega al menos una línea con datos.'),
+})
+
 export type CrearPresupuestoInput = z.infer<typeof crearPresupuestoSchema>
 export type AddItemPresupuestoInput = z.infer<typeof addItemPresupuestoSchema>
+export type AddItemsPresupuestoInput = z.infer<typeof addItemsPresupuestoSchema>
