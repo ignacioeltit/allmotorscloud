@@ -1,0 +1,54 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+# Cancela corridas viejas del mismo branch si llega un push nuevo
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  web:
+    name: web (typecheck · test · lint · build)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9.0.0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      # Scope a la web app + sus dependencias del workspace. El paquete móvil
+      # (apps/mechanic) queda fuera a propósito: tiene conflictos de peer-deps
+      # de React y aún no es parte del release.
+      - name: Typecheck
+        run: pnpm --filter @allmotors/web typecheck
+
+      - name: Test
+        run: pnpm --filter @allmotors/web test
+
+      - name: Lint
+        run: pnpm --filter @allmotors/web lint
+
+      # next build inlinea las NEXT_PUBLIC_* en tiempo de build. Las páginas son
+      # force-dynamic (no prerenderan ni tocan Supabase en build), así que basta
+      # con placeholders válidos para que el build complete.
+      - name: Build
+        run: pnpm --filter @allmotors/web build
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: https://placeholder.supabase.co
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: placeholder-anon-key
+          NEXT_PUBLIC_APP_URL: http://localhost:3000
+          NEXT_PUBLIC_APP_ENV: ci
