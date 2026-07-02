@@ -6,6 +6,7 @@ import { usePathname } from 'next/navigation'
 
 const items = [
   { href: '/dashboard',   label: 'Dashboard',    icon: 'grid' },
+  { href: '/agenda',      label: 'Agenda',       icon: 'calendar' },
   { href: '/customers',   label: 'Clientes',     icon: 'users' },
   { href: '/vehicles',    label: 'Vehículos',    icon: 'car' },
   { href: '/estimates',   label: 'Presupuestos', icon: 'file' },
@@ -31,6 +32,13 @@ function Icon({ name }: { name: string }) {
         <rect x="14" y="3" width="7" height="7" rx="1.5" />
         <rect x="3" y="14" width="7" height="7" rx="1.5" />
         <rect x="14" y="14" width="7" height="7" rx="1.5" />
+      </svg>
+    )
+  if (name === 'calendar')
+    return (
+      <svg {...common}>
+        <rect x="3" y="4" width="18" height="18" rx="2" />
+        <path d="M16 2v4M8 2v4M3 10h18" />
       </svg>
     )
   if (name === 'users')

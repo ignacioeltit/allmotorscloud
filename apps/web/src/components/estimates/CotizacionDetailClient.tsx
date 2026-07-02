@@ -169,6 +169,22 @@ export function CotizacionDetailClient({
             <p className="mt-1 font-medium">El cliente quiere agendar — contáctalo para coordinar la hora.</p>
           )}
           {p.nota_cliente && <p className="mt-1 text-neutral-600">Nota del cliente: “{p.nota_cliente}”</p>}
+          {p.estado === 'autorizado' && p.vehiculo?.id && (
+            <Link
+              href={{
+                pathname: '/agenda/nueva',
+                query: {
+                  vehiculo_id: p.vehiculo.id,
+                  ...(p.cliente?.id ? { cliente_id: p.cliente.id } : {}),
+                  vehiculo: [p.vehiculo.patente, p.vehiculo.marca, p.vehiculo.modelo].filter(Boolean).join(' · '),
+                  ...(p.cliente?.nombre ? { cliente: p.cliente.nombre } : {}),
+                },
+              }}
+              className="mt-3 inline-flex items-center gap-2 rounded-lg bg-accent-600 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-accent-500"
+            >
+              📅 Agendar cita
+            </Link>
+          )}
         </section>
       )}
 
