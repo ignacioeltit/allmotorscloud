@@ -66,9 +66,15 @@ export function CotizacionDetailClient({
   const esBorrador = p.estado === 'borrador'
   const conItems = p.items.length > 0
   const respondida = p.estado === 'autorizado' || p.estado === 'rechazado'
-  // Motivo de la cita = detalle cotizado (descripciones de los ítems), para que
-  // al agendar se arrastre qué trabajo se autorizó.
-  const motivoDesdeItems = p.items.map((i) => i.descripcion).join(', ').slice(0, 200)
+  // Motivo de la cita = referencia corta de la cotización + un detalle breve del
+  // servicio (la mano de obra describe mejor el trabajo que los repuestos). Evita
+  // volcar los números de parte de cada repuesto.
+  const refCotizacion = `Cot. ${p.id.slice(0, 8).toUpperCase()}`
+  const laborItems = p.items.filter((i) => i.tipo === 'mano_obra').map((i) => i.descripcion)
+  const detalleBreve = (laborItems.length ? laborItems : p.items.map((i) => i.descripcion))
+    .slice(0, 2)
+    .join(', ')
+  const motivoDesdeItems = `${refCotizacion}${detalleBreve ? ` · ${detalleBreve}` : ''}`.slice(0, 120)
 
   // origin se resuelve tras el montaje para no romper la hidratación (el server
   // no tiene window). Render inicial server/cliente coincide con origin = ''.
