@@ -5,6 +5,7 @@
 // con el botón "Convertir a OT" cuando esté disponible.
 
 import { useState } from 'react'
+import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { enviarPresupuesto } from '@/modules/estimates/mutations'
@@ -18,13 +19,53 @@ function fmtCLP(n: number): string {
   return n.toLocaleString('es-CL', { style: 'currency', currency: 'CLP', maximumFractionDigits: 0 })
 }
 
-export function CotizacionDetailClient({ cotizacion }: { cotizacion: CotizacionDetalle }) {
+/** Número a formato internacional para wa.me (Chile +56 si es móvil de 9 dígitos). */
+function telefonoWhatsapp(telefono: string | null): string | null {
+  if (!telefono) return null
+  let d = telefono.replace(/\D/g, '')
+  if (d.startsWith('56')) return d
+  if (d.length === 9 && d.startsWith('9')) return `56${d}`
+  if (d.length === 8) return `569${d}`
+  return d || null
+}
+
+/** Arma el enlace de WhatsApp con un resumen de la cotización. */
+function enlaceWhatsapp(p: CotizacionDetalle, tallerNombre: string): string {
+  const tel = telefonoWhatsapp(p.cliente?.telefono ?? null)
+  const veh = [p.vehiculo?.marca, p.vehiculo?.modelo, p.vehiculo?.patente ? `(${p.vehiculo.patente})` : null]
+    .filter(Boolean)
+    .join(' ')
+  const iva = Math.round(p.total_neto * 0.19)
+  const lineas = [
+    `Hola${p.cliente?.nombre ? ' ' + p.cliente.nombre.split(' ')[0] : ''}, te enviamos la cotización de ${tallerNombre}${veh ? ` para tu ${veh}` : ''}:`,
+    '',
+    ...p.items.map((it) => `• ${it.descripcion}: ${fmtCLP(it.precio_total)}`),
+    '',
+    `Neto: ${fmtCLP(p.total_neto)}`,
+    `IVA: ${fmtCLP(iva)}`,
+    `Total: ${fmtCLP(p.total_neto + iva)}`,
+    '',
+    'Quedamos atentos a cualquier consulta.',
+  ]
+  const texto = encodeURIComponent(lineas.join('\n'))
+  return tel ? `https://wa.me/${tel}?text=${texto}` : `https://wa.me/?text=${texto}`
+}
+
+export function CotizacionDetailClient({
+  cotizacion,
+  tallerNombre,
+}: {
+  cotizacion: CotizacionDetalle
+  tallerNombre: string
+}) {
   const router = useRouter()
   const [showAdd, setShowAdd] = useState(false)
   const [enviando, setEnviando] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const p = cotizacion
   const esBorrador = p.estado === 'borrador'
+  const conItems = p.items.length > 0
+  const waUrl = enlaceWhatsapp(p, tallerNombre)
 
   async function enviar() {
     setEnviando(true)
@@ -41,6 +82,23 @@ export function CotizacionDetailClient({ cotizacion }: { cotizacion: CotizacionD
 
   return (
     <div className="space-y-5">
+      {/* Acciones: imprimir / enviar por WhatsApp */}
+      {conItems && (
+        <div className="flex flex-wrap gap-2">
+          <Link href={`/estimates/${p.id}/imprimir`} className={btnSecondary}>
+            Imprimir / PDF
+          </Link>
+          <a
+            href={waUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex items-center justify-center gap-2 rounded-lg border border-emerald-500/40 bg-emerald-500/10 px-4 py-2.5 text-sm font-medium text-emerald-800 transition-colors hover:bg-emerald-500/20"
+          >
+            Enviar por WhatsApp
+          </a>
+        </div>
+      )}
+
       {/* Cliente + vehículo */}
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         <section className={card}>

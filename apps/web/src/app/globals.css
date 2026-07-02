@@ -60,3 +60,23 @@
 ::selection {
   background: rgba(249, 115, 22, 0.25);
 }
+
+/* Impresión: ocultar el shell (menú, headers) y mostrar solo el documento. */
+@media print {
+  aside,
+  header,
+  .no-print {
+    display: none !important;
+  }
+  main {
+    max-width: none !important;
+    padding: 0 !important;
+  }
+  body {
+    background: #ffffff !important;
+    color: #111111 !important;
+  }
+  .doc-print {
+    color: #111111;
+  }
+}

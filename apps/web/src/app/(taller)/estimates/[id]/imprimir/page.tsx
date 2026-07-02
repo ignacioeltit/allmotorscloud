@@ -1,5 +1,4 @@
-// Detalle de una cotización (presupuesto). Si el presupuesto pertenece a una OT,
-// redirige a la OT (allí se gestiona). Solo las cotizaciones sueltas se ven aquí.
+// Vista imprimible / PDF de una cotización.
 export const dynamic = 'force-dynamic'
 
 import Link from 'next/link'
@@ -8,11 +7,10 @@ import { createClient } from '@/lib/supabase/server'
 import { getCotizacionById } from '@/modules/estimates/queries'
 import { getOrganizacion } from '@/modules/org/queries'
 import { load } from '@/lib/ui/load'
-import { PageHeader } from '@/components/ui/PageHeader'
 import { Notice } from '@/components/ui/Notice'
-import { CotizacionDetailClient } from '@/components/estimates/CotizacionDetailClient'
+import { CotizacionDocumento } from '@/components/estimates/CotizacionDocumento'
 
-export default async function CotizacionDetailPage({
+export default async function ImprimirCotizacionPage({
   params,
 }: {
   params: Promise<{ id: string }>
@@ -40,21 +38,16 @@ export default async function CotizacionDetailPage({
     return <Notice tone="warning" title="Cotización no encontrada" />
   }
 
-  // Si ya está ligada a una OT, se gestiona desde la OT.
   if (result.data.cotizacion.orden_trabajo_id) {
     redirect(`/repair-orders/${result.data.cotizacion.orden_trabajo_id}`)
   }
 
   return (
     <div>
-      <Link href="/estimates" className="text-sm text-accent-400 hover:text-accent-300">
-        ← Presupuestos
+      <Link href={`/estimates/${id}`} className="no-print mb-4 inline-block text-sm text-accent-400 hover:text-accent-300">
+        ← Volver a la cotización
       </Link>
-      <PageHeader title="Cotización" />
-      <CotizacionDetailClient
-        cotizacion={result.data.cotizacion}
-        tallerNombre={result.data.taller?.nombre ?? 'el taller'}
-      />
+      <CotizacionDocumento cotizacion={result.data.cotizacion} taller={result.data.taller} />
     </div>
   )
 }
