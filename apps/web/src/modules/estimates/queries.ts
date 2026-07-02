@@ -26,6 +26,67 @@ export interface PresupuestoListado {
   cliente_nombre: string | null
 }
 
+/** Detalle de cotización: presupuesto + ítems + cliente y vehículo directos. */
+export interface CotizacionDetalle extends PresupuestoConItems {
+  cliente: { id: string; nombre: string; rut: string | null; telefono: string | null } | null
+  vehiculo: { id: string; patente: string; marca: string; modelo: string; anio: number | null } | null
+}
+
+/** Obtiene una cotización (o presupuesto) por id, con ítems, cliente y vehículo. */
+export async function getCotizacionById(
+  supabase: DbClient,
+  id: string,
+): Promise<CotizacionDetalle | null> {
+  const { orgId } = await getAuthContext(supabase)
+
+  const { data, error } = await supabase
+    .from('presupuestos')
+    .select(PRES_COLUMNS + ', cliente_id, vehiculo_id')
+    .eq('org_id', orgId)
+    .eq('id', id)
+    .is('eliminado_en', null)
+    .maybeSingle()
+
+  const pres = unwrapMaybe<Presupuesto & { cliente_id: string | null; vehiculo_id: string | null }>(
+    data as (Presupuesto & { cliente_id: string | null; vehiculo_id: string | null }) | null,
+    error,
+  )
+  if (!pres) return null
+
+  const { data: itemsData, error: itemsError } = await supabase
+    .from('items_presupuesto')
+    .select(ITEM_COLUMNS)
+    .eq('org_id', orgId)
+    .eq('presupuesto_id', pres.id)
+    .is('eliminado_en', null)
+    .order('creado_en', { ascending: true })
+  const items = unwrapList<ItemPresupuesto>(itemsData, itemsError)
+
+  let cliente: CotizacionDetalle['cliente'] = null
+  if (pres.cliente_id) {
+    const { data: c } = await supabase
+      .from('clientes')
+      .select('id, nombre, rut, telefono')
+      .eq('org_id', orgId)
+      .eq('id', pres.cliente_id)
+      .maybeSingle()
+    cliente = (c as CotizacionDetalle['cliente']) ?? null
+  }
+
+  let vehiculo: CotizacionDetalle['vehiculo'] = null
+  if (pres.vehiculo_id) {
+    const { data: v } = await supabase
+      .from('vehiculos')
+      .select('id, patente, marca, modelo, anio')
+      .eq('org_id', orgId)
+      .eq('id', pres.vehiculo_id)
+      .maybeSingle()
+    vehiculo = (v as CotizacionDetalle['vehiculo']) ?? null
+  }
+
+  return { ...pres, items, cliente, vehiculo }
+}
+
 /**
  * Lista presupuestos del tenant (incluye cotizaciones sueltas sin OT) con
  * búsqueda server-side por N° de OT, patente o cliente, paginación y conteo.

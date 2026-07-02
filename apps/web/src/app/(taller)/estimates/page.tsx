@@ -55,9 +55,10 @@ export default async function EstimatesPage({ searchParams }: Props) {
 
   return (
     <div>
-      <PageHeader title="Presupuestos" />
+      <PageHeader title="Presupuestos" action={{ href: '/estimates/new', label: 'Nueva cotización' }} />
       <p className="-mt-3 mb-4 text-sm text-neutral-500">
-        Cada presupuesto pertenece a una orden de trabajo. Para crear o editar uno, abre su OT.
+        Cotizaciones (sin OT) y presupuestos de órdenes de trabajo. Crea una cotización para un
+        cliente que llama o llega; luego podrás convertirla en OT.
       </p>
 
       <BusquedaPaginada
