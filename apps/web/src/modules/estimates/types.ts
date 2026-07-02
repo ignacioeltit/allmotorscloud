@@ -4,7 +4,8 @@
 //   UNIQUE(presupuesto_anterior_id): solo una versión siguiente por versión anterior.
 // items_presupuesto: repuesto_id es FK diferida (activada en Migration 004).
 
-import type { EstadoPresupuesto, TipoItemPresupuesto } from './constants'
+import { z } from 'zod'
+import { TIPOS_ITEM_PRESUPUESTO, type EstadoPresupuesto, type TipoItemPresupuesto } from './constants'
 
 export interface Presupuesto {
   id: string
@@ -52,3 +53,26 @@ export interface ItemPresupuesto {
 export interface PresupuestoConItems extends Presupuesto {
   items: ItemPresupuesto[]
 }
+
+// ── Schemas Zod ─────────────────────────────────────────────────────────────
+
+const uuid = z.string().uuid('Identificador inválido')
+const textoCorto = z.string().trim().min(1).max(500)
+
+export const crearPresupuestoSchema = z.object({
+  ordenTrabajoId: uuid,
+  notas: z.string().trim().max(5000).optional(),
+})
+
+export const addItemPresupuestoSchema = z.object({
+  presupuestoId: uuid,
+  tipo: z.enum(TIPOS_ITEM_PRESUPUESTO),
+  descripcion: textoCorto,
+  cantidad: z.number().positive().multipleOf(0.001),
+  precioUnitario: z.number().min(0),
+  descuentoPorcentaje: z.number().min(0).max(100).optional(),
+  repuestoId: uuid.optional(),
+})
+
+export type CrearPresupuestoInput = z.infer<typeof crearPresupuestoSchema>
+export type AddItemPresupuestoInput = z.infer<typeof addItemPresupuestoSchema>

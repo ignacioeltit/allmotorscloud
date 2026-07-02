@@ -19,8 +19,8 @@ import { Notice } from '@/components/ui/Notice'
 import { StatusBadge } from '@/components/ui/StatusBadge'
 import { OrdenTrabajoActions } from '@/components/repair-orders/OrdenTrabajoActions'
 import { TrabajosSection } from '@/components/repair-orders/TrabajosSection'
+import { PresupuestoSection } from '@/components/repair-orders/PresupuestoSection'
 import { card, sectionLabel, linkClass } from '@/components/ui/styles'
-import { ESTADO_PRESUPUESTO_LABEL } from '@/modules/estimates/constants'
 
 function fmt(dateStr: string): string {
   return new Date(dateStr).toLocaleString('es-CL', {
@@ -216,41 +216,8 @@ export default async function OrdenTrabajoDetailPage({
         configuracion={configuracion}
       />
 
-      {/* ── Presupuesto activo (read-only) ── */}
-      {presupuesto && (
-        <section className={card}>
-          <div className="flex items-center justify-between gap-3">
-            <p className={sectionLabel}>Presupuesto v{presupuesto.version}</p>
-            <span className="rounded-full border border-sky-500/25 bg-sky-500/10 px-2.5 py-0.5 text-xs font-medium text-sky-800">
-              {ESTADO_PRESUPUESTO_LABEL[presupuesto.estado]}
-            </span>
-          </div>
-          {presupuesto.items.length > 0 ? (
-            <div className="mt-4 space-y-1.5">
-              {presupuesto.items.map((item) => (
-                <div
-                  key={item.id}
-                  className="flex items-center justify-between gap-3 rounded-lg border border-black/[0.04] bg-black/[0.02] px-3 py-2 text-sm"
-                >
-                  <span className="text-neutral-300">{item.descripcion}</span>
-                  <span className="shrink-0 font-medium text-neutral-200">
-                    {fmtCLP(item.precio_total)}
-                  </span>
-                </div>
-              ))}
-              <div className="mt-3 flex justify-between border-t border-black/[0.06] pt-3 text-sm font-semibold">
-                <span className="text-neutral-400">Total neto</span>
-                <span className="text-neutral-100">{fmtCLP(presupuesto.total_neto)}</span>
-              </div>
-            </div>
-          ) : (
-            <p className="mt-3 text-sm text-neutral-500">Sin ítems en el presupuesto.</p>
-          )}
-          {presupuesto.notas && (
-            <p className="mt-3 text-xs text-neutral-500">{presupuesto.notas}</p>
-          )}
-        </section>
-      )}
+      {/* ── Presupuesto (Client Component con formularios) ── */}
+      <PresupuestoSection ordenTrabajoId={orden.id} initialPresupuesto={presupuesto} />
 
       {/* ── Totales de trabajos registrados ── */}
       {totalOT > 0 && (
