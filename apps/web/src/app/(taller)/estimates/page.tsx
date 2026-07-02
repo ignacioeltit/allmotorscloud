@@ -72,7 +72,8 @@ export default async function EstimatesPage({ searchParams }: Props) {
           <table className="w-full text-sm">
             <thead className="border-b border-black/[0.06] bg-black/[0.02] text-left text-[11px] uppercase tracking-wider text-neutral-500">
               <tr>
-                <th className="px-4 py-3 font-medium">OT</th>
+                <th className="px-4 py-3 font-medium">Origen</th>
+                <th className="px-4 py-3 font-medium">Cliente</th>
                 <th className="px-4 py-3 font-medium">Vehículo</th>
                 <th className="px-4 py-3 font-medium">Estado</th>
                 <th className="px-4 py-3 text-right font-medium">Total neto</th>
@@ -82,10 +83,23 @@ export default async function EstimatesPage({ searchParams }: Props) {
             <tbody>
               {presupuestos.map((p) => (
                 <tr key={p.id} className="border-b border-black/[0.04] transition-colors last:border-0 hover:bg-black/[0.03]">
-                  <td className="px-4 py-3 font-medium text-neutral-100">{p.numero_ot}</td>
+                  <td className="px-4 py-3 font-medium text-neutral-100">
+                    {p.numero_ot ?? (
+                      <span className="inline-flex items-center rounded-full border border-accent-500/30 bg-accent-500/10 px-2.5 py-1 text-xs font-medium text-accent-400">
+                        Cotización
+                      </span>
+                    )}
+                  </td>
+                  <td className="px-4 py-3 text-neutral-300">{p.cliente_nombre ?? '—'}</td>
                   <td className="px-4 py-3 text-neutral-400">
-                    <span className="font-medium tracking-wide text-neutral-300">{p.patente}</span>
-                    <span className="text-neutral-500"> · {p.marca} {p.modelo}</span>
+                    {p.patente ? (
+                      <>
+                        <span className="font-medium tracking-wide text-neutral-300">{p.patente}</span>
+                        <span className="text-neutral-500"> · {p.marca} {p.modelo}</span>
+                      </>
+                    ) : (
+                      '—'
+                    )}
                   </td>
                   <td className="px-4 py-3">
                     <span className={`inline-flex items-center rounded-full border px-2.5 py-1 text-xs font-medium ${ESTADO_BADGE[p.estado]}`}>
@@ -94,8 +108,11 @@ export default async function EstimatesPage({ searchParams }: Props) {
                   </td>
                   <td className="px-4 py-3 text-right font-medium text-neutral-200">{fmtCLP(p.total_neto)}</td>
                   <td className="px-4 py-3 text-right">
-                    <Link href={`/repair-orders/${p.orden_trabajo_id}`} className="text-accent-400 hover:text-accent-300">
-                      Ver OT →
+                    <Link
+                      href={p.orden_trabajo_id ? `/repair-orders/${p.orden_trabajo_id}` : `/estimates/${p.id}`}
+                      className="text-accent-400 hover:text-accent-300"
+                    >
+                      {p.orden_trabajo_id ? 'Ver OT →' : 'Ver →'}
                     </Link>
                   </td>
                 </tr>

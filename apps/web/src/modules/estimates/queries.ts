@@ -12,22 +12,23 @@ const PRES_COLUMNS =
 const ITEM_COLUMNS =
   'id, org_id, presupuesto_id, tipo, descripcion, repuesto_id, cantidad, precio_unitario, descuento_porcentaje, precio_total, autorizador_id, creado_en, actualizado_en, creado_por, eliminado_en, eliminado_por'
 
-/** Fila del listado global de presupuestos: presupuesto + OT + vehículo. */
+/** Fila del listado global de presupuestos (vista v_presupuestos_listado). */
 export interface PresupuestoListado {
   id: string
-  orden_trabajo_id: string
+  orden_trabajo_id: string | null
   estado: EstadoPresupuesto
   total_neto: number
   creado_en: string
-  numero_ot: string
-  patente: string
-  marca: string
-  modelo: string
+  numero_ot: string | null
+  patente: string | null
+  marca: string | null
+  modelo: string | null
+  cliente_nombre: string | null
 }
 
 /**
- * Lista presupuestos del tenant con búsqueda server-side (número de OT o patente),
- * paginación y conteo total — para la sección global /estimates.
+ * Lista presupuestos del tenant (incluye cotizaciones sueltas sin OT) con
+ * búsqueda server-side por N° de OT, patente o cliente, paginación y conteo.
  */
 export async function listPresupuestosPaged(
   supabase: DbClient,
@@ -38,12 +39,10 @@ export async function listPresupuestosPaged(
   const page = Math.max(1, params.page ?? 1)
   const from = (page - 1) * pageSize
 
-  // Embebe la OT y su vehículo vía FKs. !inner exige que ambos existan.
   let q = supabase
-    .from('presupuestos')
+    .from('v_presupuestos_listado')
     .select(
-      'id, orden_trabajo_id, estado, total_neto, creado_en,' +
-        ' ordenes_trabajo!inner(numero_ot, vehiculos!inner(patente, marca, modelo))',
+      'id, orden_trabajo_id, estado, total_neto, creado_en, numero_ot, patente, marca, modelo, cliente_nombre',
       { count: 'exact' },
     )
     .eq('org_id', orgId)
@@ -52,8 +51,9 @@ export async function listPresupuestosPaged(
   const term = params.query?.trim()
   if (term) {
     const escaped = term.replace(/%/g, '\\%').replace(/_/g, '\\_')
-    // Filtro sobre columna embebida (con !inner, acota también las filas padre).
-    q = q.ilike('ordenes_trabajo.numero_ot', `%${escaped}%`)
+    q = q.or(
+      `numero_ot.ilike.%${escaped}%,patente.ilike.%${escaped}%,cliente_nombre.ilike.%${escaped}%`,
+    )
   }
 
   const { data, error, count } = await q
@@ -61,34 +61,7 @@ export async function listPresupuestosPaged(
     .range(from, from + pageSize - 1)
 
   if (error) throw new Error(error.message)
-
-  type FilaEmbebida = {
-    id: string
-    orden_trabajo_id: string
-    estado: string
-    total_neto: number
-    creado_en: string
-    ordenes_trabajo: {
-      numero_ot: string
-      vehiculos: { patente: string; marca: string; modelo: string }
-    }
-  }
-
-  const rows = ((data ?? []) as unknown as FilaEmbebida[]).map((p) => {
-    const ot = p.ordenes_trabajo
-    return {
-      id: p.id,
-      orden_trabajo_id: p.orden_trabajo_id,
-      estado: p.estado as EstadoPresupuesto,
-      total_neto: p.total_neto,
-      creado_en: p.creado_en,
-      numero_ot: ot.numero_ot,
-      patente: ot.vehiculos.patente,
-      marca: ot.vehiculos.marca,
-      modelo: ot.vehiculos.modelo,
-    }
-  })
-  return { data: rows, total: count ?? 0 }
+  return { data: (data ?? []) as PresupuestoListado[], total: count ?? 0 }
 }
 
 /**
