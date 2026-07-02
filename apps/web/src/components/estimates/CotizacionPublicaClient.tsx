@@ -69,6 +69,15 @@ export function CotizacionPublicaClient({ token, inicial }: { token: string; ini
 
   return (
     <div className="mx-auto max-w-2xl px-4 py-8 text-[#111827]">
+      <div className="no-print mb-4 flex justify-end">
+        <button
+          onClick={() => window.print()}
+          className="inline-flex items-center gap-2 rounded-lg border border-[#d1d5db] bg-white px-4 py-2 text-sm font-medium text-[#374151] hover:bg-[#f9fafb]"
+        >
+          Descargar PDF
+        </button>
+      </div>
+
       <div className="rounded-2xl border border-[#e5e7eb] bg-white p-6 shadow-sm sm:p-8">
         {/* Encabezado */}
         <div className="flex items-start justify-between gap-4 border-b border-[#e5e7eb] pb-5">
@@ -135,8 +144,8 @@ export function CotizacionPublicaClient({ token, inicial }: { token: string; ini
           </div>
         </div>
 
-        {/* Respuesta del cliente */}
-        <div className="mt-8 border-t border-[#e5e7eb] pt-6">
+        {/* Respuesta del cliente — no se imprime en el PDF */}
+        <div className={`mt-8 border-t border-[#e5e7eb] pt-6 ${respondida ? '' : 'no-print'}`}>
           {respondida ? (
             <div
               className={`rounded-xl border p-4 text-sm ${

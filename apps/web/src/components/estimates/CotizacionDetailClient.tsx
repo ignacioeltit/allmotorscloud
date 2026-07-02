@@ -29,7 +29,7 @@ function telefonoWhatsapp(telefono: string | null): string | null {
   return d || null
 }
 
-/** Arma el enlace de WhatsApp con un resumen de la cotización (y el link de aprobación si existe). */
+/** Enlace de WhatsApp con un mensaje corto + el link (donde el cliente ve el detalle, el PDF y autoriza). */
 function enlaceWhatsapp(p: CotizacionDetalle, tallerNombre: string, enlaceCliente: string | null): string {
   const tel = telefonoWhatsapp(p.cliente?.telefono ?? null)
   const veh = [p.vehiculo?.marca, p.vehiculo?.modelo, p.vehiculo?.patente ? `(${p.vehiculo.patente})` : null]
@@ -37,16 +37,12 @@ function enlaceWhatsapp(p: CotizacionDetalle, tallerNombre: string, enlaceClient
     .join(' ')
   const iva = Math.round(p.total_neto * 0.19)
   const lineas = [
-    `Hola${p.cliente?.nombre ? ' ' + p.cliente.nombre.split(' ')[0] : ''}, te enviamos la cotización de ${tallerNombre}${veh ? ` para tu ${veh}` : ''}:`,
-    '',
-    ...p.items.map((it) => `• ${it.descripcion}: ${fmtCLP(it.precio_total)}`),
-    '',
-    `Total (con IVA): ${fmtCLP(p.total_neto + iva)}`,
+    `Hola${p.cliente?.nombre ? ' ' + p.cliente.nombre.split(' ')[0] : ''}, te enviamos la cotización de ${tallerNombre}${veh ? ` para tu ${veh}` : ''}.`,
+    `Total: ${fmtCLP(p.total_neto + iva)} (con IVA).`,
     '',
     ...(enlaceCliente
-      ? [`Puedes ver el detalle y autorizarla aquí:`, enlaceCliente, '']
+      ? ['Aquí puedes ver el detalle, descargar el PDF y autorizarla:', enlaceCliente]
       : []),
-    'Quedamos atentos a cualquier consulta.',
   ]
   const texto = encodeURIComponent(lineas.join('\n'))
   return tel ? `https://wa.me/${tel}?text=${texto}` : `https://wa.me/?text=${texto}`
@@ -91,6 +87,13 @@ export function CotizacionDetailClient({
     }
   }
 
+  // Auto-genera el link la primera vez que se abre una cotización con ítems, para
+  // que esté siempre disponible sin un paso manual.
+  useEffect(() => {
+    if (!token && conItems && !generando) void generarEnlace()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
   async function copiarEnlace() {
     if (!enlaceCliente) return
     try {
@@ -117,48 +120,36 @@ export function CotizacionDetailClient({
 
   return (
     <div className="space-y-5">
-      {/* Acciones: imprimir / enviar por WhatsApp */}
-      {conItems && (
-        <div className="flex flex-wrap gap-2">
-          <Link href={`/estimates/${p.id}/imprimir`} className={btnSecondary}>
-            Imprimir / PDF
-          </Link>
-          <a
-            href={waUrl}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="inline-flex items-center justify-center gap-2 rounded-lg border border-emerald-500/40 bg-emerald-500/10 px-4 py-2.5 text-sm font-medium text-emerald-800 transition-colors hover:bg-emerald-500/20"
-          >
-            Enviar por WhatsApp
-          </a>
-        </div>
-      )}
-
-      {/* Enlace de aprobación del cliente */}
+      {/* Compartir con el cliente: link + WhatsApp + PDF */}
       {conItems && (
         <section className={card}>
-          <p className={sectionLabel}>Enlace de aprobación del cliente</p>
-          {enlaceCliente ? (
-            <div className="mt-2 space-y-2">
-              <div className="flex flex-wrap items-center gap-2">
-                <code className="min-w-0 flex-1 truncate rounded-lg border border-black/10 bg-black/[0.02] px-3 py-2 text-xs text-neutral-400">
-                  {enlaceCliente}
-                </code>
-                <button onClick={() => void copiarEnlace()} className={`${btnSecondary} text-xs`}>
-                  {copiado ? 'Copiado ✓' : 'Copiar'}
-                </button>
-              </div>
-              <p className="text-xs text-neutral-500">
-                El cliente puede ver la cotización y autorizarla o rechazarla desde este enlace, sin necesidad de cuenta.
-              </p>
-            </div>
-          ) : (
-            <div className="mt-2">
-              <button onClick={() => void generarEnlace()} disabled={generando} className={`${btnGhost} text-xs`}>
-                {generando ? 'Generando…' : '+ Generar enlace para el cliente'}
-              </button>
-            </div>
-          )}
+          <p className={sectionLabel}>Compartir con el cliente</p>
+          <p className="mt-1 text-xs text-neutral-500">
+            El cliente abre el enlace, ve el detalle, descarga el PDF y autoriza o rechaza — sin cuenta.
+          </p>
+
+          <div className="mt-3 flex flex-wrap items-center gap-2">
+            <code className="min-w-0 flex-1 truncate rounded-lg border border-black/10 bg-black/[0.02] px-3 py-2 text-xs text-neutral-400">
+              {enlaceCliente ?? (generando ? 'Generando enlace…' : '—')}
+            </code>
+            <button onClick={() => void copiarEnlace()} disabled={!enlaceCliente} className={`${btnSecondary} text-xs disabled:opacity-40`}>
+              {copiado ? 'Copiado ✓' : 'Copiar link'}
+            </button>
+          </div>
+
+          <div className="mt-3 flex flex-wrap gap-2">
+            <a
+              href={waUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center justify-center gap-2 rounded-lg border border-emerald-500/40 bg-emerald-500/10 px-4 py-2.5 text-sm font-medium text-emerald-800 transition-colors hover:bg-emerald-500/20"
+            >
+              Enviar por WhatsApp
+            </a>
+            <Link href={`/estimates/${p.id}/imprimir`} className={btnSecondary}>
+              Ver / descargar PDF
+            </Link>
+          </div>
         </section>
       )}
 
