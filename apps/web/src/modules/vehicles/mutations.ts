@@ -17,7 +17,7 @@ import {
 } from './types'
 
 const COLUMNS =
-  'id, org_id, patente, vin, marca, modelo, anio, color, tipo, km_actual, notas, creado_en, actualizado_en, creado_por, eliminado_en, eliminado_por'
+  'id, org_id, patente, vin, marca, modelo, anio, anio_por_confirmar, color, tipo, km_actual, notas, creado_en, actualizado_en, creado_por, eliminado_en, eliminado_por'
 
 /** Crea un vehículo (y dispara la creación automática de su historia técnica). */
 export async function createVehiculo(
@@ -57,6 +57,25 @@ export async function updateVehiculo(
     .select(COLUMNS)
 
   return unwrapWritten<Vehiculo>(data, error)
+}
+
+/**
+ * Confirma el año de un vehículo (estimado del VIN al migrar) y baja la bandera
+ * anio_por_confirmar. Se usa desde la recepción cuando el taller valida el año.
+ */
+export async function confirmarAnioVehiculo(
+  supabase: DbClient,
+  id: string,
+  anio: number,
+): Promise<void> {
+  const { orgId } = await getAuthContext(supabase)
+  const { error } = await supabase
+    .from('vehiculos')
+    .update({ anio, anio_por_confirmar: false })
+    .eq('org_id', orgId)
+    .eq('id', id)
+    .is('eliminado_en', null)
+  if (error) throw mapPostgrestError(error)
 }
 
 /** Soft-delete del vehículo. No borra físicamente. */

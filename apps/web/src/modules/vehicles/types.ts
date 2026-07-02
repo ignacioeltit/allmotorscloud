@@ -12,6 +12,8 @@ export interface Vehiculo {
   marca: string
   modelo: string
   anio: number | null
+  /** true cuando el año fue estimado del VIN al migrar y falta confirmarlo. */
+  anio_por_confirmar: boolean
   color: string | null
   tipo: (typeof TIPOS_VEHICULO)[number]
   km_actual: number | null

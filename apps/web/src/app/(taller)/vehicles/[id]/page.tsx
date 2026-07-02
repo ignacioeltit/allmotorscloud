@@ -81,7 +81,16 @@ export default async function VehiculoDetailPage({
         <PageHeader title={`${vehiculo.patente} — ${vehiculo.marca} ${vehiculo.modelo}`} />
         <div className={`${card} grid grid-cols-2 gap-4 text-sm sm:grid-cols-4`}>
           <Info label="Tipo" value={vehiculo.tipo} />
-          <Info label="Año" value={vehiculo.anio?.toString() ?? '—'} />
+          <Info
+            label="Año"
+            value={
+              vehiculo.anio != null
+                ? vehiculo.anio_por_confirmar
+                  ? `${vehiculo.anio} · por confirmar`
+                  : vehiculo.anio.toString()
+                : '—'
+            }
+          />
           <Info label="Kilometraje" value={vehiculo.km_actual?.toLocaleString('es-CL') ?? '—'} />
           <Info label="Color" value={vehiculo.color ?? '—'} />
         </div>

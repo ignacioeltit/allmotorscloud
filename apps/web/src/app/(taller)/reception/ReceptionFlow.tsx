@@ -7,6 +7,7 @@ import { useRef, useState, type FormEvent } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { listVehiculos, getVehiculoByPatente } from '@/modules/vehicles/queries'
+import { confirmarAnioVehiculo } from '@/modules/vehicles/mutations'
 import { listClientes, listVehiculosByCliente } from '@/modules/customers/queries'
 import { cargarFichaVehiculo } from '@/modules/reception/queries'
 import { recibirVehiculo } from '@/modules/reception/mutations'
@@ -138,6 +139,9 @@ export function ReceptionFlow({
   const [vTransmision, setVTransmision] = useState('')
   const [vColor, setVColor] = useState('')
 
+  // Confirmación del año estimado del VIN (vehículo existente con anio_por_confirmar)
+  const [anioConf, setAnioConf] = useState('')
+
   // Recepción
   const [km, setKm] = useState('')
   const [motivo, setMotivo] = useState('')
@@ -211,6 +215,7 @@ export function ReceptionFlow({
       setVehiculosCliente(null)
       setPatente(f.vehiculo.patente)
       if (f.vehiculo.km_actual != null) setKm(String(f.vehiculo.km_actual))
+      setAnioConf(f.vehiculo.anio != null ? String(f.vehiculo.anio) : '')
     } catch (err) {
       setError(toErrorMessage(err))
     } finally {
@@ -431,6 +436,20 @@ export function ReceptionFlow({
 
       const supabase = createClient()
       const result = await recibirVehiculo(supabase, input)
+
+      // Si el vehículo tenía año por confirmar y el recepcionista lo validó,
+      // guardarlo y bajar la bandera (no bloquea la recepción si falla).
+      if (mode === 'existing' && ficha?.vehiculo.anio_por_confirmar) {
+        const anioNum = anioConf.trim() ? Number.parseInt(anioConf, 10) : null
+        if (anioNum != null && Number.isFinite(anioNum)) {
+          try {
+            await confirmarAnioVehiculo(supabase, ficha.vehiculo.id, anioNum)
+          } catch {
+            /* no bloquear la recepción por esto */
+          }
+        }
+      }
+
       router.push(`/repair-orders/${result.ordenTrabajoId}`)
       router.refresh()
     } catch (err) {
@@ -673,7 +692,26 @@ export function ReceptionFlow({
                 <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
                   <Info label="Marca" value={ficha.vehiculo.marca} />
                   <Info label="Modelo" value={ficha.vehiculo.modelo} />
-                  <Info label="Año" value={ficha.vehiculo.anio?.toString() ?? null} />
+                  {ficha.vehiculo.anio_por_confirmar ? (
+                    <div>
+                      <label className="flex items-center gap-1.5 text-[11px] uppercase tracking-wider text-amber-700">
+                        Año
+                        <span className="rounded-full border border-amber-500/30 bg-amber-500/10 px-1.5 py-px text-[9px] font-medium normal-case tracking-normal text-amber-800">
+                          por confirmar
+                        </span>
+                      </label>
+                      <input
+                        type="number"
+                        className={`${inputClass} mt-0.5 border-amber-500/40`}
+                        value={anioConf}
+                        onChange={(e) => setAnioConf(e.target.value)}
+                        placeholder="Año"
+                      />
+                      <p className="mt-1 text-[10px] text-neutral-500">Estimado del VIN. Corrige si no calza.</p>
+                    </div>
+                  ) : (
+                    <Info label="Año" value={ficha.vehiculo.anio?.toString() ?? null} />
+                  )}
                   <Info label="Color" value={ficha.vehiculo.color} />
                   <Info label="VIN" value={ficha.vehiculo.vin} />
                   <Info label="Tipo" value={ficha.vehiculo.tipo} />
