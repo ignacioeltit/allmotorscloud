@@ -5,6 +5,7 @@ import Link from 'next/link'
 import { createClient } from '@/lib/supabase/server'
 import { getAuthContext } from '@/lib/auth/context'
 import { getTipoEventoRecepcionId } from '@/modules/reception/queries'
+import { listCotizacionesRespondidas } from '@/modules/estimates/queries'
 import { load } from '@/lib/ui/load'
 import { Notice } from '@/components/ui/Notice'
 import { MetricCard } from '@/components/ui/MetricCard'
@@ -23,6 +24,10 @@ type OtRow = {
 
 const TERMINALES = ['cerrada', 'cancelada']
 const FUERA_TALLER = ['entregada', 'cerrada', 'cancelada']
+
+function fmtCLP(n: number): string {
+  return n.toLocaleString('es-CL', { style: 'currency', currency: 'CLP', maximumFractionDigits: 0 })
+}
 
 function startOfTodayISO(): string {
   const d = new Date()
@@ -59,9 +64,12 @@ export default async function DashboardPage() {
       recepcionesHoy = count ?? 0
     }
 
+    const cotizacionesRespondidas = await listCotizacionesRespondidas(supabase)
+
     const enTaller = rows.filter((r) => !FUERA_TALLER.includes(r.estado))
     return {
       enTaller,
+      cotizacionesRespondidas,
       metrics: {
         enTaller: enTaller.length,
         abiertas: rows.filter((r) => !TERMINALES.includes(r.estado)).length,
@@ -85,7 +93,10 @@ export default async function DashboardPage() {
     )
   }
 
-  const { metrics, enTaller } = result.data
+  const { metrics, enTaller, cotizacionesRespondidas } = result.data
+  const pidenAgendar = cotizacionesRespondidas.filter(
+    (c) => c.estado === 'autorizado' && c.agendar_solicitado,
+  ).length
   const hoy = new Date().toLocaleDateString('es-CL', {
     weekday: 'long',
     day: 'numeric',
@@ -112,8 +123,61 @@ export default async function DashboardPage() {
         <MetricCard label="Listos para entregar" value={metrics.listas} />
         <MetricCard label="Entregados hoy" value={metrics.entregadasHoy} />
         <MetricCard label="Recepciones del día" value={metrics.recepcionesHoy} />
+        <MetricCard label="Piden agendar" value={pidenAgendar} accent={pidenAgendar > 0} />
         <MetricCard label="Facturación del día" value="—" hint="Próximamente" />
       </div>
+
+      {cotizacionesRespondidas.length > 0 && (
+        <section>
+          <div className="mb-3 flex items-center justify-between">
+            <h2 className="text-sm font-semibold text-neutral-200">Respuestas de clientes a cotizaciones</h2>
+            <Link href="/estimates" className="text-xs text-accent-400 hover:text-accent-300">
+              Ver todas →
+            </Link>
+          </div>
+
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+            {cotizacionesRespondidas.map((c) => {
+              const autorizado = c.estado === 'autorizado'
+              const href = c.orden_trabajo_id ? `/repair-orders/${c.orden_trabajo_id}` : `/estimates/${c.id}`
+              return (
+                <Link key={c.id} href={href} className={cardInteractive}>
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="text-base font-semibold tracking-wide text-neutral-50">
+                      {c.patente ?? 'Cotización'}
+                    </span>
+                    <span
+                      className={`inline-flex items-center rounded-full border px-2.5 py-1 text-xs font-medium ${
+                        autorizado
+                          ? 'border-emerald-500/30 bg-emerald-500/10 text-emerald-800'
+                          : 'border-red-500/30 bg-red-500/10 text-red-800'
+                      }`}
+                    >
+                      {autorizado ? 'Autorizada' : 'Rechazada'}
+                    </span>
+                  </div>
+                  <p className="mt-1 text-sm text-neutral-400">
+                    {c.cliente_nombre ?? '—'}
+                    {c.marca ? ` · ${c.marca} ${c.modelo}` : ''}
+                  </p>
+                  {c.agendar_solicitado && autorizado && (
+                    <p className="mt-2 inline-flex items-center gap-1 rounded-md border border-accent-500/30 bg-accent-500/10 px-2 py-0.5 text-xs font-medium text-accent-400">
+                      📅 Quiere agendar
+                    </p>
+                  )}
+                  {c.nota_cliente && (
+                    <p className="mt-2 line-clamp-2 text-xs italic text-neutral-500">“{c.nota_cliente}”</p>
+                  )}
+                  <p className="mt-3 text-xs text-neutral-600">
+                    {fmtCLP(c.total_neto)}
+                    {c.respondido_en ? ` · ${new Date(c.respondido_en).toLocaleDateString('es-CL')}` : ''}
+                  </p>
+                </Link>
+              )
+            })}
+          </div>
+        </section>
+      )}
 
       <section>
         <div className="mb-3 flex items-center justify-between">

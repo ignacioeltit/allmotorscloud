@@ -132,6 +132,81 @@ export async function listPresupuestosPaged(
   return { data: (data ?? []) as PresupuestoListado[], total: count ?? 0 }
 }
 
+/** Cotización que el cliente ya respondió por el enlace público (para el dashboard). */
+export interface CotizacionRespondida {
+  id: string
+  orden_trabajo_id: string | null
+  estado: 'autorizado' | 'rechazado'
+  total_neto: number
+  respondido_en: string | null
+  agendar_solicitado: boolean
+  nota_cliente: string | null
+  patente: string | null
+  marca: string | null
+  modelo: string | null
+  cliente_nombre: string | null
+}
+
+/**
+ * Últimas cotizaciones respondidas por el cliente (autorizadas o rechazadas),
+ * ordenadas por fecha de respuesta. Las que piden agendar salen resaltadas en el
+ * dashboard. Lee directo de `presupuestos` (los campos de respuesta existen desde
+ * la migration 019) embebiendo cliente y vehículo — directo o vía la OT.
+ */
+export async function listCotizacionesRespondidas(
+  supabase: DbClient,
+  limit = 8,
+): Promise<CotizacionRespondida[]> {
+  const { orgId } = await getAuthContext(supabase)
+
+  type Row = {
+    id: string
+    orden_trabajo_id: string | null
+    estado: 'autorizado' | 'rechazado'
+    total_neto: number
+    autorizado_en: string | null
+    rechazado_en: string | null
+    agendar_solicitado: boolean
+    nota_cliente: string | null
+    clientes: { nombre: string | null } | null
+    vehiculos: { patente: string | null; marca: string | null; modelo: string | null } | null
+    ordenes_trabajo:
+      | { vehiculos: { patente: string | null; marca: string | null; modelo: string | null } | null }
+      | null
+  }
+
+  const { data, error } = await supabase
+    .from('presupuestos')
+    .select(
+      'id, orden_trabajo_id, estado, total_neto, autorizado_en, rechazado_en, agendar_solicitado, nota_cliente,' +
+        ' clientes(nombre), vehiculos(patente,marca,modelo), ordenes_trabajo(vehiculos(patente,marca,modelo))',
+    )
+    .eq('org_id', orgId)
+    .is('eliminado_en', null)
+    .in('estado', ['autorizado', 'rechazado'])
+    .order('actualizado_en', { ascending: false })
+    .limit(limit)
+
+  if (error) throw new Error(error.message)
+
+  return ((data ?? []) as unknown as Row[]).map((r) => {
+    const veh = r.vehiculos ?? r.ordenes_trabajo?.vehiculos ?? null
+    return {
+      id: r.id,
+      orden_trabajo_id: r.orden_trabajo_id,
+      estado: r.estado,
+      total_neto: r.total_neto,
+      respondido_en: r.autorizado_en ?? r.rechazado_en,
+      agendar_solicitado: r.agendar_solicitado,
+      nota_cliente: r.nota_cliente,
+      patente: veh?.patente ?? null,
+      marca: veh?.marca ?? null,
+      modelo: veh?.modelo ?? null,
+      cliente_nombre: r.clientes?.nombre ?? null,
+    }
+  })
+}
+
 /**
  * Devuelve el presupuesto activo (borrador o enviado) de una OT con sus ítems, o null.
  * Por UNIQUE parcial idx_presupuestos_ot_version_activa solo hay uno a la vez.
