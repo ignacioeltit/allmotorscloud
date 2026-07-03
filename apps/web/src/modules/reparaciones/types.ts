@@ -86,6 +86,7 @@ export const addItemReparacionSchema = z.object({
   cantidad: z.number().positive().multipleOf(0.001),
   costoUnitario: z.number().min(0),
   repuestoId: uuid.optional(),           // FK → repuestos.id, activada en migration 004
+  itemPresupuestoId: uuid.optional(),    // trazabilidad → ítem del presupuesto autorizado
   // Snapshot fields (M005/M007): solo para tipo='mano_obra' vinculado a catálogo
   servicioCatalogoId: uuid.optional(),
   nombreServicioSnapshot: z.string().optional(),

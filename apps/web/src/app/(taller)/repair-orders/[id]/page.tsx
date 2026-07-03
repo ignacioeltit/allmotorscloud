@@ -260,6 +260,18 @@ export default async function OrdenTrabajoDetailPage({
         clienteTelefono={cliente?.telefono ?? null}
         vehiculoLabel={vehiculoLabel}
         citaActiva={citaActivaVehiculo}
+        historiaId={historia?.id ?? null}
+        tipoEventoReparacionId={tipoEvento?.id ?? null}
+        yaEnTrabajos={
+          presupuesto != null &&
+          reparaciones.some((r) =>
+            r.items.some(
+              (i) =>
+                i.item_presupuesto_id != null &&
+                presupuesto.items.some((pi) => pi.id === i.item_presupuesto_id),
+            ),
+          )
+        }
       />
 
       {/* ── Totales de trabajos registrados ── */}

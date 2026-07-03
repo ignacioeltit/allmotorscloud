@@ -9,10 +9,12 @@ import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { crearPresupuesto, enviarPresupuesto } from '@/modules/estimates/mutations'
+import { pasarPresupuestoATrabajos } from '@/modules/reparaciones/mutations'
 import { ESTADO_PRESUPUESTO_LABEL, TIPO_ITEM_LABEL } from '@/modules/estimates/constants'
 import type { PresupuestoConItems } from '@/modules/estimates/types'
 import { FichaIngresoLineas } from '@/components/estimates/FichaIngresoLineas'
 import { CompartirPresupuestoOT } from './CompartirPresupuestoOT'
+import { toErrorMessage } from '@/lib/ui/error-message'
 import { card, sectionLabel, btnPrimary, btnSecondary, btnGhost } from '@/components/ui/styles'
 
 function fmtCLP(n: number): string {
@@ -27,6 +29,11 @@ interface PresupuestoSectionProps {
   clienteTelefono: string | null
   vehiculoLabel: string | null
   citaActiva: string | null
+  /** Para "Pasar a Trabajos": historia técnica y tipo de evento reparación. */
+  historiaId: string | null
+  tipoEventoReparacionId: string | null
+  /** true si los ítems de este presupuesto ya fueron copiados a Trabajos. */
+  yaEnTrabajos: boolean
 }
 
 export function PresupuestoSection({
@@ -37,12 +44,44 @@ export function PresupuestoSection({
   clienteTelefono,
   vehiculoLabel,
   citaActiva,
+  historiaId,
+  tipoEventoReparacionId,
+  yaEnTrabajos,
 }: PresupuestoSectionProps) {
   const router = useRouter()
   const [showAddItem, setShowAddItem] = useState(false)
   const [creando, setCreando] = useState(false)
   const [enviando, setEnviando] = useState(false)
+  const [pasando, setPasando] = useState(false)
   const [error, setError] = useState<string | null>(null)
+
+  async function pasarATrabajos() {
+    const p = initialPresupuesto
+    if (!p || !historiaId || !tipoEventoReparacionId) return
+    setPasando(true)
+    setError(null)
+    try {
+      await pasarPresupuestoATrabajos(createClient(), {
+        ordenTrabajoId,
+        historiaId,
+        tipoEventoReparacionId,
+        folio: p.folio,
+        items: p.items.map((it) => ({
+          id: it.id,
+          tipo: it.tipo,
+          descripcion: it.descripcion,
+          cantidad: it.cantidad,
+          precio_unitario: it.precio_unitario,
+          descuento_porcentaje: it.descuento_porcentaje,
+        })),
+      })
+      router.refresh()
+    } catch (e) {
+      setError(toErrorMessage(e))
+    } finally {
+      setPasando(false)
+    }
+  }
 
   function refresh() {
     router.refresh()
@@ -108,11 +147,33 @@ export function PresupuestoSection({
 
       <section className={`${card} space-y-4`}>
       <div className="flex items-center justify-between gap-3">
-        <p className={sectionLabel}>Presupuesto v{p.version}</p>
+        <p className={sectionLabel}>Presupuesto v{p.version}{p.folio ? ` · ${p.folio}` : ''}</p>
         <span className="rounded-full border border-sky-500/25 bg-sky-500/10 px-2.5 py-0.5 text-xs font-medium text-sky-800">
           {ESTADO_PRESUPUESTO_LABEL[p.estado]}
         </span>
       </div>
+
+      {/* Presupuesto aprobado → un click lo convierte en el trabajo a ejecutar */}
+      {p.estado === 'autorizado' && (
+        yaEnTrabajos ? (
+          <p className="inline-flex items-center gap-2 rounded-lg border border-emerald-500/30 bg-emerald-500/10 px-3 py-1.5 text-sm font-medium text-emerald-800">
+            ✓ Cargado en Trabajos — ejecuta y marca avance arriba
+          </p>
+        ) : historiaId && tipoEventoReparacionId && p.items.length > 0 ? (
+          <div className="flex flex-wrap items-center gap-3 rounded-lg border border-accent-500/30 bg-accent-500/10 px-4 py-3">
+            <p className="text-sm text-accent-400">
+              El cliente aprobó este presupuesto. Pásalo a Trabajos para ejecutarlo:
+            </p>
+            <button
+              onClick={() => void pasarATrabajos()}
+              disabled={pasando}
+              className="inline-flex items-center gap-2 rounded-lg bg-accent-600 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-accent-500 disabled:opacity-50"
+            >
+              {pasando ? 'Pasando…' : '🔧 Pasar a Trabajos'}
+            </button>
+          </div>
+        ) : null
+      )}
 
       {p.items.length > 0 ? (
         <div className="space-y-1.5">

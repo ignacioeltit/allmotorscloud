@@ -10,7 +10,7 @@
 import type { DbClient } from '@/lib/supabase/types'
 import { getAuthContext } from '@/lib/auth/context'
 import { unwrapWritten } from '@/lib/supabase/result'
-import { validationErrorFromZod, mapPostgrestError } from '@/lib/errors'
+import { validationErrorFromZod, mapPostgrestError, ValidationError } from '@/lib/errors'
 import { createEvento } from '@/modules/events/mutations'
 import {
   crearReparacionSchema,
@@ -81,8 +81,9 @@ export async function addItemReparacion(
   const { userId, orgId } = await getAuthContext(supabase)
   const {
     reparacionId, tipo, descripcion, cantidad, costoUnitario, repuestoId,
-    servicioCatalogoId, nombreServicioSnapshot, horasEstandarSnapshot,
-    valorHoraSnapshot, precioCatalogoSnapshot, costoCompraUnitario,
+    itemPresupuestoId, servicioCatalogoId, nombreServicioSnapshot,
+    horasEstandarSnapshot, valorHoraSnapshot, precioCatalogoSnapshot,
+    costoCompraUnitario,
   } = parsed.data
 
   const costo_total = Math.round(cantidad * costoUnitario * 100) / 100
@@ -98,6 +99,7 @@ export async function addItemReparacion(
       costo_unitario: costoUnitario,
       costo_total,
       ...(repuestoId          ? { repuesto_id: repuestoId }                         : {}),
+      ...(itemPresupuestoId   ? { item_presupuesto_id: itemPresupuestoId }          : {}),
       ...(servicioCatalogoId  ? { servicio_catalogo_id: servicioCatalogoId }         : {}),
       ...(nombreServicioSnapshot != null ? { nombre_servicio_snapshot: nombreServicioSnapshot } : {}),
       ...(horasEstandarSnapshot  != null ? { horas_estandar_snapshot: horasEstandarSnapshot }   : {}),
@@ -109,6 +111,58 @@ export async function addItemReparacion(
     .select(ITEM_COLUMNS)
 
   return unwrapWritten<ItemReparacion>(data, error)
+}
+
+/**
+ * Pasa un presupuesto (autorizado) a Trabajos: crea UNA reparación y copia cada
+ * ítem del presupuesto como item_reparacion, enlazando item_presupuesto_id para
+ * trazabilidad (así se sabe qué se ejecutó de lo aprobado y se evita duplicar).
+ * El costo unitario respeta el descuento del ítem presupuestado.
+ */
+export async function pasarPresupuestoATrabajos(
+  supabase: DbClient,
+  input: {
+    ordenTrabajoId: string
+    historiaId: string
+    tipoEventoReparacionId: string
+    folio: string | null
+    items: Array<{
+      id: string
+      tipo: 'mano_obra' | 'repuesto' | 'otros'
+      descripcion: string
+      cantidad: number
+      precio_unitario: number
+      descuento_porcentaje: number
+    }>
+    mecanicoId?: string | null
+  },
+): Promise<Reparacion> {
+  if (input.items.length === 0) {
+    throw new ValidationError('El presupuesto no tiene ítems que pasar a trabajos.')
+  }
+
+  const reparacion = await crearReparacion(supabase, {
+    ordenTrabajoId: input.ordenTrabajoId,
+    historiaId: input.historiaId,
+    tipoEventoId: input.tipoEventoReparacionId,
+    descripcion: `Trabajo según presupuesto${input.folio ? ` ${input.folio}` : ''} autorizado`,
+    ...(input.mecanicoId ? { mecanicoId: input.mecanicoId } : {}),
+  })
+
+  for (const it of input.items) {
+    const costoUnitario =
+      Math.round(it.precio_unitario * (1 - (it.descuento_porcentaje ?? 0) / 100) * 100) / 100
+    await addItemReparacion(supabase, {
+      reparacionId: reparacion.id,
+      tipo: it.tipo,
+      descripcion: it.descripcion,
+      cantidad: it.cantidad,
+      costoUnitario,
+      itemPresupuestoId: it.id,
+    })
+  }
+
+  return reparacion
 }
 
 /** Asigna (o cambia/quita) el mecánico responsable de un trabajo ya creado. */
