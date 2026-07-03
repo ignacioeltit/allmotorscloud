@@ -6,6 +6,7 @@ import { createClient } from '@/lib/supabase/server'
 import { getAuthContext } from '@/lib/auth/context'
 import { getTipoEventoRecepcionId } from '@/modules/reception/queries'
 import { listCotizacionesRespondidas } from '@/modules/estimates/queries'
+import { getCitasActivasPorVehiculo } from '@/modules/agenda/queries'
 import { load } from '@/lib/ui/load'
 import { Notice } from '@/components/ui/Notice'
 import { MetricCard } from '@/components/ui/MetricCard'
@@ -66,10 +67,17 @@ export default async function DashboardPage() {
 
     const cotizacionesRespondidas = await listCotizacionesRespondidas(supabase)
 
+    // Si el vehículo ya tiene una cita activa, la alerta "quiere agendar" se apaga.
+    const vehiculosConAgendar = cotizacionesRespondidas
+      .filter((c) => c.agendar_solicitado && c.vehiculo_id)
+      .map((c) => c.vehiculo_id as string)
+    const citasActivas = await getCitasActivasPorVehiculo(supabase, vehiculosConAgendar)
+
     const enTaller = rows.filter((r) => !FUERA_TALLER.includes(r.estado))
     return {
       enTaller,
       cotizacionesRespondidas,
+      citasActivas,
       metrics: {
         enTaller: enTaller.length,
         abiertas: rows.filter((r) => !TERMINALES.includes(r.estado)).length,
@@ -93,9 +101,11 @@ export default async function DashboardPage() {
     )
   }
 
-  const { metrics, enTaller, cotizacionesRespondidas } = result.data
+  const { metrics, enTaller, cotizacionesRespondidas, citasActivas } = result.data
+  const citaDe = (c: (typeof cotizacionesRespondidas)[number]) =>
+    c.vehiculo_id ? citasActivas[c.vehiculo_id] ?? null : null
   const pidenAgendar = cotizacionesRespondidas.filter(
-    (c) => c.estado === 'autorizado' && c.agendar_solicitado,
+    (c) => c.estado === 'autorizado' && c.agendar_solicitado && !citaDe(c),
   ).length
   const hoy = new Date().toLocaleDateString('es-CL', {
     weekday: 'long',
@@ -139,6 +149,7 @@ export default async function DashboardPage() {
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
             {cotizacionesRespondidas.map((c) => {
               const autorizado = c.estado === 'autorizado'
+              const cita = citaDe(c)
               const href = c.orden_trabajo_id ? `/repair-orders/${c.orden_trabajo_id}` : `/estimates/${c.id}`
               return (
                 <Link key={c.id} href={href} className={cardInteractive}>
@@ -161,9 +172,17 @@ export default async function DashboardPage() {
                     {c.marca ? ` · ${c.marca} ${c.modelo}` : ''}
                   </p>
                   {c.agendar_solicitado && autorizado && (
-                    <p className="mt-2 inline-flex items-center gap-1 rounded-md border border-accent-500/30 bg-accent-500/10 px-2 py-0.5 text-xs font-medium text-accent-400">
-                      📅 Quiere agendar
-                    </p>
+                    cita ? (
+                      <p className="mt-2 inline-flex items-center gap-1 rounded-md border border-emerald-500/30 bg-emerald-500/10 px-2 py-0.5 text-xs font-medium text-emerald-800">
+                        ✓ Cita agendada ·{' '}
+                        {new Date(cita).toLocaleDateString('es-CL', { day: '2-digit', month: '2-digit' })}{' '}
+                        {new Date(cita).toLocaleTimeString('es-CL', { hour: '2-digit', minute: '2-digit', hour12: false })}
+                      </p>
+                    ) : (
+                      <p className="mt-2 inline-flex items-center gap-1 rounded-md border border-accent-500/30 bg-accent-500/10 px-2 py-0.5 text-xs font-medium text-accent-400">
+                        📅 Quiere agendar
+                      </p>
+                    )
                   )}
                   {c.nota_cliente && (
                     <p className="mt-2 line-clamp-2 text-xs italic text-neutral-500">“{c.nota_cliente}”</p>

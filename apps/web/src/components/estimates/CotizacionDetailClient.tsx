@@ -51,9 +51,12 @@ function enlaceWhatsapp(p: CotizacionDetalle, tallerNombre: string, enlaceClient
 export function CotizacionDetailClient({
   cotizacion,
   tallerNombre,
+  citaActiva = null,
 }: {
   cotizacion: CotizacionDetalle
   tallerNombre: string
+  /** fecha_cita de la próxima cita activa del vehículo, si existe. */
+  citaActiva?: string | null
 }) {
   const router = useRouter()
   const [showAdd, setShowAdd] = useState(false)
@@ -174,11 +177,18 @@ export function CotizacionDetailClient({
           <p className="font-semibold">
             {p.estado === 'autorizado' ? '✓ El cliente autorizó la cotización' : 'El cliente rechazó la cotización'}
           </p>
-          {p.agendar_solicitado && (
+          {p.agendar_solicitado && !citaActiva && (
             <p className="mt-1 font-medium">El cliente quiere agendar — contáctalo para coordinar la hora.</p>
           )}
           {p.nota_cliente && <p className="mt-1 text-neutral-600">Nota del cliente: “{p.nota_cliente}”</p>}
-          {p.estado === 'autorizado' && p.vehiculo?.id && (
+          {p.estado === 'autorizado' && citaActiva ? (
+            <p className="mt-3 inline-flex items-center gap-2 rounded-lg border border-emerald-500/30 bg-emerald-500/10 px-3 py-1.5 text-sm font-medium text-emerald-800">
+              ✓ Cita agendada para el{' '}
+              {new Date(citaActiva).toLocaleDateString('es-CL', { day: 'numeric', month: 'long' })} a las{' '}
+              {new Date(citaActiva).toLocaleTimeString('es-CL', { hour: '2-digit', minute: '2-digit', hour12: false })}
+              <Link href="/agenda" className="underline">Ver agenda</Link>
+            </p>
+          ) : p.estado === 'autorizado' && p.vehiculo?.id ? (
             <Link
               href={{
                 pathname: '/agenda/nueva',
@@ -195,7 +205,7 @@ export function CotizacionDetailClient({
             >
               📅 Agendar cita
             </Link>
-          )}
+          ) : null}
         </section>
       )}
 

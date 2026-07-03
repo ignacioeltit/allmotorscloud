@@ -6,6 +6,7 @@ import Link from 'next/link'
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import { getCotizacionById } from '@/modules/estimates/queries'
+import { getCitasActivasPorVehiculo } from '@/modules/agenda/queries'
 import { getOrganizacion } from '@/modules/org/queries'
 import { load } from '@/lib/ui/load'
 import { PageHeader } from '@/components/ui/PageHeader'
@@ -25,7 +26,13 @@ export default async function CotizacionDetailPage({
       getCotizacionById(supabase, id),
       getOrganizacion(supabase),
     ])
-    return { cotizacion, taller }
+    // Próxima cita activa del vehículo (apaga el aviso "quiere agendar").
+    let citaActiva: string | null = null
+    if (cotizacion?.vehiculo?.id) {
+      const citas = await getCitasActivasPorVehiculo(supabase, [cotizacion.vehiculo.id])
+      citaActiva = citas[cotizacion.vehiculo.id] ?? null
+    }
+    return { cotizacion, taller, citaActiva }
   })
 
   if (!result.ok) {
@@ -54,6 +61,7 @@ export default async function CotizacionDetailPage({
       <CotizacionDetailClient
         cotizacion={result.data.cotizacion}
         tallerNombre={result.data.taller?.nombre ?? 'el taller'}
+        citaActiva={result.data.citaActiva}
       />
     </div>
   )

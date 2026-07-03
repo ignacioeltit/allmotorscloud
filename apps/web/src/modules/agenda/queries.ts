@@ -38,3 +38,33 @@ export async function listCitasRango(
   if (error) throw new Error(error.message)
   return (data ?? []) as unknown as CitaConDetalle[]
 }
+
+/**
+ * Para un conjunto de vehículos, devuelve la próxima cita ACTIVA (programada o
+ * confirmada) de cada uno: mapa vehiculo_id → fecha_cita. Se usa para apagar la
+ * alerta "quiere agendar" del dashboard cuando la cita ya existe.
+ */
+export async function getCitasActivasPorVehiculo(
+  supabase: DbClient,
+  vehiculoIds: string[],
+): Promise<Record<string, string>> {
+  if (vehiculoIds.length === 0) return {}
+  const { orgId } = await getAuthContext(supabase)
+
+  const { data, error } = await supabase
+    .from('citas')
+    .select('vehiculo_id, fecha_cita')
+    .eq('org_id', orgId)
+    .is('eliminado_en', null)
+    .in('estado', ['programada', 'confirmada'])
+    .in('vehiculo_id', vehiculoIds)
+    .order('fecha_cita', { ascending: true })
+
+  if (error) throw new Error(error.message)
+
+  const mapa: Record<string, string> = {}
+  for (const c of (data ?? []) as { vehiculo_id: string; fecha_cita: string }[]) {
+    if (!mapa[c.vehiculo_id]) mapa[c.vehiculo_id] = c.fecha_cita
+  }
+  return mapa
+}

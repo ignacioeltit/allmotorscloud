@@ -139,6 +139,7 @@ export async function listPresupuestosPaged(
 export interface CotizacionRespondida {
   id: string
   orden_trabajo_id: string | null
+  vehiculo_id: string | null
   estado: 'autorizado' | 'rechazado'
   total_neto: number
   respondido_en: string | null
@@ -165,6 +166,7 @@ export async function listCotizacionesRespondidas(
   type Row = {
     id: string
     orden_trabajo_id: string | null
+    vehiculo_id: string | null
     estado: 'autorizado' | 'rechazado'
     total_neto: number
     autorizado_en: string | null
@@ -181,7 +183,7 @@ export async function listCotizacionesRespondidas(
   const { data, error } = await supabase
     .from('presupuestos')
     .select(
-      'id, orden_trabajo_id, estado, total_neto, autorizado_en, rechazado_en, agendar_solicitado, nota_cliente,' +
+      'id, orden_trabajo_id, vehiculo_id, estado, total_neto, autorizado_en, rechazado_en, agendar_solicitado, nota_cliente,' +
         ' clientes(nombre), vehiculos(patente,marca,modelo), ordenes_trabajo(vehiculos(patente,marca,modelo))',
     )
     .eq('org_id', orgId)
@@ -197,6 +199,7 @@ export async function listCotizacionesRespondidas(
     return {
       id: r.id,
       orden_trabajo_id: r.orden_trabajo_id,
+      vehiculo_id: r.vehiculo_id,
       estado: r.estado,
       total_neto: r.total_neto,
       respondido_en: r.autorizado_en ?? r.rechazado_en,
