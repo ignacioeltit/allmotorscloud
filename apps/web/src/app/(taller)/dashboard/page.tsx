@@ -206,9 +206,14 @@ export default async function DashboardPage() {
                   {c.nota_cliente && (
                     <p className="mt-2 line-clamp-2 text-xs italic text-neutral-500">“{c.nota_cliente}”</p>
                   )}
-                  <p className="mt-3 text-xs text-neutral-600">
-                    {fmtCLP(c.total_neto)}
-                    {c.respondido_en ? ` · ${new Date(c.respondido_en).toLocaleDateString('es-CL')}` : ''}
+                  <p className="mt-3 flex items-center justify-between text-xs text-neutral-600">
+                    <span>
+                      {fmtCLP(c.total_neto)}
+                      {c.respondido_en ? ` · ${new Date(c.respondido_en).toLocaleDateString('es-CL')}` : ''}
+                    </span>
+                    <span className="font-medium text-accent-400">
+                      {c.orden_trabajo_id ? 'Ver OT →' : autorizado ? '🔧 Convertir a OT →' : 'Ver →'}
+                    </span>
                   </p>
                 </Link>
               )
