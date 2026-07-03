@@ -13,12 +13,30 @@ import { useEffect, useRef, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { searchRepuestos } from '@/modules/inventory/queries'
 import { buscarServiciosCatalogo } from '@/modules/catalogo/queries'
+import { getConfiguracionManoObra } from '@/modules/taller/queries'
+import { getValorHoraForServicio } from '@/modules/taller/helpers'
+import type { ConfiguracionManoObra } from '@/modules/taller/types'
 import { FloatingDropdown } from '@/components/ui/FloatingDropdown'
 
 export interface SugerenciaCatalogo {
   descripcion: string
+  /** Cantidad sugerida: horas estándar del servicio (si es por hora) o 1. */
+  cantidad: number
+  /** Precio unitario: valor hora según categoría (servicio por hora) o precio fijo. */
   precio: number | null
   detalle: string
+}
+
+// La configuración de tarifas cambia poco: se lee una vez por sesión de página.
+let configCache: ConfiguracionManoObra | null = null
+async function getConfig(): Promise<ConfiguracionManoObra | null> {
+  if (configCache) return configCache
+  try {
+    configCache = await getConfiguracionManoObra(createClient())
+  } catch {
+    configCache = null
+  }
+  return configCache
 }
 
 async function buscar(grupo: 'mano_obra' | 'repuesto', q: string): Promise<SugerenciaCatalogo[]> {
@@ -27,16 +45,32 @@ async function buscar(grupo: 'mano_obra' | 'repuesto', q: string): Promise<Suger
     const rows = await searchRepuestos(supabase, q)
     return rows.map((r) => ({
       descripcion: r.nombre,
+      cantidad: 1,
       precio: r.precio_venta,
       detalle: [r.codigo, r.stock_actual != null ? `stock ${r.stock_actual}` : null].filter(Boolean).join(' · '),
     }))
   }
-  const rows = await buscarServiciosCatalogo(supabase, q)
-  return rows.map((s) => ({
-    descripcion: s.nombre,
-    precio: s.precio_unitario,
-    detalle: [s.codigo, s.categoria].filter(Boolean).join(' · '),
-  }))
+
+  // Mano de obra: los servicios por hora se descomponen en horas estándar ×
+  // valor hora de la categoría (programado en Configuración), para que la línea
+  // calcule cantidad(horas) × precio(valor hora) = total, igual que en la OT.
+  const [rows, config] = await Promise.all([buscarServiciosCatalogo(supabase, q), getConfig()])
+  return rows.map((s) => {
+    const esHora = s.unidad_precio === 'hora' && s.horas_estandar != null && config != null
+    const valorHora = esHora ? getValorHoraForServicio(config!, s.categoria) : null
+    return {
+      descripcion: s.nombre,
+      cantidad: esHora ? s.horas_estandar! : 1,
+      precio: esHora ? valorHora : s.precio_unitario,
+      detalle: [
+        s.codigo,
+        s.categoria,
+        esHora ? `${s.horas_estandar} h × ${valorHora!.toLocaleString('es-CL', { style: 'currency', currency: 'CLP', maximumFractionDigits: 0 })}/h` : null,
+      ]
+        .filter(Boolean)
+        .join(' · '),
+    }
+  })
 }
 
 export function BuscadorLineaCatalogo({

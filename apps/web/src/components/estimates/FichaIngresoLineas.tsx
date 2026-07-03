@@ -5,6 +5,7 @@
 // todas de un viaje (las vacías se ignoran). Totales en vivo mientras se escribe.
 
 import { useState, useTransition } from 'react'
+import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
 import { addItemsPresupuesto } from '@/modules/estimates/mutations'
 import type { AddItemsPresupuestoInput } from '@/modules/estimates/types'
@@ -64,10 +65,17 @@ function Grilla({
     setLineas((prev) => prev.map((l, idx) => (idx === i ? { ...l, [campo]: valor } : l)))
   }
 
-  function elegirDelCatalogo(i: number, descripcion: string, precio: number | null) {
+  function elegirDelCatalogo(i: number, descripcion: string, precio: number | null, cantidad: number) {
     setLineas((prev) =>
       prev.map((l, idx) =>
-        idx === i ? { ...l, descripcion, ...(precio != null ? { precio: String(precio) } : {}) } : l,
+        idx === i
+          ? {
+              ...l,
+              descripcion,
+              cantidad: String(cantidad),
+              ...(precio != null ? { precio: String(precio) } : {}),
+            }
+          : l,
       ),
     )
   }
@@ -110,7 +118,7 @@ function Grilla({
                       placeholder={i === 0 ? 'Buscar en catálogo o escribir…' : ''}
                       value={l.descripcion}
                       onChangeText={(text) => set(i, 'descripcion', text)}
-                      onPick={(s) => elegirDelCatalogo(i, s.descripcion, s.precio)}
+                      onPick={(s) => elegirDelCatalogo(i, s.descripcion, s.precio, s.cantidad)}
                     />
                   )}
                 </td>
@@ -299,12 +307,12 @@ function PaquetePicker({ onElegir }: { onElegir: (p: PlantillaResumen) => void }
               ))}
             </ul>
           )}
-          <a
+          <Link
             href="/catalogo/paquetes"
             className="block border-t border-black/[0.06] px-3 py-2 text-xs font-medium text-accent-400 transition-colors hover:bg-black/[0.04]"
           >
             ⚙ Administrar paquetes →
-          </a>
+          </Link>
         </div>
       )}
     </div>

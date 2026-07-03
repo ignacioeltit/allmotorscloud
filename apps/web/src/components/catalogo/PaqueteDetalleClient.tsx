@@ -16,7 +16,7 @@ import {
 import type { PlantillaAdmin, ItemPlantilla } from '@/modules/plantillas/queries'
 import { BuscadorLineaCatalogo } from '@/components/estimates/BuscadorLineaCatalogo'
 import { toErrorMessage } from '@/lib/ui/error-message'
-import { card, sectionLabel, inputClass, labelClass, btnPrimary, btnSecondary, btnGhost } from '@/components/ui/styles'
+import { card, sectionLabel, inputClass, labelClass, btnPrimary, btnGhost } from '@/components/ui/styles'
 
 const TIPO_LABEL: Record<ItemPlantilla['tipo'], string> = {
   labor: 'Mano de obra',
@@ -297,7 +297,7 @@ export function PaqueteDetalleClient({
                         placeholder={i === 0 ? 'Buscar en catálogo/inventario o escribir…' : ''}
                         value={f.nombre}
                         onChangeText={(text) => setFila(i, { nombre: text })}
-                        onPick={(s) => setFila(i, { nombre: s.descripcion, ...(s.precio != null ? { precio: String(s.precio) } : {}) })}
+                        onPick={(s) => setFila(i, { nombre: s.descripcion, cantidad: String(s.cantidad), ...(s.precio != null ? { precio: String(s.precio) } : {}) })}
                       />
                     )}
                   </td>
