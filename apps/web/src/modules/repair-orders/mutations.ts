@@ -10,7 +10,7 @@
 import type { DbClient } from '@/lib/supabase/types'
 import { getAuthContext } from '@/lib/auth/context'
 import { unwrapWritten } from '@/lib/supabase/result'
-import { validationErrorFromZod, mapPostgrestError } from '@/lib/errors'
+import { validationErrorFromZod, mapPostgrestError, ValidationError } from '@/lib/errors'
 import {
   ordenTrabajoCreateSchema,
   ordenTrabajoUpdateSchema,
@@ -67,6 +67,9 @@ export async function updateOrdenTrabajo(
 /**
  * Cambia el estado de la OT. Para 'cerrada'/'cancelada' el trigger setea cerrado_en;
  * intentar reabrir una OT cerrada será rechazado por el trigger (DatabaseError).
+ *
+ * Regla del taller: una OT no se entrega ni se cierra sin kilometraje registrado
+ * (el historial técnico del vehículo depende de ese dato).
  */
 export async function cambiarEstadoOrdenTrabajo(
   supabase: DbClient,
@@ -78,6 +81,20 @@ export async function cambiarEstadoOrdenTrabajo(
 
   const { orgId } = await getAuthContext(supabase)
 
+  if (parsed.data.estado === 'cerrada' || parsed.data.estado === 'entregada') {
+    const { data: ot } = await supabase
+      .from('ordenes_trabajo')
+      .select('km_ingreso')
+      .eq('org_id', orgId)
+      .eq('id', id)
+      .maybeSingle()
+    if ((ot as { km_ingreso: number | null } | null)?.km_ingreso == null) {
+      throw new ValidationError(
+        'La OT no tiene kilometraje registrado. Ingrésalo (campo "Km ingreso" en la cabecera) antes de entregarla o cerrarla.',
+      )
+    }
+  }
+
   const { data, error } = await supabase
     .from('ordenes_trabajo')
     .update({ estado: parsed.data.estado })
@@ -87,6 +104,26 @@ export async function cambiarEstadoOrdenTrabajo(
     .select(COLUMNS)
 
   return unwrapWritten<OrdenTrabajo>(data, error)
+}
+
+/** Registra (o corrige) el kilometraje de ingreso de la OT. */
+export async function actualizarKmIngreso(
+  supabase: DbClient,
+  id: string,
+  km: number,
+): Promise<void> {
+  if (!Number.isFinite(km) || km < 0) throw new ValidationError('Kilometraje inválido.')
+  const { orgId } = await getAuthContext(supabase)
+
+  const { data, error } = await supabase
+    .from('ordenes_trabajo')
+    .update({ km_ingreso: Math.round(km) })
+    .eq('org_id', orgId)
+    .eq('id', id)
+    .is('eliminado_en', null)
+    .select('id')
+
+  unwrapWritten<{ id: string }>(data, error)
 }
 
 /** Soft-delete de la OT. */

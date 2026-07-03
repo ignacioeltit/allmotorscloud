@@ -20,6 +20,7 @@ import { load } from '@/lib/ui/load'
 import { Notice } from '@/components/ui/Notice'
 import { StatusBadge } from '@/components/ui/StatusBadge'
 import { OrdenTrabajoActions } from '@/components/repair-orders/OrdenTrabajoActions'
+import { KmIngresoInline } from '@/components/repair-orders/KmIngresoInline'
 import { TrabajosSection } from '@/components/repair-orders/TrabajosSection'
 import { PresupuestoSection } from '@/components/repair-orders/PresupuestoSection'
 import { card, sectionLabel, linkClass } from '@/components/ui/styles'
@@ -140,9 +141,11 @@ export default async function OrdenTrabajoDetailPage({
             </div>
             <div className="mt-1.5 flex flex-wrap gap-4 text-xs text-neutral-600">
               <span>Abierta {fmt(orden.creado_en)}</span>
-              {orden.km_ingreso != null && (
+              {orden.km_ingreso != null ? (
                 <span>Km ingreso: {orden.km_ingreso.toLocaleString('es-CL')}</span>
-              )}
+              ) : orden.estado !== 'cerrada' && orden.estado !== 'cancelada' ? (
+                <KmIngresoInline ordenId={orden.id} />
+              ) : null}
               {orden.fecha_prometida_entrega && (
                 <span>Entrega prometida: {orden.fecha_prometida_entrega}</span>
               )}

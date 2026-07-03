@@ -395,9 +395,12 @@ export function ReceptionFlow({
   }
 
   // ── Submit ────────────────────────────────────────────────────────────────
+  // Regla del taller: NINGUNA OT se abre sin kilometraje.
+  const kmValido = km.trim() !== '' && Number.isFinite(Number.parseInt(km, 10)) && Number.parseInt(km, 10) >= 0
   const canSubmit =
     ready &&
     motivo.trim().length > 0 &&
+    kmValido &&
     (!needClienteForm || cNombre.trim().length > 0) &&
     (mode !== 'new' || (patente.trim() && vMarca.trim() && vModelo.trim()))
 
@@ -894,8 +897,8 @@ export function ReceptionFlow({
             {/* Sección 4 — Recepción */}
             <Section step="4" title="Recepción">
               <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-                <Field label="Kilómetros">
-                  <input type="number" className={inputClass} value={km} onChange={(e) => setKm(e.target.value)} />
+                <Field label="Kilómetros *">
+                  <input type="number" min="0" className={inputClass} value={km} onChange={(e) => setKm(e.target.value)} />
                 </Field>
                 <Field label="Prioridad">
                   <select
@@ -977,7 +980,11 @@ export function ReceptionFlow({
           <div className="mx-auto flex max-w-6xl items-center justify-between gap-4 px-5 py-3.5 md:px-8">
             <p className="text-sm text-neutral-500">
               {mode === 'existing' ? 'Vehículo existente' : 'Vehículo nuevo'} ·{' '}
-              {motivo.trim() ? 'Listo para recibir' : 'Indica el motivo del ingreso'}
+              {!motivo.trim()
+                ? 'Indica el motivo del ingreso'
+                : !kmValido
+                  ? 'Falta el kilometraje (obligatorio)'
+                  : 'Listo para recibir'}
             </p>
             <button type="button" onClick={onRecibir} disabled={!canSubmit || submitting} className={btnLarge}>
               {submitting ? 'Recibiendo…' : 'Recibir vehículo →'}
