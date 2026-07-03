@@ -21,6 +21,7 @@ import {
   type Prioridad,
 } from '@/modules/reception/constants'
 import { TIPOS_VEHICULO } from '@/modules/vehicles/constants'
+import { TIPOS_CLIENTE, TIPO_CLIENTE_LABEL, TIPO_CLIENTE_DEFAULT, type TipoCliente } from '@/modules/customers/constants'
 import type { Vehiculo } from '@/modules/vehicles/types'
 import type { Cliente } from '@/modules/customers/types'
 import type { FichaVehiculo, RecibirVehiculoInput } from '@/modules/reception/types'
@@ -135,6 +136,7 @@ export function ReceptionFlow({
 
   // Cliente nuevo
   const [cNombre, setCNombre] = useState('')
+  const [cTipo, setCTipo] = useState<TipoCliente>(TIPO_CLIENTE_DEFAULT)
   const [cRut, setCRut] = useState('')
   const [cTelefono, setCTelefono] = useState('')
   const [cEmail, setCEmail] = useState('')
@@ -420,7 +422,7 @@ export function ReceptionFlow({
         clienteNuevo: needClienteForm
           ? {
               nombre: cNombre.trim(),
-              tipo: 'persona_natural',
+              tipo: cTipo,
               ...(cRut.trim() && { rut: cRut.trim() }),
               ...(cTelefono.trim() && { telefono: cTelefono.trim() }),
               ...(cEmail.trim() && { email: cEmail.trim() }),
@@ -707,6 +709,13 @@ export function ReceptionFlow({
                 <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                   <Field label="Nombre *">
                     <input className={inputClass} value={cNombre} onChange={(e) => setCNombre(e.target.value)} />
+                  </Field>
+                  <Field label="Tipo de cliente">
+                    <select className={inputClass} value={cTipo} onChange={(e) => setCTipo(e.target.value as TipoCliente)}>
+                      {TIPOS_CLIENTE.map((t) => (
+                        <option key={t} value={t}>{TIPO_CLIENTE_LABEL[t]}</option>
+                      ))}
+                    </select>
                   </Field>
                   <Field label="RUT">
                     <input className={inputClass} value={cRut} onChange={(e) => setCRut(e.target.value)} />
