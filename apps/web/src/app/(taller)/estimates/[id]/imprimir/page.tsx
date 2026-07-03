@@ -1,8 +1,9 @@
-// Vista imprimible / PDF de una cotización.
+// Vista imprimible / PDF de una cotización (suelta o dentro de una OT — ambas
+// se pueden imprimir/compartir desde aquí; "Volver" apunta a donde se gestiona
+// cada una).
 export const dynamic = 'force-dynamic'
 
 import Link from 'next/link'
-import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import { getCotizacionById } from '@/modules/estimates/queries'
 import { getOrganizacion } from '@/modules/org/queries'
@@ -38,14 +39,14 @@ export default async function ImprimirCotizacionPage({
     return <Notice tone="warning" title="Cotización no encontrada" />
   }
 
-  if (result.data.cotizacion.orden_trabajo_id) {
-    redirect(`/repair-orders/${result.data.cotizacion.orden_trabajo_id}`)
-  }
+  const volverHref = result.data.cotizacion.orden_trabajo_id
+    ? `/repair-orders/${result.data.cotizacion.orden_trabajo_id}`
+    : `/estimates/${id}`
 
   return (
     <div>
-      <Link href={`/estimates/${id}`} className="no-print mb-4 inline-block text-sm text-accent-400 hover:text-accent-300">
-        ← Volver a la cotización
+      <Link href={volverHref} className="no-print mb-4 inline-block text-sm text-accent-400 hover:text-accent-300">
+        ← Volver {result.data.cotizacion.orden_trabajo_id ? 'a la OT' : 'a la cotización'}
       </Link>
       <CotizacionDocumento cotizacion={result.data.cotizacion} taller={result.data.taller} />
     </div>

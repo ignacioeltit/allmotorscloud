@@ -7,7 +7,7 @@ import type { Presupuesto, ItemPresupuesto, PresupuestoConItems } from './types'
 import type { EstadoPresupuesto } from './constants'
 
 const PRES_COLUMNS =
-  'id, org_id, orden_trabajo_id, presupuesto_anterior_id, version, estado, total_mano_obra, total_repuestos, total_otros, total_descuentos, total_neto, notas, enviado_en, autorizado_en, autorizado_por_nombre, rechazado_en, razon_rechazo, creado_en, actualizado_en, creado_por, eliminado_en, eliminado_por'
+  'id, org_id, orden_trabajo_id, presupuesto_anterior_id, version, estado, total_mano_obra, total_repuestos, total_otros, total_descuentos, total_neto, notas, enviado_en, autorizado_en, autorizado_por_nombre, rechazado_en, razon_rechazo, creado_en, actualizado_en, creado_por, eliminado_en, eliminado_por, token_publico, nota_cliente, agendar_solicitado, folio'
 
 const ITEM_COLUMNS =
   'id, org_id, presupuesto_id, tipo, descripcion, repuesto_id, cantidad, precio_unitario, descuento_porcentaje, precio_total, autorizador_id, creado_en, actualizado_en, creado_por, eliminado_en, eliminado_por'
@@ -31,13 +31,15 @@ export interface PresupuestoListado {
 export interface CotizacionDetalle extends PresupuestoConItems {
   cliente: { id: string; nombre: string; rut: string | null; telefono: string | null } | null
   vehiculo: { id: string; patente: string; marca: string; modelo: string; anio: number | null } | null
-  token_publico: string | null
-  nota_cliente: string | null
-  agendar_solicitado: boolean
-  folio: string | null
 }
 
-/** Obtiene una cotización (o presupuesto) por id, con ítems, cliente y vehículo. */
+/**
+ * Obtiene una cotización (o presupuesto) por id, con ítems, cliente y vehículo.
+ * El cliente/vehículo pueden venir directos (cotización suelta) o resolverse
+ * vía la OT (presupuesto creado dentro de una orden de trabajo — mismo patrón
+ * que v_presupuestos_listado): sin este fallback, un presupuesto de OT queda
+ * sin cliente/vehículo y el enlace público/PDF se ven vacíos.
+ */
 export async function getCotizacionById(
   supabase: DbClient,
   id: string,
@@ -46,20 +48,13 @@ export async function getCotizacionById(
 
   const { data, error } = await supabase
     .from('presupuestos')
-    .select(PRES_COLUMNS + ', cliente_id, vehiculo_id, token_publico, nota_cliente, agendar_solicitado, folio')
+    .select(PRES_COLUMNS + ', cliente_id, vehiculo_id')
     .eq('org_id', orgId)
     .eq('id', id)
     .is('eliminado_en', null)
     .maybeSingle()
 
-  type PresExtra = Presupuesto & {
-    cliente_id: string | null
-    vehiculo_id: string | null
-    token_publico: string | null
-    nota_cliente: string | null
-    agendar_solicitado: boolean
-    folio: string | null
-  }
+  type PresExtra = Presupuesto & { cliente_id: string | null; vehiculo_id: string | null }
   const pres = unwrapMaybe<PresExtra>(data as PresExtra | null, error)
   if (!pres) return null
 
@@ -72,26 +67,51 @@ export async function getCotizacionById(
     .order('creado_en', { ascending: true })
   const items = unwrapList<ItemPresupuesto>(itemsData, itemsError)
 
-  let cliente: CotizacionDetalle['cliente'] = null
-  if (pres.cliente_id) {
-    const { data: c } = await supabase
-      .from('clientes')
-      .select('id, nombre, rut, telefono')
+  // Vehículo directo, o el de la OT si el presupuesto vive dentro de una.
+  let vehiculoId = pres.vehiculo_id
+  if (!vehiculoId && pres.orden_trabajo_id) {
+    const { data: ot } = await supabase
+      .from('ordenes_trabajo')
+      .select('vehiculo_id')
       .eq('org_id', orgId)
-      .eq('id', pres.cliente_id)
+      .eq('id', pres.orden_trabajo_id)
       .maybeSingle()
-    cliente = (c as CotizacionDetalle['cliente']) ?? null
+    vehiculoId = (ot as { vehiculo_id: string } | null)?.vehiculo_id ?? null
   }
 
   let vehiculo: CotizacionDetalle['vehiculo'] = null
-  if (pres.vehiculo_id) {
+  if (vehiculoId) {
     const { data: v } = await supabase
       .from('vehiculos')
       .select('id, patente, marca, modelo, anio')
       .eq('org_id', orgId)
-      .eq('id', pres.vehiculo_id)
+      .eq('id', vehiculoId)
       .maybeSingle()
     vehiculo = (v as CotizacionDetalle['vehiculo']) ?? null
+  }
+
+  // Cliente directo, o el propietario activo del vehículo resuelto arriba.
+  let clienteId = pres.cliente_id
+  if (!clienteId && vehiculoId) {
+    const { data: pv } = await supabase
+      .from('propietarios_vehiculo')
+      .select('cliente_id')
+      .eq('org_id', orgId)
+      .eq('vehiculo_id', vehiculoId)
+      .is('fecha_fin', null)
+      .maybeSingle()
+    clienteId = (pv as { cliente_id: string } | null)?.cliente_id ?? null
+  }
+
+  let cliente: CotizacionDetalle['cliente'] = null
+  if (clienteId) {
+    const { data: c } = await supabase
+      .from('clientes')
+      .select('id, nombre, rut, telefono')
+      .eq('org_id', orgId)
+      .eq('id', clienteId)
+      .maybeSingle()
+    cliente = (c as CotizacionDetalle['cliente']) ?? null
   }
 
   return { ...pres, items, cliente, vehiculo }

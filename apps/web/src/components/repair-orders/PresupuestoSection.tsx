@@ -12,6 +12,7 @@ import { crearPresupuesto, enviarPresupuesto } from '@/modules/estimates/mutatio
 import { ESTADO_PRESUPUESTO_LABEL, TIPO_ITEM_LABEL } from '@/modules/estimates/constants'
 import type { PresupuestoConItems } from '@/modules/estimates/types'
 import { FichaIngresoLineas } from '@/components/estimates/FichaIngresoLineas'
+import { CompartirPresupuestoOT } from './CompartirPresupuestoOT'
 import { card, sectionLabel, btnPrimary, btnSecondary, btnGhost } from '@/components/ui/styles'
 
 function fmtCLP(n: number): string {
@@ -21,9 +22,22 @@ function fmtCLP(n: number): string {
 interface PresupuestoSectionProps {
   ordenTrabajoId: string
   initialPresupuesto: PresupuestoConItems | null
+  tallerNombre: string
+  clienteNombre: string | null
+  clienteTelefono: string | null
+  vehiculoLabel: string | null
+  citaActiva: string | null
 }
 
-export function PresupuestoSection({ ordenTrabajoId, initialPresupuesto }: PresupuestoSectionProps) {
+export function PresupuestoSection({
+  ordenTrabajoId,
+  initialPresupuesto,
+  tallerNombre,
+  clienteNombre,
+  clienteTelefono,
+  vehiculoLabel,
+  citaActiva,
+}: PresupuestoSectionProps) {
   const router = useRouter()
   const [showAddItem, setShowAddItem] = useState(false)
   const [creando, setCreando] = useState(false)
@@ -80,7 +94,19 @@ export function PresupuestoSection({ ordenTrabajoId, initialPresupuesto }: Presu
   const esBorrador = p.estado === 'borrador'
 
   return (
-    <section className={`${card} space-y-4`}>
+    <div className="space-y-4">
+      {p.items.length > 0 && (
+        <CompartirPresupuestoOT
+          presupuesto={p}
+          tallerNombre={tallerNombre}
+          clienteNombre={clienteNombre}
+          clienteTelefono={clienteTelefono}
+          vehiculoLabel={vehiculoLabel}
+          citaActiva={citaActiva}
+        />
+      )}
+
+      <section className={`${card} space-y-4`}>
       <div className="flex items-center justify-between gap-3">
         <p className={sectionLabel}>Presupuesto v{p.version}</p>
         <span className="rounded-full border border-sky-500/25 bg-sky-500/10 px-2.5 py-0.5 text-xs font-medium text-sky-800">
@@ -163,6 +189,7 @@ export function PresupuestoSection({ ordenTrabajoId, initialPresupuesto }: Presu
           </div>
         )
       )}
-    </section>
+      </section>
+    </div>
   )
 }

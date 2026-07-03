@@ -12,8 +12,10 @@ import { listEventosByOrdenTrabajo, getTipoEventoBySlug } from '@/modules/events
 import { getHistoriaByVehiculoId } from '@/modules/technical-history/queries'
 import { listReparacionesByOT } from '@/modules/reparaciones/queries'
 import { getPresupuestoActivoByOT } from '@/modules/estimates/queries'
+import { getCitasActivasPorVehiculo } from '@/modules/agenda/queries'
 import { listMecanicosByOrg } from '@/modules/users/queries'
 import { getConfiguracionManoObra } from '@/modules/taller/queries'
+import { getOrganizacion } from '@/modules/org/queries'
 import { load } from '@/lib/ui/load'
 import { Notice } from '@/components/ui/Notice'
 import { StatusBadge } from '@/components/ui/StatusBadge'
@@ -60,7 +62,7 @@ export default async function OrdenTrabajoDetailPage({
     const supabase = await createClient()
 
     const orden = await getOrdenTrabajoById(supabase, id)
-    const [vehiculo, cliente, eventos, historia, tipoEvento, reparaciones, presupuesto, mecanicos, configuracion] =
+    const [vehiculo, cliente, eventos, historia, tipoEvento, reparaciones, presupuesto, mecanicos, configuracion, taller, citasActivas] =
       await Promise.all([
         getVehiculoById(supabase, orden.vehiculo_id),
         getPropietarioActivoByVehiculo(supabase, orden.vehiculo_id),
@@ -71,9 +73,11 @@ export default async function OrdenTrabajoDetailPage({
         getPresupuestoActivoByOT(supabase, orden.id),
         listMecanicosByOrg(supabase),
         getConfiguracionManoObra(supabase),
+        getOrganizacion(supabase),
+        getCitasActivasPorVehiculo(supabase, [orden.vehiculo_id]),
       ])
 
-    return { orden, vehiculo, cliente, eventos, historia, tipoEvento, reparaciones, presupuesto, mecanicos, configuracion }
+    return { orden, vehiculo, cliente, eventos, historia, tipoEvento, reparaciones, presupuesto, mecanicos, configuracion, taller, citasActivas }
   })
 
   if (!result.ok) {
@@ -93,12 +97,17 @@ export default async function OrdenTrabajoDetailPage({
     )
   }
 
-  const { orden, vehiculo, cliente, eventos, historia, tipoEvento, reparaciones, presupuesto, mecanicos, configuracion } =
+  const { orden, vehiculo, cliente, eventos, historia, tipoEvento, reparaciones, presupuesto, mecanicos, configuracion, taller, citasActivas } =
     result.data
 
   const recepcionEvento =
     eventos.find((e) => e.titulo?.toLowerCase().includes('recepci')) ??
     eventos[eventos.length - 1]
+
+  const vehiculoLabel = vehiculo
+    ? [vehiculo.patente, vehiculo.marca, vehiculo.modelo].filter(Boolean).join(' · ')
+    : null
+  const citaActivaVehiculo = citasActivas[orden.vehiculo_id] ?? null
 
   // Totales desde reparaciones cargadas (evita un query extra)
   let totalMO = 0
@@ -224,7 +233,15 @@ export default async function OrdenTrabajoDetailPage({
       />
 
       {/* ── Presupuesto (Client Component con formularios) ── */}
-      <PresupuestoSection ordenTrabajoId={orden.id} initialPresupuesto={presupuesto} />
+      <PresupuestoSection
+        ordenTrabajoId={orden.id}
+        initialPresupuesto={presupuesto}
+        tallerNombre={taller?.nombre ?? 'el taller'}
+        clienteNombre={cliente?.nombre ?? null}
+        clienteTelefono={cliente?.telefono ?? null}
+        vehiculoLabel={vehiculoLabel}
+        citaActiva={citaActivaVehiculo}
+      />
 
       {/* ── Totales de trabajos registrados ── */}
       {totalOT > 0 && (

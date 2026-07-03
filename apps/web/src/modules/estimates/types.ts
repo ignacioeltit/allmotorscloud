@@ -30,6 +30,12 @@ export interface Presupuesto {
   creado_por: string
   eliminado_en: string | null
   eliminado_por: string | null
+  // Enlace público al cliente (migration 019) y folio legible (migration 020) —
+  // existen en TODA fila de presupuestos, tenga o no orden_trabajo_id directo.
+  token_publico: string | null
+  nota_cliente: string | null
+  agendar_solicitado: boolean
+  folio: string | null
 }
 
 export interface ItemPresupuesto {
