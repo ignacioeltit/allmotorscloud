@@ -140,12 +140,17 @@ export default async function OrdenTrabajoDetailPage({
               {orden.cerrado_en && <span>Cerrada: {fmt(orden.cerrado_en)}</span>}
             </div>
           </div>
-          <Link
-            href={`/vehicles/${orden.vehiculo_id}`}
-            className={`${linkClass} shrink-0 text-sm`}
-          >
-            Ver ficha vehículo →
-          </Link>
+          <div className="flex shrink-0 items-center gap-3">
+            <Link
+              href={`/repair-orders/${orden.id}/imprimir`}
+              className="inline-flex items-center gap-2 rounded-lg border border-black/10 bg-black/[0.03] px-3.5 py-2 text-sm font-medium text-neutral-300 transition-colors hover:bg-black/[0.06]"
+            >
+              🖨 Imprimir OT
+            </Link>
+            <Link href={`/vehicles/${orden.vehiculo_id}`} className={`${linkClass} text-sm`}>
+              Ver ficha vehículo →
+            </Link>
+          </div>
         </div>
       </div>
 
