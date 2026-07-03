@@ -21,6 +21,7 @@ import { Notice } from '@/components/ui/Notice'
 import { StatusBadge } from '@/components/ui/StatusBadge'
 import { OrdenTrabajoActions } from '@/components/repair-orders/OrdenTrabajoActions'
 import { KmIngresoInline } from '@/components/repair-orders/KmIngresoInline'
+import { DiagnosticoSection } from '@/components/repair-orders/DiagnosticoSection'
 import { TrabajosSection } from '@/components/repair-orders/TrabajosSection'
 import { PresupuestoSection } from '@/components/repair-orders/PresupuestoSection'
 import { card, sectionLabel, linkClass } from '@/components/ui/styles'
@@ -63,13 +64,14 @@ export default async function OrdenTrabajoDetailPage({
     const supabase = await createClient()
 
     const orden = await getOrdenTrabajoById(supabase, id)
-    const [vehiculo, cliente, eventos, historia, tipoEvento, reparaciones, presupuesto, mecanicos, configuracion, taller, citasActivas] =
+    const [vehiculo, cliente, eventos, historia, tipoEvento, tipoDiagnostico, reparaciones, presupuesto, mecanicos, configuracion, taller, citasActivas] =
       await Promise.all([
         getVehiculoById(supabase, orden.vehiculo_id),
         getPropietarioActivoByVehiculo(supabase, orden.vehiculo_id),
         listEventosByOrdenTrabajo(supabase, orden.id),
         getHistoriaByVehiculoId(supabase, orden.vehiculo_id),
         getTipoEventoBySlug(supabase, 'reparacion'),
+        getTipoEventoBySlug(supabase, 'diagnostico'),
         listReparacionesByOT(supabase, orden.id),
         getPresupuestoActivoByOT(supabase, orden.id),
         listMecanicosByOrg(supabase),
@@ -78,7 +80,7 @@ export default async function OrdenTrabajoDetailPage({
         getCitasActivasPorVehiculo(supabase, [orden.vehiculo_id]),
       ])
 
-    return { orden, vehiculo, cliente, eventos, historia, tipoEvento, reparaciones, presupuesto, mecanicos, configuracion, taller, citasActivas }
+    return { orden, vehiculo, cliente, eventos, historia, tipoEvento, tipoDiagnostico, reparaciones, presupuesto, mecanicos, configuracion, taller, citasActivas }
   })
 
   if (!result.ok) {
@@ -98,8 +100,12 @@ export default async function OrdenTrabajoDetailPage({
     )
   }
 
-  const { orden, vehiculo, cliente, eventos, historia, tipoEvento, reparaciones, presupuesto, mecanicos, configuracion, taller, citasActivas } =
+  const { orden, vehiculo, cliente, eventos, historia, tipoEvento, tipoDiagnostico, reparaciones, presupuesto, mecanicos, configuracion, taller, citasActivas } =
     result.data
+
+  const diagnosticos = tipoDiagnostico
+    ? eventos.filter((e) => e.tipo_evento_id === tipoDiagnostico.id).reverse()
+    : []
 
   const recepcionEvento =
     eventos.find((e) => e.titulo?.toLowerCase().includes('recepci')) ??
@@ -224,6 +230,16 @@ export default async function OrdenTrabajoDetailPage({
           )}
         </section>
       )}
+
+      {/* ── Diagnóstico del mecánico ── */}
+      <DiagnosticoSection
+        ordenTrabajoId={orden.id}
+        historiaId={historia.id}
+        tipoEventoDiagnosticoId={tipoDiagnostico?.id ?? null}
+        estadoOT={orden.estado}
+        diagnosticos={diagnosticos}
+        mecanicos={mecanicos}
+      />
 
       {/* ── Trabajos (Client Component con formularios) ── */}
       <TrabajosSection
