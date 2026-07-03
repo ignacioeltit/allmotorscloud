@@ -261,7 +261,7 @@ function expandidaALinea(l: { descripcion: string; cantidad: number; precio: num
 }
 
 // Selector de paquete: abre un dropdown con los paquetes activos.
-function PaquetePicker({ onElegir }: { onElegir: (p: PlantillaResumen) => void }) {
+export function PaquetePicker({ onElegir }: { onElegir: (p: PlantillaResumen) => void }) {
   const [abierto, setAbierto] = useState(false)
   const [plantillas, setPlantillas] = useState<PlantillaResumen[]>([])
   const [cargado, setCargado] = useState(false)

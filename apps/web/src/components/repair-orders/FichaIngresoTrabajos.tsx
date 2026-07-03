@@ -21,6 +21,8 @@ import { getValorHoraForServicio } from '@/modules/taller/helpers'
 import { toErrorMessage } from '@/lib/ui/error-message'
 import { btnPrimary, btnGhost } from '@/components/ui/styles'
 import { FloatingDropdown } from '@/components/ui/FloatingDropdown'
+import { PaquetePicker } from '@/components/estimates/FichaIngresoLineas'
+import { expandirPlantilla, type PlantillaResumen } from '@/modules/plantillas/queries'
 
 const FILAS_INICIALES = 5
 
@@ -326,6 +328,30 @@ export function FichaIngresoTrabajos({
   const [error, setError] = useState<string | null>(null)
   const [pending, startTransition] = useTransition()
 
+  // Paquetes: sus líneas se expanden en las grillas. Como el consumo de stock y
+  // los snapshots de catálogo requieren el vínculo (repuesto_id/servicio_id),
+  // las líneas de paquete entran como texto libre — nombre, cantidad y precio.
+  async function agregarPaquete(pl: PlantillaResumen) {
+    try {
+      const lineas = await expandirPlantilla(createClient(), pl)
+      const aFila = (l: { descripcion: string; cantidad: number; precio: number }): LineaT => ({
+        descripcion: l.descripcion,
+        cantidad: String(l.cantidad),
+        precio: String(l.precio),
+        repuesto: null,
+        servicio: null,
+      })
+      const mo = lineas.filter((l) => l.grupo === 'mano_obra').map(aFila)
+      const mat = lineas.filter((l) => l.grupo === 'repuesto').map(aFila)
+      const otr = lineas.filter((l) => l.grupo === 'otros').map(aFila)
+      if (mo.length) setManoObra((prev) => [...prev.filter(tieneContenido), ...mo])
+      if (mat.length) setMateriales((prev) => [...prev.filter(tieneContenido), ...mat])
+      if (otr.length) setOtros((prev) => [...prev.filter(tieneContenido), ...otr])
+    } catch (e) {
+      setError(toErrorMessage(e))
+    }
+  }
+
   const conDatos = [
     ...materiales.filter(tieneContenido).map((l) => ({ tipo: 'repuesto' as const, linea: l })),
     ...manoObra.filter(tieneContenido).map((l) => ({ tipo: 'mano_obra' as const, linea: l })),
@@ -396,6 +422,10 @@ export function FichaIngresoTrabajos({
 
   return (
     <div className="space-y-6">
+      <div className="flex justify-end">
+        <PaquetePicker onElegir={agregarPaquete} />
+      </div>
+
       <GrillaTrabajos titulo="Materiales / Repuestos" labelCantidad="Cantidad" grupo="repuesto" lineas={materiales} setLineas={setMateriales} configuracion={configuracion} />
       <GrillaTrabajos titulo="Mano de obra" labelCantidad="Horas" grupo="mano_obra" lineas={manoObra} setLineas={setManoObra} configuracion={configuracion} />
       <GrillaTrabajos titulo="Otros" labelCantidad="Cantidad" grupo="otros" lineas={otros} setLineas={setOtros} configuracion={configuracion} />
