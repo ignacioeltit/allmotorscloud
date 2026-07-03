@@ -10,6 +10,7 @@
 import type { OrdenTrabajo } from '@/modules/repair-orders/types'
 import type { Vehiculo } from '@/modules/vehicles/types'
 import type { Cliente } from '@/modules/customers/types'
+import type { Evento } from '@/modules/events/types'
 import type { ReparacionConItems } from '@/modules/reparaciones/types'
 import type { PresupuestoConItems } from '@/modules/estimates/types'
 import type { OrganizacionInfo } from '@/modules/org/queries'
@@ -21,10 +22,29 @@ function fmtFecha(iso: string): string {
   return new Date(iso).toLocaleDateString('es-CL', { day: '2-digit', month: 'long', year: 'numeric' })
 }
 
+/**
+ * La descripción del evento de recepción es texto plano construido en
+ * reception/mutations.ts: líneas "Etiqueta: valor" seguidas de un bloque
+ * "Checklist de recepción:" con líneas "✓/✗ ítem". Se separa para imprimir
+ * el reclamo del cliente como texto y el checklist como lista compacta.
+ */
+function parseDescripcionRecepcion(desc: string): { campos: [string, string][]; checklist: string[] } {
+  const lineas = desc.split('\n')
+  const idx = lineas.findIndex((l) => l.trim() === 'Checklist de recepción:')
+  const encabezado = (idx === -1 ? lineas : lineas.slice(0, idx)).filter((l) => l.trim())
+  const checklist = idx === -1 ? [] : lineas.slice(idx + 1).filter((l) => l.trim())
+  const campos: [string, string][] = encabezado.map((l) => {
+    const i = l.indexOf(':')
+    return i === -1 ? [l, ''] : [l.slice(0, i).trim(), l.slice(i + 1).trim()]
+  })
+  return { campos, checklist }
+}
+
 export function OtDocumento({
   orden,
   vehiculo,
   cliente,
+  eventoRecepcion,
   reparaciones,
   presupuesto,
   taller,
@@ -33,6 +53,7 @@ export function OtDocumento({
   orden: OrdenTrabajo
   vehiculo: Vehiculo | null
   cliente: Cliente | null
+  eventoRecepcion: Evento | null
   reparaciones: ReparacionConItems[]
   presupuesto: PresupuestoConItems | null
   taller: OrganizacionInfo | null
@@ -98,13 +119,43 @@ export function OtDocumento({
           </div>
         </div>
 
-        {/* Motivo */}
-        {orden.notas && (
+        {/* Lo que dice el cliente al ingresar (motivo, síntomas, checklist de recepción) */}
+        {eventoRecepcion?.descripcion ? (
+          (() => {
+            const { campos, checklist } = parseDescripcionRecepcion(eventoRecepcion.descripcion!)
+            return (
+              <div className="mt-5 rounded-lg border border-[#e5e7eb] bg-[#f9fafb] px-4 py-3">
+                <p className="text-[11px] font-semibold uppercase tracking-wide text-[#9ca3af]">
+                  Lo que indica el cliente
+                </p>
+                <div className="mt-2 space-y-1.5 text-sm">
+                  {campos.map(([label, valor], i) => (
+                    <p key={i}>
+                      <span className="font-medium">{label}:</span> {valor}
+                    </p>
+                  ))}
+                </div>
+                {checklist.length > 0 && (
+                  <div className="mt-3 border-t border-[#e5e7eb] pt-2">
+                    <p className="text-[11px] font-semibold uppercase tracking-wide text-[#9ca3af]">
+                      Checklist de recepción
+                    </p>
+                    <div className="mt-1 grid grid-cols-2 gap-x-4 gap-y-0.5 text-xs sm:grid-cols-3">
+                      {checklist.map((linea, i) => (
+                        <p key={i}>{linea}</p>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            )
+          })()
+        ) : orden.notas ? (
           <div className="mt-5 rounded-lg border border-[#e5e7eb] bg-[#f9fafb] px-4 py-3">
             <p className="text-[11px] font-semibold uppercase tracking-wide text-[#9ca3af]">Motivo de ingreso</p>
             <p className="mt-1 text-sm">{orden.notas}</p>
           </div>
-        )}
+        ) : null}
 
         {/* Trabajos cargados */}
         {conTrabajos && (

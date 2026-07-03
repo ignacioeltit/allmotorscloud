@@ -6,6 +6,7 @@ import { createClient } from '@/lib/supabase/server'
 import { getOrdenTrabajoById } from '@/modules/repair-orders/queries'
 import { getVehiculoById } from '@/modules/vehicles/queries'
 import { getPropietarioActivoByVehiculo } from '@/modules/customers/queries'
+import { listEventosByOrdenTrabajo } from '@/modules/events/queries'
 import { listReparacionesByOT } from '@/modules/reparaciones/queries'
 import { getPresupuestoActivoByOT } from '@/modules/estimates/queries'
 import { listMecanicosByOrg } from '@/modules/users/queries'
@@ -24,15 +25,21 @@ export default async function ImprimirOtPage({
   const result = await load(async () => {
     const supabase = await createClient()
     const orden = await getOrdenTrabajoById(supabase, id)
-    const [vehiculo, cliente, reparaciones, presupuesto, taller, mecanicos] = await Promise.all([
+    const [vehiculo, cliente, eventos, reparaciones, presupuesto, taller, mecanicos] = await Promise.all([
       getVehiculoById(supabase, orden.vehiculo_id),
       getPropietarioActivoByVehiculo(supabase, orden.vehiculo_id),
+      listEventosByOrdenTrabajo(supabase, orden.id),
       listReparacionesByOT(supabase, orden.id),
       getPresupuestoActivoByOT(supabase, orden.id),
       getOrganizacion(supabase),
       listMecanicosByOrg(supabase),
     ])
-    return { orden, vehiculo, cliente, reparaciones, presupuesto, taller, mecanicos }
+    // Evento de recepción: motivo + síntomas + observaciones + checklist tal
+    // como los dictó el cliente — es lo que el mecánico necesita ANTES de que
+    // haya trabajos cargados.
+    const eventoRecepcion =
+      eventos.find((e) => e.titulo?.toLowerCase().includes('recepci')) ?? null
+    return { orden, vehiculo, cliente, eventoRecepcion, reparaciones, presupuesto, taller, mecanicos }
   })
 
   if (!result.ok) {
@@ -53,6 +60,7 @@ export default async function ImprimirOtPage({
         orden={d.orden}
         vehiculo={d.vehiculo}
         cliente={d.cliente}
+        eventoRecepcion={d.eventoRecepcion}
         reparaciones={d.reparaciones}
         presupuesto={d.presupuesto}
         taller={d.taller}
