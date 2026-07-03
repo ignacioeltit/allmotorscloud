@@ -24,6 +24,7 @@ export interface PresupuestoListado {
   marca: string | null
   modelo: string | null
   cliente_nombre: string | null
+  folio: string | null
 }
 
 /** Detalle de cotización: presupuesto + ítems + cliente y vehículo directos. */
@@ -33,6 +34,7 @@ export interface CotizacionDetalle extends PresupuestoConItems {
   token_publico: string | null
   nota_cliente: string | null
   agendar_solicitado: boolean
+  folio: string | null
 }
 
 /** Obtiene una cotización (o presupuesto) por id, con ítems, cliente y vehículo. */
@@ -44,7 +46,7 @@ export async function getCotizacionById(
 
   const { data, error } = await supabase
     .from('presupuestos')
-    .select(PRES_COLUMNS + ', cliente_id, vehiculo_id, token_publico, nota_cliente, agendar_solicitado')
+    .select(PRES_COLUMNS + ', cliente_id, vehiculo_id, token_publico, nota_cliente, agendar_solicitado, folio')
     .eq('org_id', orgId)
     .eq('id', id)
     .is('eliminado_en', null)
@@ -56,6 +58,7 @@ export async function getCotizacionById(
     token_publico: string | null
     nota_cliente: string | null
     agendar_solicitado: boolean
+    folio: string | null
   }
   const pres = unwrapMaybe<PresExtra>(data as PresExtra | null, error)
   if (!pres) return null
@@ -110,7 +113,7 @@ export async function listPresupuestosPaged(
   let q = supabase
     .from('v_presupuestos_listado')
     .select(
-      'id, orden_trabajo_id, estado, total_neto, creado_en, numero_ot, patente, marca, modelo, cliente_nombre',
+      'id, orden_trabajo_id, estado, total_neto, creado_en, numero_ot, patente, marca, modelo, cliente_nombre, folio',
       { count: 'exact' },
     )
     .eq('org_id', orgId)
@@ -120,7 +123,7 @@ export async function listPresupuestosPaged(
   if (term) {
     const escaped = term.replace(/%/g, '\\%').replace(/_/g, '\\_')
     q = q.or(
-      `numero_ot.ilike.%${escaped}%,patente.ilike.%${escaped}%,cliente_nombre.ilike.%${escaped}%`,
+      `folio.ilike.%${escaped}%,numero_ot.ilike.%${escaped}%,patente.ilike.%${escaped}%,cliente_nombre.ilike.%${escaped}%`,
     )
   }
 

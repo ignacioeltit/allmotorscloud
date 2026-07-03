@@ -67,7 +67,7 @@ export default async function EstimatesPage({ searchParams }: Props) {
         totalPages={totalPages}
         pageSize={PAGE_SIZE}
         initialSearch={search}
-        placeholder="Buscar por N° de OT (ej: OT4067)…"
+        placeholder="Buscar por folio (PPT3500), N° de OT, patente o cliente…"
       >
         <div className={`${card} overflow-x-auto p-0`}>
           <table className="w-full text-sm">
@@ -85,7 +85,7 @@ export default async function EstimatesPage({ searchParams }: Props) {
               {presupuestos.map((p) => (
                 <tr key={p.id} className="border-b border-black/[0.04] transition-colors last:border-0 hover:bg-black/[0.03]">
                   <td className="px-4 py-3 font-medium text-neutral-100">
-                    {p.numero_ot ?? (
+                    {p.numero_ot ?? p.folio ?? (
                       <span className="inline-flex items-center rounded-full border border-accent-500/30 bg-accent-500/10 px-2.5 py-1 text-xs font-medium text-accent-400">
                         Cotización
                       </span>

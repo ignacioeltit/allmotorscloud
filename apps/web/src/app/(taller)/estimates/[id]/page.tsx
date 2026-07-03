@@ -50,7 +50,7 @@ export default async function CotizacionDetailPage({
       <Link href="/estimates" className="text-sm text-accent-400 hover:text-accent-300">
         ← Presupuestos
       </Link>
-      <PageHeader title="Cotización" />
+      <PageHeader title={`Cotización ${result.data.cotizacion.folio ?? ''}`.trim()} />
       <CotizacionDetailClient
         cotizacion={result.data.cotizacion}
         tallerNombre={result.data.taller?.nombre ?? 'el taller'}

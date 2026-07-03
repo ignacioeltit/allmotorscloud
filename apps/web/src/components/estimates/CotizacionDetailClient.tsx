@@ -66,10 +66,10 @@ export function CotizacionDetailClient({
   const esBorrador = p.estado === 'borrador'
   const conItems = p.items.length > 0
   const respondida = p.estado === 'autorizado' || p.estado === 'rechazado'
-  // Motivo de la cita = referencia corta de la cotización + un detalle breve del
-  // servicio (la mano de obra describe mejor el trabajo que los repuestos). Evita
-  // volcar los números de parte de cada repuesto.
-  const refCotizacion = `Cot. ${p.id.slice(0, 8).toUpperCase()}`
+  // Motivo de la cita = folio de la cotización + un detalle breve del servicio (la
+  // mano de obra describe mejor el trabajo que los repuestos). Evita volcar los
+  // números de parte de cada repuesto.
+  const refCotizacion = p.folio ?? 'Cotización'
   const laborItems = p.items.filter((i) => i.tipo === 'mano_obra').map((i) => i.descripcion)
   const detalleBreve = (laborItems.length ? laborItems : p.items.map((i) => i.descripcion))
     .slice(0, 2)
