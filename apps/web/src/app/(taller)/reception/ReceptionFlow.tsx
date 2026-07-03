@@ -3,7 +3,7 @@
 // Flujo de recepción en una sola pantalla: buscar patente → cargar o crear cliente+vehículo
 // → checklist → "Recibir vehículo" → crea cliente/vehículo/evento/OT y redirige a la OT.
 
-import { useRef, useState, type FormEvent } from 'react'
+import { useEffect, useRef, useState, type FormEvent } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { listVehiculos, getVehiculoByPatente } from '@/modules/vehicles/queries'
@@ -11,6 +11,7 @@ import { confirmarAnioVehiculo } from '@/modules/vehicles/mutations'
 import { listClientes, listVehiculosByCliente } from '@/modules/customers/queries'
 import { cargarFichaVehiculo } from '@/modules/reception/queries'
 import { recibirVehiculo } from '@/modules/reception/mutations'
+import { vincularCotizacionAOT } from '@/modules/estimates/mutations'
 import {
   CHECKLIST_RECEPCION,
   COMBUSTIBLES,
@@ -38,6 +39,14 @@ import {
 } from '@/components/ui/styles'
 
 type Mode = 'search' | 'existing' | 'new'
+
+/** Conversión de cotización a OT (Fase C): precarga vehículo+motivo y enlaza al recibir. */
+export interface RecepcionPrefill {
+  presupuestoId: string
+  vehiculoId: string
+  folio: string | null
+  motivo: string
+}
 
 /** Sugerencia de datos vehiculares devuelta por /api/vehiculos/enriquecer. */
 type SuggestedVehicle = {
@@ -98,10 +107,13 @@ function Section({
 export function ReceptionFlow({
   tipoRecepcionId,
   enrichmentEnabled,
+  prefill = null,
 }: {
   tipoRecepcionId: string
   /** true si hay un proveedor de enriquecimiento activo. Si es false, se va directo a ingreso manual. */
   enrichmentEnabled: boolean
+  /** Presente cuando la recepción viene de convertir una cotización autorizada. */
+  prefill?: RecepcionPrefill | null
 }) {
   const router = useRouter()
 
@@ -144,7 +156,7 @@ export function ReceptionFlow({
 
   // Recepción
   const [km, setKm] = useState('')
-  const [motivo, setMotivo] = useState('')
+  const [motivo, setMotivo] = useState(prefill?.motivo ?? '')
   const [prioridad, setPrioridad] = useState<Prioridad>(PRIORIDAD_DEFAULT)
   const [sintomas, setSintomas] = useState('')
   const [observaciones, setObservaciones] = useState('')
@@ -161,6 +173,12 @@ export function ReceptionFlow({
   const needClienteForm =
     (mode === 'new' && !clientePreseleccionado) || (mode === 'existing' && !ficha?.cliente)
   const ready = mode === 'existing' || mode === 'new'
+
+  // Conversión de cotización: cargar el vehículo (con su cliente) al montar.
+  useEffect(() => {
+    if (prefill?.vehiculoId) void selectVehiculo(prefill.vehiculoId)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   // ── Búsqueda de patente ──────────────────────────────────────────────────
   function onPatenteChange(value: string) {
@@ -437,6 +455,17 @@ export function ReceptionFlow({
       const supabase = createClient()
       const result = await recibirVehiculo(supabase, input)
 
+      // Conversión de cotización (Fase C): enlazar la cotización autorizada a la
+      // OT recién creada. Si falla, no bloquea la recepción — la OT ya existe y
+      // el enlace puede repetirse volviendo a entrar con ?presupuesto_id.
+      if (prefill?.presupuestoId) {
+        try {
+          await vincularCotizacionAOT(supabase, prefill.presupuestoId, result.ordenTrabajoId)
+        } catch {
+          /* no bloquear la recepción */
+        }
+      }
+
       // Si el vehículo tenía año por confirmar y el recepcionista lo validó,
       // guardarlo y bajar la bandera (no bloquea la recepción si falla).
       if (mode === 'existing' && ficha?.vehiculo.anio_por_confirmar) {
@@ -468,6 +497,17 @@ export function ReceptionFlow({
           Recibe un vehículo en una sola pantalla. Busca la patente; si existe se carga todo.
         </p>
       </header>
+
+      {prefill && (
+        <div className="mb-5 flex items-center gap-3 rounded-xl border border-accent-500/30 bg-accent-500/10 px-4 py-3 text-sm text-accent-400">
+          <span className="text-base">📋</span>
+          <p>
+            Convirtiendo la cotización <span className="font-semibold">{prefill.folio ?? ''}</span> en
+            orden de trabajo: al recibir el vehículo, la cotización quedará enlazada a la OT con su
+            trabajo autorizado.
+          </p>
+        </div>
+      )}
 
       <div className="space-y-5">
         {/* Sección 1 — Búsqueda */}

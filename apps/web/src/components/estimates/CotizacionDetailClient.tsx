@@ -181,31 +181,43 @@ export function CotizacionDetailClient({
             <p className="mt-1 font-medium">El cliente quiere agendar — contáctalo para coordinar la hora.</p>
           )}
           {p.nota_cliente && <p className="mt-1 text-neutral-600">Nota del cliente: “{p.nota_cliente}”</p>}
-          {p.estado === 'autorizado' && citaActiva ? (
-            <p className="mt-3 inline-flex items-center gap-2 rounded-lg border border-emerald-500/30 bg-emerald-500/10 px-3 py-1.5 text-sm font-medium text-emerald-800">
-              ✓ Cita agendada para el{' '}
-              {new Date(citaActiva).toLocaleDateString('es-CL', { day: 'numeric', month: 'long' })} a las{' '}
-              {new Date(citaActiva).toLocaleTimeString('es-CL', { hour: '2-digit', minute: '2-digit', hour12: false })}
-              <Link href="/agenda" className="underline">Ver agenda</Link>
-            </p>
-          ) : p.estado === 'autorizado' && p.vehiculo?.id ? (
-            <Link
-              href={{
-                pathname: '/agenda/nueva',
-                query: {
-                  vehiculo_id: p.vehiculo.id,
-                  ...(p.cliente?.id ? { cliente_id: p.cliente.id } : {}),
-                  vehiculo: [p.vehiculo.patente, p.vehiculo.marca, p.vehiculo.modelo].filter(Boolean).join(' · '),
-                  ...(p.cliente?.nombre ? { cliente: p.cliente.nombre } : {}),
-                  ...(motivoDesdeItems ? { motivo: motivoDesdeItems } : {}),
-                  ...(p.nota_cliente ? { notas: p.nota_cliente } : {}),
-                },
-              }}
-              className="mt-3 inline-flex items-center gap-2 rounded-lg bg-accent-600 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-accent-500"
-            >
-              📅 Agendar cita
-            </Link>
-          ) : null}
+          {p.estado === 'autorizado' && (
+            <div className="mt-3 flex flex-wrap items-center gap-2.5">
+              {citaActiva ? (
+                <p className="inline-flex items-center gap-2 rounded-lg border border-emerald-500/30 bg-emerald-500/10 px-3 py-1.5 text-sm font-medium text-emerald-800">
+                  ✓ Cita agendada para el{' '}
+                  {new Date(citaActiva).toLocaleDateString('es-CL', { day: 'numeric', month: 'long' })} a las{' '}
+                  {new Date(citaActiva).toLocaleTimeString('es-CL', { hour: '2-digit', minute: '2-digit', hour12: false })}
+                  <Link href="/agenda" className="underline">Ver agenda</Link>
+                </p>
+              ) : p.vehiculo?.id ? (
+                <Link
+                  href={{
+                    pathname: '/agenda/nueva',
+                    query: {
+                      vehiculo_id: p.vehiculo.id,
+                      ...(p.cliente?.id ? { cliente_id: p.cliente.id } : {}),
+                      vehiculo: [p.vehiculo.patente, p.vehiculo.marca, p.vehiculo.modelo].filter(Boolean).join(' · '),
+                      ...(p.cliente?.nombre ? { cliente: p.cliente.nombre } : {}),
+                      ...(motivoDesdeItems ? { motivo: motivoDesdeItems } : {}),
+                      ...(p.nota_cliente ? { notas: p.nota_cliente } : {}),
+                    },
+                  }}
+                  className="inline-flex items-center gap-2 rounded-lg bg-accent-600 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-accent-500"
+                >
+                  📅 Agendar cita
+                </Link>
+              ) : null}
+
+              {/* Fase C: cuando el vehículo llega, la recepción convierte la cotización en OT. */}
+              <Link
+                href={`/recepcion?presupuesto_id=${p.id}`}
+                className="inline-flex items-center gap-2 rounded-lg border border-accent-500/40 bg-accent-500/10 px-4 py-2 text-sm font-semibold text-accent-400 transition-colors hover:bg-accent-500/20"
+              >
+                🔧 Convertir a OT (recibir vehículo)
+              </Link>
+            </div>
+          )}
         </section>
       )}
 

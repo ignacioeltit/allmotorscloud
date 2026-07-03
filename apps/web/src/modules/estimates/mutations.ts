@@ -194,6 +194,30 @@ export async function recalcularTotalesPresupuesto(
   if (error) throw mapPostgrestError(error)
 }
 
+/**
+ * Enlaza una cotización suelta a la OT recién creada en recepción (Fase C).
+ * Solo si aún no tiene OT (`orden_trabajo_id IS NULL`) — la conversión es única.
+ * La cotización autorizada no choca con el índice de presupuesto activo por OT
+ * (que solo cubre borrador/enviado).
+ */
+export async function vincularCotizacionAOT(
+  supabase: DbClient,
+  presupuestoId: string,
+  ordenTrabajoId: string,
+): Promise<{ id: string }> {
+  const { orgId } = await getAuthContext(supabase)
+
+  const { data, error } = await supabase
+    .from('presupuestos')
+    .update({ orden_trabajo_id: ordenTrabajoId })
+    .eq('org_id', orgId)
+    .eq('id', presupuestoId)
+    .is('orden_trabajo_id', null)
+    .select('id')
+
+  return unwrapWritten<{ id: string }>(data, error)
+}
+
 /** Marca un presupuesto como enviado al cliente. No se puede modificar después (UC-P03). */
 export async function enviarPresupuesto(
   supabase: DbClient,

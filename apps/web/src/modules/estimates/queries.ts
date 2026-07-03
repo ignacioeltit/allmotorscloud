@@ -214,8 +214,10 @@ export async function listCotizacionesRespondidas(
 }
 
 /**
- * Devuelve el presupuesto activo (borrador o enviado) de una OT con sus ítems, o null.
- * Por UNIQUE parcial idx_presupuestos_ot_version_activa solo hay uno a la vez.
+ * Devuelve el presupuesto vigente de una OT con sus ítems, o null.
+ * Primero el activo (borrador/enviado — por UNIQUE parcial hay a lo más uno);
+ * si no hay, el autorizado más reciente (ej: cotización convertida a OT en
+ * recepción — Fase C), para que la OT muestre el trabajo aprobado.
  */
 export async function getPresupuestoActivoByOT(
   supabase: DbClient,
@@ -232,7 +234,22 @@ export async function getPresupuestoActivoByOT(
     .in('estado', ['borrador', 'enviado'])
     .maybeSingle()
 
-  const presupuesto = unwrapMaybe<Presupuesto>(data as Presupuesto | null, error)
+  let presupuesto = unwrapMaybe<Presupuesto>(data as Presupuesto | null, error)
+
+  if (!presupuesto) {
+    const { data: autData, error: autError } = await supabase
+      .from('presupuestos')
+      .select(PRES_COLUMNS)
+      .eq('org_id', orgId)
+      .eq('orden_trabajo_id', ordenTrabajoId)
+      .is('eliminado_en', null)
+      .eq('estado', 'autorizado')
+      .order('autorizado_en', { ascending: false, nullsFirst: false })
+      .limit(1)
+      .maybeSingle()
+    presupuesto = unwrapMaybe<Presupuesto>(autData as Presupuesto | null, autError)
+  }
+
   if (!presupuesto) return null
 
   const { data: itemsData, error: itemsError } = await supabase
