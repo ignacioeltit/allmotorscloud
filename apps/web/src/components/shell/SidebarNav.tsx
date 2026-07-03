@@ -153,6 +153,25 @@ export function SidebarNav({ pendientesCatalogo = 0, rolUsuario }: SidebarNavPro
       })}
 
       {canConfig && (() => {
+        const active = isActive('/settings/equipo')
+        return (
+          <Link
+            href="/settings/equipo"
+            className={`flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors ${
+              active
+                ? 'bg-black/[0.07] text-neutral-50'
+                : 'text-neutral-400 hover:bg-black/[0.04] hover:text-neutral-200'
+            }`}
+          >
+            <span className={active ? 'text-accent-400' : 'text-neutral-500'}>
+              <Icon name="users" />
+            </span>
+            Equipo
+          </Link>
+        )
+      })()}
+
+      {canConfig && (() => {
         const active = isActive('/settings/workshop')
         return (
           <Link
