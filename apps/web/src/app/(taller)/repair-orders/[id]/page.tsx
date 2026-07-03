@@ -16,12 +16,14 @@ import { getCitasActivasPorVehiculo } from '@/modules/agenda/queries'
 import { listMecanicosByOrg } from '@/modules/users/queries'
 import { getConfiguracionManoObra } from '@/modules/taller/queries'
 import { getOrganizacion } from '@/modules/org/queries'
+import { getEntregaByOT, getTotalesOT } from '@/modules/entregas/queries'
 import { load } from '@/lib/ui/load'
 import { Notice } from '@/components/ui/Notice'
 import { StatusBadge } from '@/components/ui/StatusBadge'
 import { OrdenTrabajoActions } from '@/components/repair-orders/OrdenTrabajoActions'
 import { KmIngresoInline } from '@/components/repair-orders/KmIngresoInline'
 import { DiagnosticoSection } from '@/components/repair-orders/DiagnosticoSection'
+import { EntregaSection } from '@/components/repair-orders/EntregaSection'
 import { TrabajosSection } from '@/components/repair-orders/TrabajosSection'
 import { PresupuestoSection } from '@/components/repair-orders/PresupuestoSection'
 import { card, sectionLabel, linkClass } from '@/components/ui/styles'
@@ -79,8 +81,12 @@ export default async function OrdenTrabajoDetailPage({
         getOrganizacion(supabase),
         getCitasActivasPorVehiculo(supabase, [orden.vehiculo_id]),
       ])
+    const [entrega, totales] = await Promise.all([
+      getEntregaByOT(supabase, orden.id),
+      getTotalesOT(supabase, orden.id),
+    ])
 
-    return { orden, vehiculo, cliente, eventos, historia, tipoEvento, tipoDiagnostico, reparaciones, presupuesto, mecanicos, configuracion, taller, citasActivas }
+    return { orden, vehiculo, cliente, eventos, historia, tipoEvento, tipoDiagnostico, reparaciones, presupuesto, mecanicos, configuracion, taller, citasActivas, entrega, totales }
   })
 
   if (!result.ok) {
@@ -100,7 +106,7 @@ export default async function OrdenTrabajoDetailPage({
     )
   }
 
-  const { orden, vehiculo, cliente, eventos, historia, tipoEvento, tipoDiagnostico, reparaciones, presupuesto, mecanicos, configuracion, taller, citasActivas } =
+  const { orden, vehiculo, cliente, eventos, historia, tipoEvento, tipoDiagnostico, reparaciones, presupuesto, mecanicos, configuracion, taller, citasActivas, entrega, totales } =
     result.data
 
   const diagnosticos = tipoDiagnostico
@@ -301,6 +307,14 @@ export default async function OrdenTrabajoDetailPage({
           </div>
         </section>
       )}
+
+      {/* ── Entrega y comprobante ── */}
+      <EntregaSection
+        ordenTrabajoId={orden.id}
+        estadoOT={orden.estado}
+        entrega={entrega}
+        totales={totales}
+      />
 
       {/* ── Historial de eventos ── */}
       <section>
