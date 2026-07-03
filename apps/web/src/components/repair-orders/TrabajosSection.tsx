@@ -901,11 +901,13 @@ interface TrabajoCardProps {
   mecanicos: MecanicoSimple[]
   configuracion: ConfiguracionManoObra
   onChanged: (hasPendiente?: boolean) => void
+  /** true cuando el trabajo recién se creó por el camino directo: la ficha abre sola. */
+  initialShowFicha?: boolean
 }
 
-function TrabajoCard({ reparacion, mecanicos, configuracion, onChanged }: TrabajoCardProps) {
+function TrabajoCard({ reparacion, mecanicos, configuracion, onChanged, initialShowFicha = false }: TrabajoCardProps) {
   const [showAddItem, setShowAddItem] = useState(false)
-  const [showFicha, setShowFicha] = useState(false)
+  const [showFicha, setShowFicha] = useState(initialShowFicha)
   const [deletingId, setDeletingId] = useState<string | null>(null)
   const [deleteError, setDeleteError] = useState<string | null>(null)
   const [asignando, setAsignando] = useState(false)
@@ -1070,6 +1072,8 @@ interface TrabajosSectionProps {
   initialReparaciones: ReparacionConItems[]
   mecanicos: MecanicoSimple[]
   configuracion: ConfiguracionManoObra
+  /** Motivo de ingreso de la OT — semilla del "Trabajo directo". */
+  motivoOT?: string | null
 }
 
 export function TrabajosSection({
@@ -1079,10 +1083,37 @@ export function TrabajosSection({
   initialReparaciones,
   mecanicos,
   configuracion,
+  motivoOT = null,
 }: TrabajosSectionProps) {
   const router = useRouter()
   const [showAddTrabajo, setShowAddTrabajo] = useState(false)
   const [pendientesCount, setPendientesCount] = useState(0)
+  const [creandoDirecto, setCreandoDirecto] = useState(false)
+  const [errorDirecto, setErrorDirecto] = useState<string | null>(null)
+  // Tras crear un trabajo directo, su ficha de líneas se abre sola.
+  const [fichaAbiertaId, setFichaAbiertaId] = useState<string | null>(null)
+
+  /** Camino rápido: cliente dicta el trabajo (sin diagnóstico ni presupuesto).
+   *  Crea la reparación con el motivo de ingreso y deja la ficha lista. */
+  async function crearTrabajoDirecto() {
+    if (!tipoEventoReparacionId) return
+    setCreandoDirecto(true)
+    setErrorDirecto(null)
+    try {
+      const rep = await crearReparacion(createClient(), {
+        ordenTrabajoId,
+        historiaId,
+        tipoEventoId: tipoEventoReparacionId,
+        descripcion: (motivoOT?.trim() || 'Trabajo solicitado por el cliente').slice(0, 200),
+      })
+      setFichaAbiertaId(rep.id)
+      router.refresh()
+    } catch (e) {
+      setErrorDirecto(e instanceof Error ? e.message : 'No se pudo crear el trabajo.')
+    } finally {
+      setCreandoDirecto(false)
+    }
+  }
 
   // Carga inicial del conteo de pendientes
   useEffect(() => {
@@ -1143,12 +1174,31 @@ export function TrabajosSection({
         />
       )}
 
-      {initialReparaciones.length === 0 && !showAddTrabajo && (
-        <p className="text-sm text-neutral-600">Sin trabajos registrados aún.</p>
+      {initialReparaciones.length === 0 && !showAddTrabajo && tipoEventoReparacionId && (
+        <div className="flex flex-wrap items-center gap-3 rounded-xl border border-accent-500/25 bg-accent-500/[0.06] px-4 py-3">
+          <p className="text-sm text-neutral-400">
+            ¿El cliente ya sabe lo que quiere (sin diagnóstico ni presupuesto)?
+          </p>
+          <button
+            onClick={() => void crearTrabajoDirecto()}
+            disabled={creandoDirecto}
+            className="inline-flex items-center gap-2 rounded-lg bg-accent-600 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-accent-500 disabled:opacity-50"
+          >
+            {creandoDirecto ? 'Creando…' : '⚡ Trabajo directo: cargar líneas'}
+          </button>
+          {errorDirecto && <p className="text-xs text-red-800">{errorDirecto}</p>}
+        </div>
       )}
 
       {initialReparaciones.map((rep) => (
-        <TrabajoCard key={rep.id} reparacion={rep} mecanicos={mecanicos} configuracion={configuracion} onChanged={refresh} />
+        <TrabajoCard
+          key={rep.id}
+          reparacion={rep}
+          mecanicos={mecanicos}
+          configuracion={configuracion}
+          onChanged={refresh}
+          initialShowFicha={rep.id === fichaAbiertaId}
+        />
       ))}
     </section>
   )

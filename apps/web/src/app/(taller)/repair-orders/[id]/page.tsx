@@ -249,6 +249,7 @@ export default async function OrdenTrabajoDetailPage({
         initialReparaciones={reparaciones}
         mecanicos={mecanicos}
         configuracion={configuracion}
+        motivoOT={orden.notas}
       />
 
       {/* ── Presupuesto (Client Component con formularios) ── */}
