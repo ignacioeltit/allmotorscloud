@@ -17,6 +17,7 @@ import type { CatalogoServicio } from '@/modules/catalogo/types'
 import { CATEGORIAS_CATALOGO, CATEGORIA_LABEL, CATEGORIA_COLOR } from '@/modules/catalogo/constants'
 import type { ConfiguracionManoObra } from '@/modules/taller/types'
 import { getValorHoraForServicio } from '@/modules/taller/helpers'
+import { FichaIngresoTrabajos } from './FichaIngresoTrabajos'
 import {
   card,
   sectionLabel,
@@ -904,6 +905,7 @@ interface TrabajoCardProps {
 
 function TrabajoCard({ reparacion, mecanicos, configuracion, onChanged }: TrabajoCardProps) {
   const [showAddItem, setShowAddItem] = useState(false)
+  const [showFicha, setShowFicha] = useState(false)
   const [deletingId, setDeletingId] = useState<string | null>(null)
   const [deleteError, setDeleteError] = useState<string | null>(null)
 
@@ -996,7 +998,19 @@ function TrabajoCard({ reparacion, mecanicos, configuracion, onChanged }: Trabaj
 
       {deleteError && <p className="text-xs text-red-700">{deleteError}</p>}
 
-      {showAddItem ? (
+      {showFicha ? (
+        <div className="rounded-lg border border-black/[0.08] bg-black/[0.02] p-4">
+          <div className="mb-3 flex items-center justify-between">
+            <p className="text-xs font-semibold uppercase tracking-wider text-neutral-500">Cargar líneas</p>
+            <button onClick={() => setShowFicha(false)} className={`${btnGhost} text-xs`}>Cerrar</button>
+          </div>
+          <FichaIngresoTrabajos
+            reparacionId={reparacion.id}
+            configuracion={configuracion}
+            onGuardado={(hasPendiente) => { setShowFicha(false); onChanged(hasPendiente) }}
+          />
+        </div>
+      ) : showAddItem ? (
         <AgregarItemForm
           reparacionId={reparacion.id}
           configuracion={configuracion}
@@ -1004,12 +1018,20 @@ function TrabajoCard({ reparacion, mecanicos, configuracion, onChanged }: Trabaj
           onCancel={() => setShowAddItem(false)}
         />
       ) : (
-        <button
-          onClick={() => setShowAddItem(true)}
-          className={`${btnGhost} text-xs`}
-        >
-          + Agregar ítem
-        </button>
+        <div className="flex flex-wrap gap-2">
+          <button
+            onClick={() => setShowFicha(true)}
+            className={`${btnGhost} text-xs`}
+          >
+            + Cargar líneas
+          </button>
+          <button
+            onClick={() => setShowAddItem(true)}
+            className={`${btnGhost} text-xs`}
+          >
+            + Ítem detallado
+          </button>
+        </div>
       )}
     </div>
   )
