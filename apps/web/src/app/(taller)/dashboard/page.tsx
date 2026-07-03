@@ -74,8 +74,27 @@ export default async function DashboardPage() {
     const citasActivas = await getCitasActivasPorVehiculo(supabase, vehiculosConAgendar)
 
     const enTaller = rows.filter((r) => !FUERA_TALLER.includes(r.estado))
+
+    // Mecánicos trabajando en cada OT visible (desde los trabajos asignados).
+    const mecanicosPorOt: Record<string, string[]> = {}
+    if (enTaller.length > 0) {
+      const { data: repData } = await supabase
+        .from('reparaciones')
+        .select('orden_trabajo_id, mecanico:usuarios!mecanico_id(nombre)')
+        .eq('org_id', orgId)
+        .in('orden_trabajo_id', enTaller.map((r) => r.id))
+        .not('mecanico_id', 'is', null)
+      type RepRow = { orden_trabajo_id: string; mecanico: { nombre: string } | null }
+      for (const r of (repData ?? []) as unknown as RepRow[]) {
+        if (!r.mecanico?.nombre) continue
+        const lista = (mecanicosPorOt[r.orden_trabajo_id] ??= [])
+        if (!lista.includes(r.mecanico.nombre)) lista.push(r.mecanico.nombre)
+      }
+    }
+
     return {
       enTaller,
+      mecanicosPorOt,
       cotizacionesRespondidas,
       citasActivas,
       metrics: {
@@ -101,7 +120,7 @@ export default async function DashboardPage() {
     )
   }
 
-  const { metrics, enTaller, cotizacionesRespondidas, citasActivas } = result.data
+  const { metrics, enTaller, mecanicosPorOt, cotizacionesRespondidas, citasActivas } = result.data
   const citaDe = (c: (typeof cotizacionesRespondidas)[number]) =>
     c.vehiculo_id ? citasActivas[c.vehiculo_id] ?? null : null
   const pidenAgendar = cotizacionesRespondidas.filter(
@@ -227,6 +246,11 @@ export default async function DashboardPage() {
                 <p className="mt-1 text-sm text-neutral-400">
                   {ot.vehiculos ? `${ot.vehiculos.marca} ${ot.vehiculos.modelo}` : '—'}
                 </p>
+                {(mecanicosPorOt[ot.id]?.length ?? 0) > 0 && (
+                  <p className="mt-2 inline-flex items-center gap-1.5 rounded-md border border-sky-500/20 bg-sky-500/10 px-2 py-0.5 text-xs font-medium text-sky-800">
+                    🔧 {mecanicosPorOt[ot.id]!.join(', ')}
+                  </p>
+                )}
                 <p className="mt-3 text-xs text-neutral-600">
                   {ot.numero_ot} · {new Date(ot.creado_en).toLocaleDateString('es-CL')}
                 </p>
