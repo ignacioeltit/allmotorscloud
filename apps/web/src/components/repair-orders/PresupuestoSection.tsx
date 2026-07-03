@@ -1,140 +1,21 @@
 'use client'
 
-import { useState, useTransition } from 'react'
+// Presupuesto de una OT. Las líneas se cargan con la misma ficha de ingreso por
+// lotes que usan las cotizaciones (FichaIngresoLineas: materiales / mano de obra /
+// otros, con búsqueda en catálogo y paquetes) — antes había un formulario de un
+// ítem a la vez.
+
+import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
-import { crearPresupuesto, addItemPresupuesto, enviarPresupuesto } from '@/modules/estimates/mutations'
-import { TIPOS_ITEM_PRESUPUESTO, ESTADO_PRESUPUESTO_LABEL } from '@/modules/estimates/constants'
+import { crearPresupuesto, enviarPresupuesto } from '@/modules/estimates/mutations'
+import { ESTADO_PRESUPUESTO_LABEL, TIPO_ITEM_LABEL } from '@/modules/estimates/constants'
 import type { PresupuestoConItems } from '@/modules/estimates/types'
-import {
-  card,
-  sectionLabel,
-  inputClass,
-  labelClass,
-  btnPrimary,
-  btnSecondary,
-  btnGhost,
-} from '@/components/ui/styles'
+import { FichaIngresoLineas } from '@/components/estimates/FichaIngresoLineas'
+import { card, sectionLabel, btnPrimary, btnSecondary, btnGhost } from '@/components/ui/styles'
 
 function fmtCLP(n: number): string {
   return n.toLocaleString('es-CL', { style: 'currency', currency: 'CLP', maximumFractionDigits: 0 })
-}
-
-interface AgregarItemPresupuestoFormProps {
-  presupuestoId: string
-  onDone: () => void
-  onCancel: () => void
-}
-
-function AgregarItemPresupuestoForm({ presupuestoId, onDone, onCancel }: AgregarItemPresupuestoFormProps) {
-  const [tipo, setTipo] = useState<'mano_obra' | 'repuesto'>('mano_obra')
-  const [descripcion, setDescripcion] = useState('')
-  const [cantidad, setCantidad] = useState('1')
-  const [precioUnitario, setPrecioUnitario] = useState('')
-  const [descuento, setDescuento] = useState('0')
-  const [error, setError] = useState<string | null>(null)
-  const [pending, startTransition] = useTransition()
-
-  function submit(e: React.FormEvent) {
-    e.preventDefault()
-    const cantNum = parseFloat(cantidad)
-    const precioNum = parseFloat(precioUnitario)
-    const descNum = parseFloat(descuento) || 0
-    if (!descripcion.trim() || isNaN(cantNum) || cantNum <= 0 || isNaN(precioNum) || precioNum < 0) {
-      setError('Completa todos los campos correctamente.')
-      return
-    }
-    setError(null)
-    startTransition(async () => {
-      try {
-        const supabase = createClient()
-        await addItemPresupuesto(supabase, {
-          presupuestoId,
-          tipo,
-          descripcion: descripcion.trim(),
-          cantidad: cantNum,
-          precioUnitario: precioNum,
-          descuentoPorcentaje: descNum,
-        })
-        onDone()
-      } catch (e) {
-        setError(e instanceof Error ? e.message : 'Error al agregar ítem.')
-      }
-    })
-  }
-
-  return (
-    <form onSubmit={submit} className="mt-3 rounded-lg border border-white/[0.06] bg-neutral-950/40 p-4">
-      <p className="mb-3 text-xs font-semibold uppercase tracking-wider text-neutral-400">Nuevo ítem</p>
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-        <div>
-          <label className={labelClass}>Tipo</label>
-          <select className={inputClass} value={tipo} onChange={(e) => setTipo(e.target.value as typeof tipo)} disabled={pending}>
-            {TIPOS_ITEM_PRESUPUESTO.map((t) => (
-              <option key={t} value={t}>{t === 'mano_obra' ? 'Mano de obra' : 'Repuesto / material'}</option>
-            ))}
-          </select>
-        </div>
-        <div className="sm:col-span-2">
-          <label className={labelClass}>Descripción</label>
-          <input
-            className={inputClass}
-            placeholder="ej: Cambio de batería 90AMP"
-            value={descripcion}
-            onChange={(e) => setDescripcion(e.target.value)}
-            disabled={pending}
-          />
-        </div>
-        <div>
-          <label className={labelClass}>Cantidad</label>
-          <input
-            className={inputClass}
-            type="number"
-            min="0.001"
-            step="any"
-            value={cantidad}
-            onChange={(e) => setCantidad(e.target.value)}
-            disabled={pending}
-          />
-        </div>
-        <div>
-          <label className={labelClass}>Precio unitario (CLP)</label>
-          <input
-            className={inputClass}
-            type="number"
-            min="0"
-            step="1"
-            placeholder="0"
-            value={precioUnitario}
-            onChange={(e) => setPrecioUnitario(e.target.value)}
-            disabled={pending}
-          />
-        </div>
-        <div>
-          <label className={labelClass}>Descuento (%)</label>
-          <input
-            className={inputClass}
-            type="number"
-            min="0"
-            max="100"
-            step="1"
-            value={descuento}
-            onChange={(e) => setDescuento(e.target.value)}
-            disabled={pending}
-          />
-        </div>
-      </div>
-      {error && <p className="mt-2 text-xs text-red-400">{error}</p>}
-      <div className="mt-3 flex gap-2">
-        <button type="submit" className={btnPrimary} disabled={pending}>
-          {pending ? 'Guardando…' : 'Agregar ítem'}
-        </button>
-        <button type="button" className={btnSecondary} onClick={onCancel} disabled={pending}>
-          Cancelar
-        </button>
-      </div>
-    </form>
-  )
 }
 
 interface PresupuestoSectionProps {
@@ -216,7 +97,7 @@ export function PresupuestoSection({ ordenTrabajoId, initialPresupuesto }: Presu
             >
               <div className="min-w-0">
                 <span className="mr-2 rounded-full border border-white/[0.06] bg-white/[0.04] px-2 py-0.5 text-[10px] text-neutral-500">
-                  {item.tipo === 'mano_obra' ? 'Mano de obra' : 'Repuesto'}
+                  {TIPO_ITEM_LABEL[item.tipo] ?? item.tipo}
                 </span>
                 <span className="text-neutral-300">{item.descripcion}</span>
                 {item.cantidad !== 1 && (
@@ -234,6 +115,12 @@ export function PresupuestoSection({ ordenTrabajoId, initialPresupuesto }: Presu
             <span className="text-neutral-500">Repuestos</span>
             <span className="text-neutral-300">{fmtCLP(p.total_repuestos)}</span>
           </div>
+          {p.total_otros > 0 && (
+            <div className="flex justify-between text-sm">
+              <span className="text-neutral-500">Otros</span>
+              <span className="text-neutral-300">{fmtCLP(p.total_otros)}</span>
+            </div>
+          )}
           <div className="flex justify-between text-sm font-semibold">
             <span className="text-neutral-400">Total neto</span>
             <span className="text-neutral-100">{fmtCLP(p.total_neto)}</span>
@@ -248,15 +135,25 @@ export function PresupuestoSection({ ordenTrabajoId, initialPresupuesto }: Presu
 
       {esBorrador && (
         showAddItem ? (
-          <AgregarItemPresupuestoForm
-            presupuestoId={p.id}
-            onDone={() => { setShowAddItem(false); refresh() }}
-            onCancel={() => setShowAddItem(false)}
-          />
+          <div className="rounded-lg border border-black/[0.08] bg-black/[0.02] p-4">
+            <div className="mb-3 flex items-center justify-between">
+              <p className="text-xs font-semibold uppercase tracking-wider text-neutral-500">Cargar líneas</p>
+              <button onClick={() => setShowAddItem(false)} className={`${btnGhost} text-xs`}>
+                Cerrar
+              </button>
+            </div>
+            <FichaIngresoLineas
+              presupuestoId={p.id}
+              onGuardado={() => {
+                setShowAddItem(false)
+                refresh()
+              }}
+            />
+          </div>
         ) : (
           <div className="flex gap-2">
             <button onClick={() => setShowAddItem(true)} className={`${btnGhost} text-xs`}>
-              + Agregar ítem
+              + Cargar líneas
             </button>
             {p.items.length > 0 && (
               <button onClick={() => void enviar()} disabled={enviando} className={`${btnSecondary} text-xs`}>
