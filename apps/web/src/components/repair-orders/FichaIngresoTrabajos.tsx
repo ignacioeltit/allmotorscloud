@@ -20,6 +20,7 @@ import type { ConfiguracionManoObra } from '@/modules/taller/types'
 import { getValorHoraForServicio } from '@/modules/taller/helpers'
 import { toErrorMessage } from '@/lib/ui/error-message'
 import { btnPrimary, btnGhost } from '@/components/ui/styles'
+import { FloatingDropdown } from '@/components/ui/FloatingDropdown'
 
 const FILAS_INICIALES = 5
 
@@ -94,11 +95,15 @@ function CeldaBuscador({
   const [repuestos, setRepuestos] = useState<RepuestoResumen[]>([])
   const [servicios, setServicios] = useState<CatalogoServicio[]>([])
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null)
-  const wrapRef = useRef<HTMLDivElement | null>(null)
+  const inputRef = useRef<HTMLInputElement | null>(null)
+  const panelRef = useRef<HTMLDivElement | null>(null)
 
   useEffect(() => {
     function fuera(e: MouseEvent) {
-      if (wrapRef.current && !wrapRef.current.contains(e.target as Node)) setAbierto(false)
+      const t = e.target as Node
+      if (inputRef.current?.contains(t)) return
+      if (panelRef.current?.contains(t)) return
+      setAbierto(false)
     }
     document.addEventListener('mousedown', fuera)
     return () => document.removeEventListener('mousedown', fuera)
@@ -131,54 +136,53 @@ function CeldaBuscador({
   }
 
   return (
-    <div ref={wrapRef} className="relative">
+    <>
       <input
+        ref={inputRef}
         className={inputCell}
         placeholder={placeholder}
         value={value}
         onChange={(e) => onChange(e.target.value)}
       />
-      {abierto && (
-        <div className="absolute left-0 top-full z-20 mt-1 w-full min-w-72 overflow-hidden rounded-lg border border-black/10 bg-neutral-900 shadow-xl shadow-black/20">
-          <ul className="max-h-60 overflow-auto">
-            {grupo === 'repuesto'
-              ? repuestos.map((r) => (
-                  <li key={r.id}>
-                    <button
-                      type="button"
-                      onClick={() => { onPickRepuesto(r); setAbierto(false) }}
-                      className="flex w-full items-center justify-between gap-2 px-3 py-2 text-left text-sm transition-colors hover:bg-black/[0.04]"
-                    >
-                      <span className="min-w-0 truncate text-neutral-200">
-                        {r.nombre}
-                        {r.marca && <span className="text-neutral-500"> — {r.marca}</span>}
-                      </span>
-                      <span className="shrink-0 text-xs text-neutral-500">
-                        {r.precio_venta != null ? fmtCLP(r.precio_venta) : '—'} · stock {r.stock_actual}
-                      </span>
-                    </button>
-                  </li>
-                ))
-              : servicios.map((s) => (
-                  <li key={s.id}>
-                    <button
-                      type="button"
-                      onClick={() => { onPickServicio(s); setAbierto(false) }}
-                      className="flex w-full items-center justify-between gap-2 px-3 py-2 text-left text-sm transition-colors hover:bg-black/[0.04]"
-                    >
-                      <span className="min-w-0 truncate text-neutral-200">{s.nombre}</span>
-                      <span className="shrink-0 text-xs text-neutral-500">
-                        {s.unidad_precio === 'hora' && s.horas_estandar != null
-                          ? `${s.horas_estandar} h`
-                          : fmtCLP(s.precio_unitario)}
-                      </span>
-                    </button>
-                  </li>
-                ))}
-          </ul>
-        </div>
-      )}
-    </div>
+      <FloatingDropdown anchorRef={inputRef} panelRef={panelRef} open={abierto}>
+        <ul className="max-h-60 overflow-auto">
+          {grupo === 'repuesto'
+            ? repuestos.map((r) => (
+                <li key={r.id}>
+                  <button
+                    type="button"
+                    onClick={() => { onPickRepuesto(r); setAbierto(false) }}
+                    className="flex w-full items-center justify-between gap-2 px-3 py-2 text-left text-sm transition-colors hover:bg-black/[0.04]"
+                  >
+                    <span className="min-w-0 truncate text-neutral-200">
+                      {r.nombre}
+                      {r.marca && <span className="text-neutral-500"> — {r.marca}</span>}
+                    </span>
+                    <span className="shrink-0 text-xs text-neutral-500">
+                      {r.precio_venta != null ? fmtCLP(r.precio_venta) : '—'} · stock {r.stock_actual}
+                    </span>
+                  </button>
+                </li>
+              ))
+            : servicios.map((s) => (
+                <li key={s.id}>
+                  <button
+                    type="button"
+                    onClick={() => { onPickServicio(s); setAbierto(false) }}
+                    className="flex w-full items-center justify-between gap-2 px-3 py-2 text-left text-sm transition-colors hover:bg-black/[0.04]"
+                  >
+                    <span className="min-w-0 truncate text-neutral-200">{s.nombre}</span>
+                    <span className="shrink-0 text-xs text-neutral-500">
+                      {s.unidad_precio === 'hora' && s.horas_estandar != null
+                        ? `${s.horas_estandar} h`
+                        : fmtCLP(s.precio_unitario)}
+                    </span>
+                  </button>
+                </li>
+              ))}
+        </ul>
+      </FloatingDropdown>
+    </>
   )
 }
 

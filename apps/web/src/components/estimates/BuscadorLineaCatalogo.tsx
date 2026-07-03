@@ -3,11 +3,17 @@
 // Input de descripción con autocompletado desde el catálogo. Según el grupo,
 // busca en servicios (mano de obra) o en repuestos (materiales). Al elegir una
 // sugerencia, rellena descripción + precio. Permite texto libre si no hay match.
+//
+// El listado se renderiza en un FloatingDropdown (portal a document.body) en
+// vez de un <div absolute> normal: dentro de la ficha de ingreso este input
+// vive en una celda de tabla envuelta en overflow-x-auto, y un absolute ahí
+// queda recortado/inclicable (overflow-x fuerza overflow-y a 'auto' por spec).
 
 import { useEffect, useRef, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { searchRepuestos } from '@/modules/inventory/queries'
 import { buscarServiciosCatalogo } from '@/modules/catalogo/queries'
+import { FloatingDropdown } from '@/components/ui/FloatingDropdown'
 
 export interface SugerenciaCatalogo {
   descripcion: string
@@ -52,11 +58,15 @@ export function BuscadorLineaCatalogo({
   const [sugerencias, setSugerencias] = useState<SugerenciaCatalogo[]>([])
   const [buscando, setBuscando] = useState(false)
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null)
-  const boxRef = useRef<HTMLDivElement | null>(null)
+  const inputRef = useRef<HTMLInputElement | null>(null)
+  const panelRef = useRef<HTMLDivElement | null>(null)
 
   useEffect(() => {
     function onDocClick(e: MouseEvent) {
-      if (boxRef.current && !boxRef.current.contains(e.target as Node)) setAbierto(false)
+      const t = e.target as Node
+      if (inputRef.current?.contains(t)) return
+      if (panelRef.current?.contains(t)) return
+      setAbierto(false)
     }
     document.addEventListener('mousedown', onDocClick)
     return () => document.removeEventListener('mousedown', onDocClick)
@@ -86,8 +96,9 @@ export function BuscadorLineaCatalogo({
   }
 
   return (
-    <div ref={boxRef} className="relative">
+    <>
       <input
+        ref={inputRef}
         className={className}
         placeholder={placeholder}
         value={value}
@@ -95,8 +106,8 @@ export function BuscadorLineaCatalogo({
         onFocus={() => { if (sugerencias.length > 0) setAbierto(true) }}
         autoComplete="off"
       />
-      {abierto && (
-        <ul className="absolute left-0 right-0 top-full z-20 mt-1 max-h-60 overflow-auto rounded-lg border border-black/10 bg-neutral-900 shadow-xl shadow-black/20">
+      <FloatingDropdown anchorRef={inputRef} panelRef={panelRef} open={abierto}>
+        <ul className="max-h-60 overflow-auto">
           {sugerencias.map((s, i) => (
             <li key={i}>
               <button
@@ -122,7 +133,7 @@ export function BuscadorLineaCatalogo({
           ))}
           {buscando && <li className="px-3 py-2 text-xs text-neutral-500">Buscando…</li>}
         </ul>
-      )}
-    </div>
+      </FloatingDropdown>
+    </>
   )
 }
