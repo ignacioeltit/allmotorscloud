@@ -111,6 +111,24 @@ export async function addItemReparacion(
   return unwrapWritten<ItemReparacion>(data, error)
 }
 
+/** Asigna (o cambia/quita) el mecánico responsable de un trabajo ya creado. */
+export async function asignarMecanicoReparacion(
+  supabase: DbClient,
+  reparacionId: string,
+  mecanicoId: string | null,
+): Promise<void> {
+  const { orgId } = await getAuthContext(supabase)
+
+  const { data, error } = await supabase
+    .from('reparaciones')
+    .update({ mecanico_id: mecanicoId })
+    .eq('org_id', orgId)
+    .eq('id', reparacionId)
+    .select('id')
+
+  unwrapWritten<{ id: string }>(data, error)
+}
+
 /** Soft-delete de un ítem de reparación. */
 export async function softDeleteItemReparacion(supabase: DbClient, itemId: string): Promise<void> {
   const { error } = await supabase.rpc('soft_delete', {

@@ -3,7 +3,7 @@
 import { useState, useTransition, useEffect, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
-import { crearReparacion, addItemReparacion, softDeleteItemReparacion } from '@/modules/reparaciones/mutations'
+import { crearReparacion, addItemReparacion, softDeleteItemReparacion, asignarMecanicoReparacion } from '@/modules/reparaciones/mutations'
 import { TIPOS_ITEM_REPARACION, TIPOS_ITEM_LABEL } from '@/modules/reparaciones/constants'
 import type { ReparacionConItems, ItemReparacion } from '@/modules/reparaciones/types'
 import type { MecanicoSimple } from '@/modules/users/types'
@@ -908,6 +908,21 @@ function TrabajoCard({ reparacion, mecanicos, configuracion, onChanged }: Trabaj
   const [showFicha, setShowFicha] = useState(false)
   const [deletingId, setDeletingId] = useState<string | null>(null)
   const [deleteError, setDeleteError] = useState<string | null>(null)
+  const [asignando, setAsignando] = useState(false)
+  const [asignarError, setAsignarError] = useState<string | null>(null)
+
+  async function asignarMecanico(mecanicoId: string | null) {
+    setAsignando(true)
+    setAsignarError(null)
+    try {
+      await asignarMecanicoReparacion(createClient(), reparacion.id, mecanicoId)
+      onChanged()
+    } catch (e) {
+      setAsignarError(e instanceof Error ? e.message : 'No se pudo asignar.')
+    } finally {
+      setAsignando(false)
+    }
+  }
 
   async function eliminarItem(itemId: string) {
     setDeletingId(itemId)
@@ -942,14 +957,25 @@ function TrabajoCard({ reparacion, mecanicos, configuracion, onChanged }: Trabaj
               year: 'numeric',
             })}
           </p>
-          {reparacion.mecanico_id && (() => {
-            const m = mecanicos.find((x) => x.id === reparacion.mecanico_id)
-            return m ? (
-              <span className="rounded-full border border-sky-500/20 bg-sky-500/10 px-2 py-0.5 text-[10px] font-medium text-sky-700">
-                {m.nombre}
-              </span>
-            ) : null
-          })()}
+          {mecanicos.length > 0 && (
+            <label className="flex items-center gap-1.5 text-[11px] text-neutral-500">
+              Mecánico:
+              <select
+                value={reparacion.mecanico_id ?? ''}
+                disabled={asignando}
+                onChange={(e) => void asignarMecanico(e.target.value || null)}
+                className="rounded-md border border-black/10 bg-white px-2 py-1 text-xs text-neutral-700 outline-none focus:border-accent-500 disabled:opacity-50"
+                aria-label="Mecánico asignado"
+              >
+                <option value="">Sin asignar</option>
+                {mecanicos.map((m) => (
+                  <option key={m.id} value={m.id}>{m.nombre}</option>
+                ))}
+              </select>
+              {asignando && <span>guardando…</span>}
+            </label>
+          )}
+          {asignarError && <span className="text-[11px] text-red-700">{asignarError}</span>}
         </div>
       </div>
 
