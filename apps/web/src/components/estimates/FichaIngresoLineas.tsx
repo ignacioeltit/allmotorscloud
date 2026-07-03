@@ -174,8 +174,10 @@ export function FichaIngresoLineas({
       const lineas = await expandirPlantilla(createClient(), pl)
       const mo = lineas.filter((l) => l.grupo === 'mano_obra').map(expandidaALinea)
       const mat = lineas.filter((l) => l.grupo === 'repuesto').map(expandidaALinea)
+      const otr = lineas.filter((l) => l.grupo === 'otros').map(expandidaALinea)
       if (mo.length) setManoObra((prev) => [...prev.filter(tieneContenido), ...mo])
       if (mat.length) setMateriales((prev) => [...prev.filter(tieneContenido), ...mat])
+      if (otr.length) setOtros((prev) => [...prev.filter(tieneContenido), ...otr])
     } catch (e) {
       setError(toErrorMessage(e))
     }
@@ -297,6 +299,12 @@ function PaquetePicker({ onElegir }: { onElegir: (p: PlantillaResumen) => void }
               ))}
             </ul>
           )}
+          <a
+            href="/catalogo/paquetes"
+            className="block border-t border-black/[0.06] px-3 py-2 text-xs font-medium text-accent-400 transition-colors hover:bg-black/[0.04]"
+          >
+            ⚙ Administrar paquetes →
+          </a>
         </div>
       )}
     </div>

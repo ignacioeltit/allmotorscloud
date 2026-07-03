@@ -14,10 +14,30 @@ export interface PlantillaResumen {
 }
 
 export interface LineaExpandida {
-  grupo: 'mano_obra' | 'repuesto'
+  grupo: 'mano_obra' | 'repuesto' | 'otros'
   descripcion: string
   cantidad: number
   precio: number
+}
+
+/** Fila de items_plantilla para la pantalla de administración. */
+export interface ItemPlantilla {
+  id: string
+  tipo: 'labor' | 'material' | 'other'
+  nombre: string
+  cantidad: number
+  precio_unitario: number | null
+  es_cabecera: boolean
+  es_checklist: boolean
+  orden: number
+}
+
+/** Paquete con metadatos para administración (incluye inactivos). */
+export interface PlantillaAdmin extends PlantillaResumen {
+  descripcion: string | null
+  categoria: string | null
+  activo: boolean
+  n_items: number
 }
 
 const PLANTILLA_COLUMNS = 'id, codigo, nombre, tipo_precio, precio_cabecera'
@@ -53,6 +73,53 @@ export async function buscarPlantillas(
     .map(({ items_plantilla: _items_plantilla, ...rest }) => rest)
 }
 
+/** Lista TODOS los paquetes (incluye inactivos y vacíos) para la administración. */
+export async function listPlantillasAdmin(supabase: DbClient): Promise<PlantillaAdmin[]> {
+  const { orgId } = await getAuthContext(supabase)
+
+  const { data, error } = await supabase
+    .from('plantillas_trabajo')
+    .select(PLANTILLA_COLUMNS + ', descripcion, categoria, activo, items_plantilla(count)')
+    .eq('org_id', orgId)
+    .is('eliminado_en', null)
+    .order('nombre')
+
+  type Row = Omit<PlantillaAdmin, 'n_items'> & { items_plantilla: { count: number }[] }
+  const rows = unwrapList<Row>(data as Row[] | null, error)
+  return rows.map(({ items_plantilla, ...rest }) => ({
+    ...rest,
+    n_items: items_plantilla?.[0]?.count ?? 0,
+  }))
+}
+
+/** Un paquete con todos sus ítems, para el detalle de administración. */
+export async function getPlantillaConItems(
+  supabase: DbClient,
+  id: string,
+): Promise<{ plantilla: PlantillaAdmin; items: ItemPlantilla[] } | null> {
+  const { orgId } = await getAuthContext(supabase)
+
+  const { data, error } = await supabase
+    .from('plantillas_trabajo')
+    .select(PLANTILLA_COLUMNS + ', descripcion, categoria, activo')
+    .eq('org_id', orgId)
+    .eq('id', id)
+    .is('eliminado_en', null)
+    .maybeSingle()
+  if (error) throw new Error(error.message)
+  if (!data) return null
+
+  const { data: itemsData, error: itemsError } = await supabase
+    .from('items_plantilla')
+    .select('id, tipo, nombre, cantidad, precio_unitario, es_cabecera, es_checklist, orden')
+    .eq('plantilla_id', id)
+    .order('orden', { ascending: true })
+  const items = unwrapList<ItemPlantilla>(itemsData as ItemPlantilla[] | null, itemsError)
+
+  const p = data as unknown as Omit<PlantillaAdmin, 'n_items'>
+  return { plantilla: { ...p, n_items: items.length }, items }
+}
+
 /**
  * Expande un paquete en líneas listas para el presupuesto: cada ítem del
  * paquete como línea (labor → mano de obra, otro → repuesto/insumo), para que
@@ -85,7 +152,12 @@ export async function expandirPlantilla(
   const detalle: LineaExpandida[] = items
     .filter((it) => !it.es_cabecera)
     .map((it) => ({
-      grupo: it.tipo === 'labor' || it.tipo === 'mano_obra' ? 'mano_obra' : 'repuesto',
+      grupo:
+        it.tipo === 'labor' || it.tipo === 'mano_obra'
+          ? ('mano_obra' as const)
+          : it.tipo === 'other' || it.tipo === 'otros'
+            ? ('otros' as const)
+            : ('repuesto' as const),
       descripcion: it.nombre,
       cantidad: it.cantidad ?? 1,
       precio: it.precio_unitario ?? 0,

@@ -100,6 +100,10 @@ export default async function CatalogoPage({ searchParams }: Props) {
           <h1 className="text-xl font-semibold text-neutral-50">Catálogo de Servicios</h1>
           <p className="mt-0.5 text-sm text-neutral-500">
             {total} {total === 1 ? 'servicio activo' : 'servicios activos'}
+            {' · '}
+            <Link href="/catalogo/paquetes" className="text-accent-400 hover:text-accent-300">
+              Administrar paquetes →
+            </Link>
           </p>
         </div>
         {canSeePendientes && pendientesCount > 0 && (
