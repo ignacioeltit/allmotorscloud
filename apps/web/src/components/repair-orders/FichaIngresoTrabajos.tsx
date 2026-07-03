@@ -23,7 +23,9 @@ import { btnPrimary, btnGhost } from '@/components/ui/styles'
 
 const FILAS_INICIALES = 5
 
-type Grupo = 'repuesto' | 'mano_obra'
+type Grupo = 'repuesto' | 'mano_obra' | 'otros'
+/** Grupos con autocompletado (otros es texto libre). */
+type GrupoBuscable = 'repuesto' | 'mano_obra'
 
 /** Metadatos de un pick del inventario (se pierden si se edita la descripción a mano). */
 interface MetaRepuesto {
@@ -81,7 +83,7 @@ function CeldaBuscador({
   onPickRepuesto,
   onPickServicio,
 }: {
-  grupo: Grupo
+  grupo: GrupoBuscable
   value: string
   placeholder?: string
   onChangeText: (text: string) => void
@@ -252,14 +254,23 @@ function GrillaTrabajos({
             {lineas.map((l, i) => (
               <tr key={i} className="border-b border-black/[0.03] last:border-0">
                 <td className="px-2 py-1.5">
-                  <CeldaBuscador
-                    grupo={grupo}
-                    value={l.descripcion}
-                    placeholder={i === 0 ? (grupo === 'repuesto' ? 'Buscar en inventario o escribir…' : 'Buscar en catálogo o escribir…') : ''}
-                    onChangeText={(text) => set(i, { descripcion: text, repuesto: null, servicio: null })}
-                    onPickRepuesto={(r) => pickRepuesto(i, r)}
-                    onPickServicio={(s) => pickServicio(i, s)}
-                  />
+                  {grupo === 'otros' ? (
+                    <input
+                      className={inputCell}
+                      placeholder={i === 0 ? 'Ej: Insumos, gestión, traslado…' : ''}
+                      value={l.descripcion}
+                      onChange={(e) => set(i, { descripcion: e.target.value })}
+                    />
+                  ) : (
+                    <CeldaBuscador
+                      grupo={grupo}
+                      value={l.descripcion}
+                      placeholder={i === 0 ? (grupo === 'repuesto' ? 'Buscar en inventario o escribir…' : 'Buscar en catálogo o escribir…') : ''}
+                      onChangeText={(text) => set(i, { descripcion: text, repuesto: null, servicio: null })}
+                      onPickRepuesto={(r) => pickRepuesto(i, r)}
+                      onPickServicio={(s) => pickServicio(i, s)}
+                    />
+                  )}
                 </td>
                 <td className="px-2 py-1.5">
                   <input type="number" min="0" step="any" className={inputCell} value={l.cantidad} onChange={(e) => set(i, { cantidad: e.target.value })} />
@@ -307,12 +318,14 @@ export function FichaIngresoTrabajos({
 }) {
   const [materiales, setMateriales] = useState<LineaT[]>(() => Array.from({ length: FILAS_INICIALES }, filaVacia))
   const [manoObra, setManoObra] = useState<LineaT[]>(() => Array.from({ length: FILAS_INICIALES }, filaVacia))
+  const [otros, setOtros] = useState<LineaT[]>(() => Array.from({ length: FILAS_INICIALES }, filaVacia))
   const [error, setError] = useState<string | null>(null)
   const [pending, startTransition] = useTransition()
 
   const conDatos = [
     ...materiales.filter(tieneContenido).map((l) => ({ tipo: 'repuesto' as const, linea: l })),
     ...manoObra.filter(tieneContenido).map((l) => ({ tipo: 'mano_obra' as const, linea: l })),
+    ...otros.filter(tieneContenido).map((l) => ({ tipo: 'otros' as const, linea: l })),
   ]
   const totalGeneral = conDatos.reduce((acc, { linea }) => acc + totalLinea(linea), 0)
 
@@ -381,6 +394,7 @@ export function FichaIngresoTrabajos({
     <div className="space-y-6">
       <GrillaTrabajos titulo="Materiales / Repuestos" labelCantidad="Cantidad" grupo="repuesto" lineas={materiales} setLineas={setMateriales} configuracion={configuracion} />
       <GrillaTrabajos titulo="Mano de obra" labelCantidad="Horas" grupo="mano_obra" lineas={manoObra} setLineas={setManoObra} configuracion={configuracion} />
+      <GrillaTrabajos titulo="Otros" labelCantidad="Cantidad" grupo="otros" lineas={otros} setLineas={setOtros} configuracion={configuracion} />
 
       {error && <p className="text-xs text-red-800">{error}</p>}
 

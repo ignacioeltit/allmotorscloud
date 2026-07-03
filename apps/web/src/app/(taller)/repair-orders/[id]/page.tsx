@@ -103,13 +103,15 @@ export default async function OrdenTrabajoDetailPage({
   // Totales desde reparaciones cargadas (evita un query extra)
   let totalMO = 0
   let totalRep = 0
+  let totalOtros = 0
   for (const rep of reparaciones) {
     for (const item of rep.items) {
       if (item.tipo === 'mano_obra') totalMO += item.costo_total
+      else if (item.tipo === 'otros') totalOtros += item.costo_total
       else totalRep += item.costo_total
     }
   }
-  const totalOT = totalMO + totalRep
+  const totalOT = totalMO + totalRep + totalOtros
 
   return (
     <div className="space-y-6">
@@ -223,7 +225,7 @@ export default async function OrdenTrabajoDetailPage({
       {totalOT > 0 && (
         <section className="rounded-xl border border-black/[0.06] bg-neutral-900/30 px-5 py-4">
           <p className={`${sectionLabel} mb-3`}>Totales de trabajos</p>
-          <div className="grid grid-cols-3 gap-4">
+          <div className={`grid gap-4 ${totalOtros > 0 ? 'grid-cols-4' : 'grid-cols-3'}`}>
             <div>
               <p className="text-[11px] text-neutral-600 uppercase tracking-wider">Mano de obra</p>
               <p className="mt-0.5 text-sm font-semibold text-neutral-200">{fmtCLP(totalMO)}</p>
@@ -232,6 +234,12 @@ export default async function OrdenTrabajoDetailPage({
               <p className="text-[11px] text-neutral-600 uppercase tracking-wider">Repuestos</p>
               <p className="mt-0.5 text-sm font-semibold text-neutral-200">{fmtCLP(totalRep)}</p>
             </div>
+            {totalOtros > 0 && (
+              <div>
+                <p className="text-[11px] text-neutral-600 uppercase tracking-wider">Otros</p>
+                <p className="mt-0.5 text-sm font-semibold text-neutral-200">{fmtCLP(totalOtros)}</p>
+              </div>
+            )}
             <div>
               <p className="text-[11px] text-neutral-600 uppercase tracking-wider">Total</p>
               <p className="mt-0.5 text-base font-bold text-accent-400">{fmtCLP(totalOT)}</p>
