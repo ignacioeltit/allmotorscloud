@@ -12,6 +12,7 @@ const items = [
   { href: '/estimates',   label: 'Presupuestos', icon: 'file' },
   { href: '/inventory',   label: 'Inventario',   icon: 'package' },
   { href: '/catalogo',    label: 'Catálogo',     icon: 'catalog' },
+  { href: '/catalogo/paquetes', label: 'Paquetes', icon: 'layers' },
 ] as const
 
 function Icon({ name }: { name: string }) {
@@ -32,6 +33,14 @@ function Icon({ name }: { name: string }) {
         <rect x="14" y="3" width="7" height="7" rx="1.5" />
         <rect x="3" y="14" width="7" height="7" rx="1.5" />
         <rect x="14" y="14" width="7" height="7" rx="1.5" />
+      </svg>
+    )
+  if (name === 'layers')
+    return (
+      <svg {...common}>
+        <path d="M12 2 2 7l10 5 10-5-10-5z" />
+        <path d="m2 17 10 5 10-5" />
+        <path d="m2 12 10 5 10-5" />
       </svg>
     )
   if (name === 'calendar')
@@ -104,7 +113,12 @@ interface SidebarNavProps {
 
 export function SidebarNav({ pendientesCatalogo = 0, rolUsuario }: SidebarNavProps) {
   const pathname = usePathname()
-  const isActive = (href: string) => pathname === href || pathname.startsWith(`${href}/`)
+  // 'Catálogo' no se marca activo cuando el activo es su sub-ruta 'Paquetes'
+  // (ambos viven en el menú; el prefijo /catalogo/ matchearía los dos).
+  const isActive = (href: string) => {
+    if (href === '/catalogo' && pathname.startsWith('/catalogo/paquetes')) return false
+    return pathname === href || pathname.startsWith(`${href}/`)
+  }
   const receptionActive = pathname.startsWith('/recepcion') || pathname.startsWith('/reception')
   const canConfig = rolUsuario === 'admin' || rolUsuario === 'jefe_taller'
 
