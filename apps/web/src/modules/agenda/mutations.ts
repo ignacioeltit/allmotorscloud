@@ -15,9 +15,6 @@ import {
   type ActualizarEstadoCitaInput,
 } from './types'
 
-const CITA_COLUMNS =
-  'id, fecha_cita, duracion_estimada_min, tipo_servicio, estado, notas, cliente_id, vehiculo_id'
-
 /** Crea una cita (estado inicial 'programada'). */
 export async function crearCita(supabase: DbClient, input: CrearCitaInput): Promise<{ id: string }> {
   const parsed = crearCitaSchema.safeParse(input)

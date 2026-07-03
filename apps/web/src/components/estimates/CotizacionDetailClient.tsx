@@ -22,7 +22,7 @@ function fmtCLP(n: number): string {
 /** Número a formato internacional para wa.me (Chile +56 si es móvil de 9 dígitos). */
 function telefonoWhatsapp(telefono: string | null): string | null {
   if (!telefono) return null
-  let d = telefono.replace(/\D/g, '')
+  const d = telefono.replace(/\D/g, '')
   if (d.startsWith('56')) return d
   if (d.length === 9 && d.startsWith('9')) return `56${d}`
   if (d.length === 8) return `569${d}`

@@ -70,7 +70,13 @@ export async function buscarPlantillas(
   const rows = unwrapList<Row>(data as Row[] | null, error)
   return rows
     .filter((r) => r.tipo_precio === 'cabecera' || (r.items_plantilla?.[0]?.count ?? 0) > 0)
-    .map(({ items_plantilla: _items_plantilla, ...rest }) => rest)
+    .map((r) => ({
+      id: r.id,
+      codigo: r.codigo,
+      nombre: r.nombre,
+      tipo_precio: r.tipo_precio,
+      precio_cabecera: r.precio_cabecera,
+    }))
 }
 
 /** Lista TODOS los paquetes (incluye inactivos y vacíos) para la administración. */

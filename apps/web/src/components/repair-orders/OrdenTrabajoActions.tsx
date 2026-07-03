@@ -63,6 +63,13 @@ export function OrdenTrabajoActions({
           Cerrar OT
         </Button>
 
+        <Link
+          href={`/repair-orders/${id}/imprimir`}
+          className="inline-flex items-center gap-2 rounded-lg border border-accent-500/40 bg-accent-500/10 px-3.5 py-2 text-sm font-semibold text-accent-400 transition-colors hover:bg-accent-500/20"
+        >
+          🖨 Imprimir para el mecánico
+        </Link>
+
         <Link href={`/vehicles/${vehiculoId}`} className={btnGhost}>
           Ver ficha vehículo
         </Link>
