@@ -16,6 +16,7 @@ import { FichaIngresoLineas } from '@/components/estimates/FichaIngresoLineas'
 import { CompartirPresupuestoOT } from './CompartirPresupuestoOT'
 import { toErrorMessage } from '@/lib/ui/error-message'
 import { card, sectionLabel, btnPrimary, btnSecondary, btnGhost } from '@/components/ui/styles'
+import { ordenarItemsPorTipo } from '@/lib/ui/ordenar-items'
 
 function fmtCLP(n: number): string {
   return n.toLocaleString('es-CL', { style: 'currency', currency: 'CLP', maximumFractionDigits: 0 })
@@ -177,7 +178,7 @@ export function PresupuestoSection({
 
       {p.items.length > 0 ? (
         <div className="space-y-1.5">
-          {p.items.map((item) => (
+          {ordenarItemsPorTipo(p.items).map((item) => (
             <div
               key={item.id}
               className="flex items-center justify-between gap-3 rounded-lg border border-white/[0.04] bg-white/[0.02] px-3 py-2 text-sm"

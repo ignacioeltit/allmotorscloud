@@ -12,6 +12,7 @@ import type { ReparacionConItems } from '@/modules/reparaciones/types'
 import type { OrganizacionInfo } from '@/modules/org/queries'
 import type { Entrega, TotalesOT } from '@/modules/entregas/queries'
 import { FORMA_PAGO_LABEL } from '@/modules/entregas/constants'
+import { ordenarItemsPorTipo } from '@/lib/ui/ordenar-items'
 
 const TIPO_LABEL: Record<string, string> = { mano_obra: 'Mano de obra', repuesto: 'Repuesto', otros: 'Otros' }
 
@@ -105,7 +106,7 @@ export function ComprobanteEntrega({
             </tr>
           </thead>
           <tbody>
-            {items.map((it) => (
+            {ordenarItemsPorTipo(items).map((it) => (
               <tr key={it.id} className="border-b border-[#f3f4f6]">
                 <td className="py-2">
                   <span>{it.descripcion}</span>

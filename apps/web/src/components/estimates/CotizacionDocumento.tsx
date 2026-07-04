@@ -7,6 +7,7 @@
 import { TIPO_ITEM_LABEL } from '@/modules/estimates/constants'
 import type { CotizacionDetalle } from '@/modules/estimates/queries'
 import type { OrganizacionInfo } from '@/modules/org/queries'
+import { ordenarItemsPorTipo } from '@/lib/ui/ordenar-items'
 
 function fmtCLP(n: number): string {
   return n.toLocaleString('es-CL', { style: 'currency', currency: 'CLP', maximumFractionDigits: 0 })
@@ -86,7 +87,7 @@ export function CotizacionDocumento({
             </tr>
           </thead>
           <tbody>
-            {p.items.map((item) => (
+            {ordenarItemsPorTipo(p.items).map((item) => (
               <tr key={item.id} className="border-b border-[#f3f4f6]">
                 <td className="py-2">
                   <span className="text-[#1f2937]">{item.descripcion}</span>

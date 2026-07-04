@@ -15,6 +15,7 @@ import type { ReparacionConItems } from '@/modules/reparaciones/types'
 import type { PresupuestoConItems } from '@/modules/estimates/types'
 import type { OrganizacionInfo } from '@/modules/org/queries'
 import type { MecanicoSimple } from '@/modules/users/types'
+import { ordenarItemsPorTipo } from '@/lib/ui/ordenar-items'
 
 const TIPO_LABEL: Record<string, string> = { mano_obra: 'Mano de obra', repuesto: 'Repuesto', otros: 'Otros' }
 
@@ -176,7 +177,7 @@ export function OtDocumento({
                 {r.items.length > 0 && (
                   <table className="mt-1 w-full text-sm">
                     <tbody>
-                      {r.items.map((it) => (
+                      {ordenarItemsPorTipo(r.items).map((it) => (
                         <tr key={it.id} className="border-b border-[#f3f4f6]">
                           <td className="w-6 py-1.5 align-top">☐</td>
                           <td className="py-1.5">
@@ -202,7 +203,7 @@ export function OtDocumento({
             </p>
             <table className="mt-1 w-full text-sm">
               <tbody>
-                {presupuesto.items.map((it) => (
+                {ordenarItemsPorTipo(presupuesto.items).map((it) => (
                   <tr key={it.id} className="border-b border-[#f3f4f6]">
                     <td className="w-6 py-1.5 align-top">☐</td>
                     <td className="py-1.5">

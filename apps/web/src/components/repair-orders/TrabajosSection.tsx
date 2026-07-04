@@ -23,6 +23,7 @@ import { CATEGORIAS_CATALOGO, CATEGORIA_LABEL, CATEGORIA_COLOR } from '@/modules
 import type { ConfiguracionManoObra } from '@/modules/taller/types'
 import { getValorHoraForServicio } from '@/modules/taller/helpers'
 import { FichaIngresoTrabajos } from './FichaIngresoTrabajos'
+import { ordenarItemsPorTipo } from '@/lib/ui/ordenar-items'
 import {
   card,
   sectionLabel,
@@ -1060,7 +1061,7 @@ function TrabajoCard({ reparacion, mecanicos, configuracion, onChanged, initialS
       {reparacion.items.length > 0 && (
         <div className="space-y-1.5">
           <p className={`${sectionLabel} mb-1`}>Ítems</p>
-          {reparacion.items.map((item) => (
+          {ordenarItemsPorTipo(reparacion.items).map((item) => (
             <div
               key={item.id}
               className="rounded-lg border border-black/[0.04] bg-black/[0.02] px-3 py-2"

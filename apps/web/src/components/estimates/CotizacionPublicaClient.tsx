@@ -7,6 +7,7 @@
 
 import { useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
+import { ordenarItemsPorTipo } from '@/lib/ui/ordenar-items'
 
 export interface CotizacionPublica {
   estado: string
@@ -120,7 +121,7 @@ export function CotizacionPublicaClient({ token, inicial }: { token: string; ini
             </tr>
           </thead>
           <tbody>
-            {coti.items.map((it, i) => (
+            {ordenarItemsPorTipo(coti.items).map((it, i) => (
               <tr key={i} className="border-b border-[#f3f4f6]">
                 <td className="py-2">
                   <span>{it.descripcion}</span>

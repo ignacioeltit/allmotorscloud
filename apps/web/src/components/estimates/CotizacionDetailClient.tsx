@@ -14,6 +14,7 @@ import type { CotizacionDetalle } from '@/modules/estimates/queries'
 import { toErrorMessage } from '@/lib/ui/error-message'
 import { card, sectionLabel, btnSecondary, btnGhost } from '@/components/ui/styles'
 import { FichaIngresoLineas } from './FichaIngresoLineas'
+import { ordenarItemsPorTipo } from '@/lib/ui/ordenar-items'
 
 function fmtCLP(n: number): string {
   return n.toLocaleString('es-CL', { style: 'currency', currency: 'CLP', maximumFractionDigits: 0 })
@@ -250,7 +251,7 @@ export function CotizacionDetailClient({
 
         {p.items.length > 0 ? (
           <div className="space-y-1.5">
-            {p.items.map((item) => (
+            {ordenarItemsPorTipo(p.items).map((item) => (
               <div key={item.id} className="flex items-center justify-between gap-3 rounded-lg border border-black/[0.05] bg-black/[0.02] px-3 py-2 text-sm">
                 <div className="min-w-0">
                   <span className="mr-2 rounded-full border border-black/[0.08] bg-black/[0.04] px-2 py-0.5 text-[10px] text-neutral-500">
