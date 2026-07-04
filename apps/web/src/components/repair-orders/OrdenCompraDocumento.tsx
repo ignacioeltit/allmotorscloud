@@ -71,41 +71,56 @@ export function OrdenCompraDocumento({
           {vehiculo?.notas && <p className="mt-0.5 text-xs text-[#6b7280]">{vehiculo.notas}</p>}
         </div>
 
-        {/* Repuestos a comprar */}
+        {/* Repuestos a comprar — el comprador anota costo y lugar por ítem */}
         <table className="mt-6 w-full text-sm">
           <thead>
             <tr className="border-b border-[#e5e7eb] text-left text-[11px] uppercase tracking-wide text-[#9ca3af]">
               <th className="w-8 py-2 font-medium"></th>
               <th className="py-2 font-medium">Repuesto</th>
-              <th className="w-14 py-2 text-right font-medium">Cant.</th>
-              <th className="w-40 py-2 font-medium">Nota</th>
+              <th className="w-12 py-2 text-right font-medium">Cant.</th>
+              <th className="w-28 py-2 font-medium">Costo $</th>
+              <th className="w-40 py-2 font-medium">Comprado en</th>
             </tr>
           </thead>
           <tbody>
             {items.map((it) => (
-              <tr key={it.id} className="border-b border-[#f3f4f6]">
-                <td className="py-2 align-top">☐</td>
-                <td className="py-2">
+              <tr key={it.id} className="border-b border-[#e5e7eb] align-bottom">
+                <td className="py-3 align-top">☐</td>
+                <td className="py-3">
                   {it.descripcion}
                   <span className="ml-2 text-[10px] uppercase text-[#9ca3af]">{ESTADO_COMPRA_LABEL[it.estado_compra]}</span>
+                  {it.nota_compra && (
+                    <span className="block text-[11px] text-[#6b7280]">{it.nota_compra}</span>
+                  )}
                 </td>
-                <td className="py-2 text-right text-[#4b5563]">{it.cantidad}</td>
-                <td className="py-2 text-[#6b7280]">{it.nota_compra ?? ''}</td>
+                <td className="py-3 text-right text-[#4b5563]">{it.cantidad}</td>
+                {/* Celdas en blanco para escribir a mano */}
+                <td className="py-3"><span className="block h-5 border-b border-[#d1d5db]" /></td>
+                <td className="py-3"><span className="block h-5 border-b border-[#d1d5db]" /></td>
               </tr>
             ))}
             {items.length === 0 && (
-              <tr><td colSpan={4} className="py-3 text-center text-[#9ca3af]">No hay repuestos por comprar.</td></tr>
+              <tr><td colSpan={5} className="py-3 text-center text-[#9ca3af]">No hay repuestos por comprar.</td></tr>
             )}
           </tbody>
         </table>
 
-        {/* Espacio para que el comprador anote costos */}
-        <div className="mt-8">
+        {/* Total y notas libres para el comprador */}
+        <div className="mt-6 flex justify-end">
+          <div className="w-64">
+            <div className="flex items-end justify-between gap-3">
+              <span className="text-[11px] font-semibold uppercase tracking-wide text-[#9ca3af]">Total compra $</span>
+              <span className="h-6 flex-1 border-b border-[#9ca3af]" />
+            </div>
+          </div>
+        </div>
+
+        <div className="mt-6">
           <p className="text-[11px] font-semibold uppercase tracking-wide text-[#9ca3af]">
-            Notas del comprador / costos
+            Observaciones del comprador
           </p>
           <div className="mt-2 space-y-5">
-            {Array.from({ length: 4 }).map((_, i) => (
+            {Array.from({ length: 2 }).map((_, i) => (
               <div key={i} className="border-b border-[#d1d5db]" />
             ))}
           </div>
