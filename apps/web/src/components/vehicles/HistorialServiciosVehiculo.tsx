@@ -24,6 +24,12 @@ function fmtFecha(iso: string): string {
   return new Date(iso).toLocaleDateString('es-CL', { day: '2-digit', month: 'short', year: 'numeric' })
 }
 
+// Valores 0 y 1 son placeholders de TallerGP (km no registrado), no km reales.
+function fmtKm(km: number | null): string {
+  if (km == null || km <= 1) return 's/km'
+  return `${km.toLocaleString('es-CL')} km`
+}
+
 function normaliza(s: string): string {
   return s.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '')
 }
@@ -75,12 +81,19 @@ export function HistorialServiciosVehiculo({ rows }: { rows: ServicioHistorialRo
                   </span>
                 </div>
               </div>
-              <div className="flex shrink-0 items-center gap-3 text-xs">
-                {r.km != null && (
-                  <span className="tabular-nums text-neutral-400">{r.km.toLocaleString('es-CL')} km</span>
-                )}
-                <span className="text-neutral-500">{fmtFecha(r.fecha)}</span>
-                <Link href={`/repair-orders/${r.otId}`} className="font-medium text-accent-400 hover:text-accent-300">
+              <div className="flex shrink-0 items-center gap-3">
+                <span
+                  className={`min-w-[5.5rem] rounded-md px-2 py-1 text-right text-xs font-bold tabular-nums ${
+                    r.km != null && r.km > 1
+                      ? 'bg-accent-500/10 text-accent-300'
+                      : 'text-neutral-600'
+                  }`}
+                  title="Kilometraje al ingresar"
+                >
+                  {fmtKm(r.km)}
+                </span>
+                <span className="w-20 text-right text-xs text-neutral-500">{fmtFecha(r.fecha)}</span>
+                <Link href={`/repair-orders/${r.otId}`} className="text-xs font-medium text-accent-400 hover:text-accent-300">
                   {r.numeroOt}
                 </Link>
               </div>
