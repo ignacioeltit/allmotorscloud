@@ -13,8 +13,8 @@ import { registrarEntrega } from '@/modules/entregas/mutations'
 import { marcarEntregaPagada } from '@/modules/finanzas/mutations'
 import { FORMAS_PAGO, FORMA_PAGO_LABEL, type FormaPago } from '@/modules/entregas/constants'
 import {
-  TIPOS_DOCUMENTO, TIPO_DOCUMENTO_LABEL, CONDICIONES_PAGO, CONDICION_PAGO_LABEL,
-  DIAS_CREDITO_DEFAULT, type TipoDocumento, type CondicionPago,
+  TIPO_DOCUMENTO_LABEL, CONDICIONES_PAGO, CONDICION_PAGO_LABEL, DIAS_CREDITO_DEFAULT,
+  OPCIONES_DOCUMENTO, ESTADO_FACTURA_LABEL, type CondicionPago, type OpcionDocumento,
 } from '@/modules/finanzas/constants'
 import type { Entrega, TotalesOT } from '@/modules/entregas/queries'
 import { toErrorMessage } from '@/lib/ui/error-message'
@@ -46,8 +46,11 @@ export function EntregaSection({
   const router = useRouter()
 
   // Formulario de entrega (aún no entregada)
-  const [tipoDoc, setTipoDoc] = useState<TipoDocumento>('boleta')
+  const [opcionDoc, setOpcionDoc] = useState<OpcionDocumento>('boleta_ahora')
   const [numeroFactura, setNumeroFactura] = useState('')
+  const docSel = OPCIONES_DOCUMENTO.find((o) => o.valor === opcionDoc)!
+  // Solo boleta/factura emitidas ahora piden el N° al momento.
+  const pideNumeroAhora = docSel.estado === 'facturada'
   const [condicion, setCondicion] = useState<CondicionPago>('contado')
   const [venceEn, setVenceEn] = useState(masDias(DIAS_CREDITO_DEFAULT))
   const [formaPago, setFormaPago] = useState<FormaPago>('efectivo')
@@ -69,9 +72,10 @@ export function EntregaSection({
         ordenTrabajoId,
         formaPago,
         montoPagado: parseFloat(monto) || 0,
-        tipoDocumento: tipoDoc,
+        tipoDocumento: docSel.tipo,
+        estadoFactura: docSel.estado,
         condicionPago: condicion,
-        ...(numeroFactura.trim() ? { numeroFactura } : {}),
+        ...(pideNumeroAhora && numeroFactura.trim() ? { numeroFactura } : {}),
         ...(condicion === 'credito' ? { venceEn } : {}),
         ...(kmSalida.trim() ? { kmSalida: parseInt(kmSalida, 10) } : {}),
         ...(notas.trim() ? { notas } : {}),
@@ -121,6 +125,11 @@ export function EntregaSection({
             >
               {pendiente ? '● Pendiente de pago' : '✓ Pagada'}
             </span>
+            {entrega.estado_factura === 'por_facturar' && (
+              <span className="rounded-full border border-sky-500/30 bg-sky-500/10 px-2.5 py-0.5 text-xs font-medium text-sky-800">
+                ● Por facturar
+              </span>
+            )}
           </div>
         </div>
 
@@ -128,8 +137,9 @@ export function EntregaSection({
           <div>
             <p className="text-[11px] uppercase tracking-wider text-neutral-600">Documento</p>
             <p className="mt-0.5 text-neutral-200">
-              {TIPO_DOCUMENTO_LABEL[entrega.tipo_documento]}
-              {entrega.numero_factura ? ` N° ${entrega.numero_factura}` : ''}
+              {entrega.estado_factura === 'por_facturar'
+                ? `${TIPO_DOCUMENTO_LABEL[entrega.tipo_documento]} · ${ESTADO_FACTURA_LABEL.por_facturar}`
+                : `${TIPO_DOCUMENTO_LABEL[entrega.tipo_documento]}${entrega.numero_factura ? ` N° ${entrega.numero_factura}` : ''}`}
             </p>
           </div>
           <div>
@@ -206,13 +216,19 @@ export function EntregaSection({
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         <div>
           <label className={labelClass}>Documento</label>
-          <select className={inputClass} value={tipoDoc} onChange={(e) => setTipoDoc(e.target.value as TipoDocumento)}>
-            {TIPOS_DOCUMENTO.map((t) => <option key={t} value={t}>{TIPO_DOCUMENTO_LABEL[t]}</option>)}
+          <select className={inputClass} value={opcionDoc} onChange={(e) => setOpcionDoc(e.target.value as OpcionDocumento)}>
+            {OPCIONES_DOCUMENTO.map((o) => <option key={o.valor} value={o.valor}>{o.label}</option>)}
           </select>
         </div>
         <div>
           <label className={labelClass}>N° de factura / boleta</label>
-          <input className={inputClass} value={numeroFactura} onChange={(e) => setNumeroFactura(e.target.value)} placeholder="Folio del documento" disabled={tipoDoc === 'ninguno'} />
+          <input
+            className={inputClass}
+            value={numeroFactura}
+            onChange={(e) => setNumeroFactura(e.target.value)}
+            placeholder={pideNumeroAhora ? 'Folio del documento' : docSel.estado === 'por_facturar' ? 'Se ingresa a fin de mes' : '—'}
+            disabled={!pideNumeroAhora}
+          />
         </div>
         <div>
           <label className={labelClass}>Condición de pago</label>
@@ -247,10 +263,16 @@ export function EntregaSection({
         </div>
       </div>
 
+      {docSel.estado === 'por_facturar' && (
+        <p className="rounded-lg border border-sky-500/25 bg-sky-500/[0.06] px-3 py-2 text-xs text-sky-800">
+          Facturación mensual: entregas ahora y la OT queda <strong>Por facturar</strong> (aparece en Finanzas).
+          A fin de mes ingresas el N° de factura del cliente.
+        </p>
+      )}
       {condicion === 'credito' && (
         <p className="rounded-lg border border-amber-500/25 bg-amber-500/[0.06] px-3 py-2 text-xs text-amber-800">
-          A crédito: se factura ahora pero queda <strong>pendiente de pago</strong> (aparece en Cuentas por cobrar).
-          El ingreso se registra cuando marques la entrega como pagada.
+          A crédito: queda <strong>pendiente de pago</strong> (aparece en Cuentas por cobrar).
+          El ingreso se cuenta cuando marques la entrega como pagada.
         </p>
       )}
 

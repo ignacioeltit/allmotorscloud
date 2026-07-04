@@ -61,6 +61,30 @@ export async function eliminarMovimiento(supabase: DbClient, id: string): Promis
 }
 
 /**
+ * Factura una entrega que estaba "por facturar" (cliente mensual): registra el
+ * N° de documento y la marca facturada. Para consolidar el mes, se usa el mismo
+ * N° de factura en las OT del cliente.
+ */
+export async function facturarEntrega(
+  supabase: DbClient,
+  input: { entregaId: string; numeroFactura: string; fecha?: string },
+): Promise<void> {
+  const numero = input.numeroFactura.trim()
+  if (!numero) throw new ValidationError('Ingresa el N° de factura.')
+  const { orgId } = await getAuthContext(supabase)
+  const fecha = input.fecha || new Date().toISOString().slice(0, 10)
+
+  const { data, error } = await supabase
+    .from('entregas')
+    .update({ numero_factura: numero, estado_factura: 'facturada', facturado_en: fecha })
+    .eq('org_id', orgId)
+    .eq('id', input.entregaId)
+    .select('id')
+
+  unwrapWritten<{ id: string }>(data, error)
+}
+
+/**
  * Marca una entrega (a crédito) como pagada: fija estado, fecha de pago y forma
  * de pago. El ingreso NO se escribe aparte — Finanzas lo deriva de las entregas
  * pagadas (fuente única, sin doble escritura frágil).

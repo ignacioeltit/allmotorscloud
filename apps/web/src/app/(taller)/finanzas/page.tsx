@@ -2,7 +2,7 @@
 export const dynamic = 'force-dynamic'
 
 import { createClient } from '@/lib/supabase/server'
-import { getResumenFinanzas, listMovimientos, listCuentasPorCobrar } from '@/modules/finanzas/queries'
+import { getResumenFinanzas, listMovimientos, listCuentasPorCobrar, listPorFacturar } from '@/modules/finanzas/queries'
 import { load } from '@/lib/ui/load'
 import { PageHeader } from '@/components/ui/PageHeader'
 import { Notice } from '@/components/ui/Notice'
@@ -27,12 +27,13 @@ export default async function FinanzasPage({ searchParams }: Props) {
 
   const result = await load(async () => {
     const supabase = await createClient()
-    const [resumen, movimientos, cuentasPorCobrar] = await Promise.all([
+    const [resumen, movimientos, cuentasPorCobrar, porFacturar] = await Promise.all([
       getResumenFinanzas(supabase, desde, hasta),
       listMovimientos(supabase, { desde, hasta }),
       listCuentasPorCobrar(supabase),
+      listPorFacturar(supabase),
     ])
-    return { resumen, movimientos, cuentasPorCobrar }
+    return { resumen, movimientos, cuentasPorCobrar, porFacturar }
   })
 
   if (!result.ok) {
@@ -58,6 +59,7 @@ export default async function FinanzasPage({ searchParams }: Props) {
         resumen={result.data.resumen}
         movimientos={result.data.movimientos}
         cuentasPorCobrar={result.data.cuentasPorCobrar}
+        porFacturar={result.data.porFacturar}
       />
     </div>
   )

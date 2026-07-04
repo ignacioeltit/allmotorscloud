@@ -3,7 +3,7 @@
 import type { DbClient } from '@/lib/supabase/types'
 import { getAuthContext } from '@/lib/auth/context'
 import type { FormaPago } from './constants'
-import type { TipoDocumento, CondicionPago, EstadoPago } from '@/modules/finanzas/constants'
+import type { TipoDocumento, CondicionPago, EstadoPago, EstadoFactura } from '@/modules/finanzas/constants'
 
 export interface Entrega {
   id: string
@@ -13,18 +13,20 @@ export interface Entrega {
   monto_pagado: number | null
   notas: string | null
   creado_en: string
-  // Facturación / cobro (migration 027)
+  // Facturación / cobro (migrations 027 + 028)
   numero_factura: string | null
   tipo_documento: TipoDocumento
   condicion_pago: CondicionPago
   estado_pago: EstadoPago
+  estado_factura: EstadoFactura
   vence_en: string | null
   pagado_en: string | null
+  facturado_en: string | null
 }
 
 const ENTREGA_COLUMNS =
   'id, orden_trabajo_id, km_salida, forma_pago, monto_pagado, notas, creado_en,' +
-  ' numero_factura, tipo_documento, condicion_pago, estado_pago, vence_en, pagado_en'
+  ' numero_factura, tipo_documento, condicion_pago, estado_pago, estado_factura, vence_en, pagado_en, facturado_en'
 
 /** Totales fiscales de una OT (base afecta, IVA 19%, total con IVA). */
 export interface TotalesOT {

@@ -7,11 +7,11 @@ import { useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
-import { registrarMovimiento, eliminarMovimiento } from '@/modules/finanzas/mutations'
+import { registrarMovimiento, eliminarMovimiento, facturarEntrega } from '@/modules/finanzas/mutations'
 import {
   CATEGORIAS_GASTO, CATEGORIA_GASTO_LABEL, type TipoMovimiento,
 } from '@/modules/finanzas/constants'
-import type { Movimiento, ResumenFinanzas, CuentaPorCobrar } from '@/modules/finanzas/queries'
+import type { Movimiento, ResumenFinanzas, CuentaPorCobrar, PorFacturar } from '@/modules/finanzas/queries'
 import { toErrorMessage } from '@/lib/ui/error-message'
 import { card, sectionLabel, inputClass, labelClass, btnPrimary, btnGhost } from '@/components/ui/styles'
 
@@ -31,12 +31,14 @@ export function FinanzasClient({
   resumen,
   movimientos,
   cuentasPorCobrar,
+  porFacturar,
 }: {
   desde: string
   hasta: string
   resumen: ResumenFinanzas
   movimientos: Movimiento[]
   cuentasPorCobrar: CuentaPorCobrar[]
+  porFacturar: PorFacturar[]
 }) {
   const router = useRouter()
 
@@ -50,9 +52,27 @@ export function FinanzasClient({
   const [borrando, setBorrando] = useState<string | null>(null)
 
   const totalPorCobrar = cuentasPorCobrar.reduce((a, c) => a + c.monto, 0)
+  const totalPorFacturar = porFacturar.reduce((a, c) => a + c.monto, 0)
+
+  // Facturación de entregas mensuales
+  const [facturandoId, setFacturandoId] = useState<string | null>(null)
+  const [nroFactura, setNroFactura] = useState('')
 
   function setPeriodo(d: string, h: string) {
     router.push(`/finanzas?desde=${d}&hasta=${h}`)
+  }
+
+  async function facturar(entregaId: string) {
+    if (!nroFactura.trim()) return
+    setError(null)
+    try {
+      await facturarEntrega(createClient(), { entregaId, numeroFactura: nroFactura })
+      setFacturandoId(null)
+      setNroFactura('')
+      router.refresh()
+    } catch (e) {
+      setError(toErrorMessage(e))
+    }
   }
 
   async function registrar() {
@@ -159,6 +179,63 @@ export function FinanzasClient({
                       <Link href={`/repair-orders/${c.orden_trabajo_id}`} className="text-accent-400 hover:text-accent-300">
                         Cobrar →
                       </Link>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </section>
+      )}
+
+      {/* Por facturar (clientes mensuales) */}
+      {porFacturar.length > 0 && (
+        <section className={`${card} space-y-3`}>
+          <div className="flex items-center justify-between">
+            <p className={sectionLabel}>Por facturar (facturación mensual)</p>
+            <p className="text-sm font-medium text-sky-800">{fmtCLP(totalPorFacturar)} · {porFacturar.length} OT</p>
+          </div>
+          <p className="text-xs text-neutral-500">
+            OT entregadas cuya factura se emite a fin de mes. Ingresa el N° de factura (usa el mismo para
+            consolidar las OT de un cliente).
+          </p>
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead className="text-left text-[11px] uppercase tracking-wider text-neutral-500">
+                <tr>
+                  <th className="py-2 font-medium">OT</th>
+                  <th className="py-2 font-medium">Cliente</th>
+                  <th className="py-2 font-medium">Entregada</th>
+                  <th className="py-2 text-right font-medium">Monto</th>
+                  <th className="py-2"></th>
+                </tr>
+              </thead>
+              <tbody>
+                {porFacturar.map((c) => (
+                  <tr key={c.entrega_id} className="border-t border-black/[0.05]">
+                    <td className="py-2 font-medium text-neutral-200">{c.numero_ot ?? '—'}</td>
+                    <td className="py-2 text-neutral-400">{c.cliente_nombre ?? '—'}</td>
+                    <td className="py-2 text-neutral-500">{fmtFecha(c.creado_en.slice(0, 10))}</td>
+                    <td className="py-2 text-right font-medium text-neutral-200">{fmtCLP(c.monto)}</td>
+                    <td className="py-2 text-right">
+                      {facturandoId === c.entrega_id ? (
+                        <span className="inline-flex items-center gap-1.5">
+                          <input
+                            autoFocus
+                            className="w-28 rounded border border-black/10 bg-white px-2 py-0.5 text-xs text-neutral-800"
+                            placeholder="N° factura"
+                            value={nroFactura}
+                            onChange={(e) => setNroFactura(e.target.value)}
+                            onKeyDown={(e) => { if (e.key === 'Enter') void facturar(c.entrega_id) }}
+                          />
+                          <button onClick={() => void facturar(c.entrega_id)} className={`${btnPrimary} px-2 py-0.5 text-xs`}>Guardar</button>
+                          <button onClick={() => { setFacturandoId(null); setNroFactura('') }} className={`${btnGhost} px-1 text-xs`}>×</button>
+                        </span>
+                      ) : (
+                        <button onClick={() => { setFacturandoId(c.entrega_id); setNroFactura('') }} className="text-accent-400 hover:text-accent-300">
+                          Facturar →
+                        </button>
+                      )}
                     </td>
                   </tr>
                 ))}

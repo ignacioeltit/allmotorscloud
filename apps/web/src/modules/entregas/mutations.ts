@@ -11,7 +11,7 @@ import { getAuthContext } from '@/lib/auth/context'
 import { unwrapWritten } from '@/lib/supabase/result'
 import { ValidationError } from '@/lib/errors'
 import { cambiarEstadoOrdenTrabajo } from '@/modules/repair-orders/mutations'
-import type { TipoDocumento, CondicionPago } from '@/modules/finanzas/constants'
+import type { TipoDocumento, CondicionPago, EstadoFactura } from '@/modules/finanzas/constants'
 import { FORMAS_PAGO, type FormaPago } from './constants'
 
 export interface RegistrarEntregaInput {
@@ -22,6 +22,7 @@ export interface RegistrarEntregaInput {
   notas?: string | null
   // Facturación
   tipoDocumento: TipoDocumento
+  estadoFactura: EstadoFactura
   numeroFactura?: string | null
   condicionPago: CondicionPago
   /** Solo para crédito: fecha de vencimiento (YYYY-MM-DD). */
@@ -64,9 +65,11 @@ export async function registrarEntrega(
       forma_pago: input.formaPago,
       monto_pagado: input.montoPagado,
       tipo_documento: input.tipoDocumento,
+      estado_factura: input.estadoFactura,
       condicion_pago: input.condicionPago,
       estado_pago: esContado ? 'pagada' : 'pendiente',
       ...(esContado ? { pagado_en: hoy } : {}),
+      ...(input.estadoFactura === 'facturada' ? { facturado_en: hoy } : {}),
       ...(!esContado && input.venceEn ? { vence_en: input.venceEn } : {}),
       ...(input.numeroFactura?.trim() ? { numero_factura: input.numeroFactura.trim() } : {}),
       ...(input.kmSalida != null ? { km_salida: Math.round(input.kmSalida) } : {}),
