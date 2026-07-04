@@ -15,17 +15,19 @@ import { createEvento } from '@/modules/events/mutations'
 import {
   crearReparacionSchema,
   addItemReparacionSchema,
+  actualizarCompraItemSchema,
   type Reparacion,
   type ItemReparacion,
   type CrearReparacionInput,
   type AddItemReparacionInput,
+  type ActualizarCompraItemInput,
 } from './types'
 
 const REP_COLUMNS =
   'id, org_id, orden_trabajo_id, evento_trabajo_id, mecanico_id, descripcion, observaciones, inicio_en, fin_en, creado_en, actualizado_en, creado_por'
 
 const ITEM_COLUMNS =
-  'id, org_id, reparacion_id, item_presupuesto_id, tipo, descripcion, repuesto_id, cantidad, costo_unitario, costo_total, costo_compra_unitario, inicio_en, fin_en, creado_en, actualizado_en, creado_por, eliminado_en, eliminado_por, servicio_catalogo_id, plantilla_id, nombre_servicio_snapshot, horas_estandar_snapshot, valor_hora_snapshot, precio_catalogo_snapshot'
+  'id, org_id, reparacion_id, item_presupuesto_id, tipo, descripcion, repuesto_id, cantidad, costo_unitario, costo_total, costo_compra_unitario, inicio_en, fin_en, creado_en, actualizado_en, creado_por, eliminado_en, eliminado_por, servicio_catalogo_id, plantilla_id, nombre_servicio_snapshot, horas_estandar_snapshot, valor_hora_snapshot, precio_catalogo_snapshot, estado_compra, nota_compra'
 
 /**
  * Crea una reparación para una OT.
@@ -178,6 +180,38 @@ export async function asignarMecanicoReparacion(
     .update({ mecanico_id: mecanicoId })
     .eq('org_id', orgId)
     .eq('id', reparacionId)
+    .select('id')
+
+  unwrapWritten<{ id: string }>(data, error)
+}
+
+/**
+ * Actualiza el estado de compra, la nota y/o el costo de compra de un repuesto.
+ * Se usa desde la sección de Compras de la OT (marcar por comprar / comprado /
+ * recibido, y al volver el comprador, ingresar el costo).
+ */
+export async function actualizarCompraItem(
+  supabase: DbClient,
+  input: ActualizarCompraItemInput,
+): Promise<void> {
+  const parsed = actualizarCompraItemSchema.safeParse(input)
+  if (!parsed.success) throw validationErrorFromZod(parsed.error.flatten())
+
+  const { orgId } = await getAuthContext(supabase)
+  const { itemId, estadoCompra, notaCompra, costoCompraUnitario } = parsed.data
+
+  const cambios: Record<string, unknown> = {}
+  if (estadoCompra !== undefined) cambios.estado_compra = estadoCompra
+  if (notaCompra !== undefined) cambios.nota_compra = notaCompra?.trim() || null
+  if (costoCompraUnitario !== undefined) cambios.costo_compra_unitario = costoCompraUnitario
+  if (Object.keys(cambios).length === 0) return
+
+  const { data, error } = await supabase
+    .from('items_reparacion')
+    .update(cambios)
+    .eq('org_id', orgId)
+    .eq('id', itemId)
+    .is('eliminado_en', null)
     .select('id')
 
   unwrapWritten<{ id: string }>(data, error)

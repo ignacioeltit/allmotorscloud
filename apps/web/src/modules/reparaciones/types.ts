@@ -6,7 +6,7 @@
 // repuesto_id es UUID nullable SIN FK activa (FK diferida a Migration 004).
 
 import { z } from 'zod'
-import { TIPOS_ITEM_REPARACION, type TipoItemReparacion } from './constants'
+import { TIPOS_ITEM_REPARACION, ESTADOS_COMPRA, type TipoItemReparacion, type EstadoCompra } from './constants'
 
 // ── Tipos de fila ──────────────────────────────────────────────────────────
 
@@ -52,6 +52,9 @@ export interface ItemReparacion {
   precio_catalogo_snapshot: number | null
   // Costo de compra (M009) — solo repuestos; null en ítems pre-M009 o sin dato
   costo_compra_unitario: number | null
+  // Estado de compra del repuesto (migration 029)
+  estado_compra: EstadoCompra
+  nota_compra: string | null
 }
 
 export interface ReparacionConItems extends Reparacion {
@@ -97,5 +100,14 @@ export const addItemReparacionSchema = z.object({
   costoCompraUnitario: z.number().min(0).nullable().optional(),
 })
 
+/** Actualiza el estado de compra / nota / costo de un repuesto. */
+export const actualizarCompraItemSchema = z.object({
+  itemId: uuid,
+  estadoCompra: z.enum(ESTADOS_COMPRA).optional(),
+  notaCompra: z.string().trim().max(500).nullable().optional(),
+  costoCompraUnitario: z.number().min(0).nullable().optional(),
+})
+
 export type CrearReparacionInput = z.infer<typeof crearReparacionSchema>
 export type AddItemReparacionInput = z.infer<typeof addItemReparacionSchema>
+export type ActualizarCompraItemInput = z.infer<typeof actualizarCompraItemSchema>

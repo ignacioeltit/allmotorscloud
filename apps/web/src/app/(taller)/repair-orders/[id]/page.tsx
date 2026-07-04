@@ -23,6 +23,7 @@ import { StatusBadge } from '@/components/ui/StatusBadge'
 import { OrdenTrabajoActions } from '@/components/repair-orders/OrdenTrabajoActions'
 import { KmIngresoInline } from '@/components/repair-orders/KmIngresoInline'
 import { DiagnosticoSection } from '@/components/repair-orders/DiagnosticoSection'
+import { ComprasSection } from '@/components/repair-orders/ComprasSection'
 import { EntregaSection } from '@/components/repair-orders/EntregaSection'
 import { TrabajosSection } from '@/components/repair-orders/TrabajosSection'
 import { PresupuestoSection } from '@/components/repair-orders/PresupuestoSection'
@@ -256,6 +257,14 @@ export default async function OrdenTrabajoDetailPage({
         mecanicos={mecanicos}
         configuracion={configuracion}
         motivoOT={orden.notas}
+      />
+
+      {/* ── Repuestos y compras ── */}
+      <ComprasSection
+        ordenTrabajoId={orden.id}
+        numeroOt={orden.numero_ot}
+        vehiculoLabel={vehiculoLabel}
+        reparaciones={reparaciones}
       />
 
       {/* ── Presupuesto (Client Component con formularios) ── */}
