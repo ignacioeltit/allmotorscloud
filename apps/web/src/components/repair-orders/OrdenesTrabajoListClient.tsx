@@ -1,10 +1,12 @@
 'use client'
 
-// Listado de OTs con buscador (N° OT, patente, marca/modelo, cliente) y filtro
-// por estado. Filtrado en cliente: el universo de OTs por taller es chico.
+// Listado de OTs con búsqueda server-side (N° OT, patente, vehículo, cliente),
+// filtro por estado y paginación. El estado de la búsqueda vive en la URL
+// (?q=&estado=&page=), así es enlazable y sobrevive a los refresh.
 
-import { useMemo, useState } from 'react'
+import { useEffect, useRef, useState, useTransition } from 'react'
 import Link from 'next/link'
+import { useRouter } from 'next/navigation'
 import { StatusBadge } from '@/components/ui/StatusBadge'
 import { card, inputClass } from '@/components/ui/styles'
 
@@ -19,41 +21,65 @@ export interface OtListadoRow {
   cliente_nombre: string | null
 }
 
-const FUERA_TALLER = ['entregada', 'cerrada', 'cancelada']
-
-// Filtros agrupados, como piensa el taller.
-const FILTROS: { valor: string; label: string; match: (estado: string) => boolean }[] = [
-  { valor: 'todas', label: 'Todas', match: () => true },
-  { valor: 'en_taller', label: 'En taller', match: (e) => !FUERA_TALLER.includes(e) },
-  { valor: 'entregada', label: 'Entregadas', match: (e) => e === 'entregada' },
-  { valor: 'cerrada', label: 'Cerradas', match: (e) => e === 'cerrada' },
-  { valor: 'cancelada', label: 'Canceladas', match: (e) => e === 'cancelada' },
+const FILTROS = [
+  { valor: 'todas', label: 'Todas' },
+  { valor: 'en_taller', label: 'En taller' },
+  { valor: 'entregada', label: 'Entregadas' },
+  { valor: 'cerrada', label: 'Cerradas' },
+  { valor: 'cancelada', label: 'Canceladas' },
 ]
 
 function fmtFecha(iso: string): string {
   return new Date(iso).toLocaleDateString('es-CL', { day: '2-digit', month: 'short', year: 'numeric' })
 }
 
-function normaliza(s: string): string {
-  return s.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '')
-}
+export function OrdenesTrabajoListClient({
+  rows,
+  total,
+  q,
+  estado,
+  page,
+  pageSize,
+}: {
+  rows: OtListadoRow[]
+  total: number
+  q: string
+  estado: string
+  page: number
+  pageSize: number
+}) {
+  const router = useRouter()
+  const [pending, startTransition] = useTransition()
+  const [texto, setTexto] = useState(q)
+  const primerRender = useRef(true)
 
-export function OrdenesTrabajoListClient({ rows }: { rows: OtListadoRow[] }) {
-  const [q, setQ] = useState('')
-  const [filtro, setFiltro] = useState('todas')
+  // Navega actualizando la URL (server re-consulta). Resetea a page 1 salvo que
+  // solo cambie la página.
+  function navegar(next: { q?: string; estado?: string; page?: number }) {
+    const params = new URLSearchParams()
+    const nq = next.q ?? texto
+    const nEstado = next.estado ?? estado
+    const nPage = next.page ?? 1
+    if (nq.trim()) params.set('q', nq.trim())
+    if (nEstado && nEstado !== 'todas') params.set('estado', nEstado)
+    if (nPage > 1) params.set('page', String(nPage))
+    const qs = params.toString()
+    startTransition(() => router.replace(qs ? `/repair-orders?${qs}` : '/repair-orders', { scroll: false }))
+  }
 
-  const filtradas = useMemo(() => {
-    const activo = FILTROS.find((f) => f.valor === filtro) ?? FILTROS[0]!
-    const term = normaliza(q.trim())
-    return rows.filter((r) => {
-      if (!activo.match(r.estado)) return false
-      if (!term) return true
-      const heno = normaliza(
-        [r.numero_ot, r.patente, r.marca, r.modelo, r.cliente_nombre].filter(Boolean).join(' '),
-      )
-      return heno.includes(term)
-    })
-  }, [rows, q, filtro])
+  // Debounce del texto: cuando el usuario deja de escribir, navega.
+  useEffect(() => {
+    if (primerRender.current) { primerRender.current = false; return }
+    const t = setTimeout(() => {
+      if (texto.trim() !== q) navegar({ q: texto, page: 1 })
+    }, 350)
+    return () => clearTimeout(t)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [texto])
+
+  const desde = total === 0 ? 0 : (page - 1) * pageSize + 1
+  const hasta = Math.min(page * pageSize, total)
+  const hayMas = page * pageSize < total
 
   return (
     <div className="space-y-4">
@@ -61,14 +87,14 @@ export function OrdenesTrabajoListClient({ rows }: { rows: OtListadoRow[] }) {
         <input
           className={`${inputClass} max-w-sm flex-1`}
           placeholder="Buscar por N° OT, patente, vehículo o cliente…"
-          value={q}
-          onChange={(e) => setQ(e.target.value)}
+          value={texto}
+          onChange={(e) => setTexto(e.target.value)}
           autoComplete="off"
         />
         <select
           className={`${inputClass} max-w-[12rem]`}
-          value={filtro}
-          onChange={(e) => setFiltro(e.target.value)}
+          value={estado}
+          onChange={(e) => navegar({ estado: e.target.value, page: 1 })}
           aria-label="Filtrar por estado"
         >
           {FILTROS.map((f) => (
@@ -76,15 +102,15 @@ export function OrdenesTrabajoListClient({ rows }: { rows: OtListadoRow[] }) {
           ))}
         </select>
         <span className="text-xs text-neutral-500">
-          {filtradas.length} de {rows.length}
+          {pending ? 'Buscando…' : total === 0 ? '0 resultados' : `${desde}–${hasta} de ${total}`}
         </span>
       </div>
 
-      {filtradas.length === 0 ? (
+      {rows.length === 0 ? (
         <p className={`${card} text-sm text-neutral-500`}>Sin órdenes que coincidan.</p>
       ) : (
         <div className="space-y-2">
-          {filtradas.map((r) => (
+          {rows.map((r) => (
             <Link
               key={r.id}
               href={`/repair-orders/${r.id}`}
@@ -103,6 +129,28 @@ export function OrdenesTrabajoListClient({ rows }: { rows: OtListadoRow[] }) {
               <span className="shrink-0 text-xs text-neutral-600">{fmtFecha(r.creado_en)}</span>
             </Link>
           ))}
+        </div>
+      )}
+
+      {(page > 1 || hayMas) && (
+        <div className="flex items-center justify-between gap-3 pt-1">
+          <button
+            type="button"
+            disabled={page <= 1 || pending}
+            onClick={() => navegar({ page: page - 1 })}
+            className="rounded-lg border border-black/10 bg-black/[0.03] px-3.5 py-2 text-sm font-medium text-neutral-300 transition-colors hover:bg-black/[0.06] disabled:opacity-40"
+          >
+            ← Anteriores
+          </button>
+          <span className="text-xs text-neutral-500">Página {page}</span>
+          <button
+            type="button"
+            disabled={!hayMas || pending}
+            onClick={() => navegar({ page: page + 1 })}
+            className="rounded-lg border border-black/10 bg-black/[0.03] px-3.5 py-2 text-sm font-medium text-neutral-300 transition-colors hover:bg-black/[0.06] disabled:opacity-40"
+          >
+            Siguientes →
+          </button>
         </div>
       )}
     </div>

@@ -81,66 +81,45 @@ export interface OtListadoRow {
   cliente_nombre: string | null
 }
 
-/**
- * Lista OTs del tenant para la pantalla de listado (buscador + filtro estado).
- * Incluye datos del vehículo (embed) y resuelve el cliente propietario en una
- * segunda consulta batcheada. El universo por taller es chico (cientos), así
- * que trae hasta `limit` filas y el filtrado fino se hace en el cliente.
- */
-export async function listOrdenesTrabajoParaListado(
-  supabase: DbClient,
-  limit = 500,
-): Promise<OtListadoRow[]> {
-  const { orgId } = await getAuthContext(supabase)
+export interface BuscarOtParams {
+  q?: string
+  estado?: string   // 'todas' | 'en_taller' | <estado exacto>
+  limit?: number
+  offset?: number
+}
 
-  const { data: otData, error } = await supabase
-    .from('ordenes_trabajo')
-    .select('id, numero_ot, estado, creado_en, vehiculo_id, vehiculos(patente, marca, modelo)')
-    .eq('org_id', orgId)
-    .is('eliminado_en', null)
-    .order('creado_en', { ascending: false })
-    .limit(limit)
+/**
+ * Busca OTs en la base (N° OT, patente, marca/modelo, cliente) con filtro de
+ * estado y paginación, vía fn_buscar_ordenes_trabajo. Necesario porque el
+ * universo de OTs (miles) supera el tope de 1.000 filas de PostgREST.
+ */
+export async function buscarOrdenesTrabajo(
+  supabase: DbClient,
+  params: BuscarOtParams = {},
+): Promise<{ rows: OtListadoRow[]; total: number }> {
+  const limit = params.limit ?? 50
+  const { data, error } = await supabase.rpc('fn_buscar_ordenes_trabajo', {
+    p_q: params.q?.trim() || null,
+    p_estado: params.estado || 'todas',
+    p_limit: limit,
+    p_offset: params.offset ?? 0,
+  })
   if (error) throw error
 
-  type Raw = {
-    id: string
-    numero_ot: string
-    estado: string
-    creado_en: string
-    vehiculo_id: string | null
-    vehiculos: { patente: string | null; marca: string | null; modelo: string | null } | null
-  }
-  const rows = (otData ?? []) as unknown as Raw[]
-
-  // Cliente = propietario activo del vehículo (segunda consulta, robusta).
-  const vehiculoIds = [...new Set(rows.map((r) => r.vehiculo_id).filter(Boolean) as string[])]
-  const nombrePorVehiculo: Record<string, string> = {}
-  if (vehiculoIds.length > 0) {
-    const { data: pvData } = await supabase
-      .from('propietarios_vehiculo')
-      .select('vehiculo_id, clientes(nombre)')
-      .in('vehiculo_id', vehiculoIds)
-      .is('fecha_fin', null)
-    for (const pv of (pvData ?? []) as unknown as {
-      vehiculo_id: string
-      clientes: { nombre: string | null } | null
-    }[]) {
-      if (pv.clientes?.nombre && !nombrePorVehiculo[pv.vehiculo_id]) {
-        nombrePorVehiculo[pv.vehiculo_id] = pv.clientes.nombre
-      }
-    }
-  }
-
-  return rows.map((r) => ({
+  type Raw = OtListadoRow & { total: number | string }
+  const raw = (data ?? []) as Raw[]
+  const total = raw.length > 0 ? Number(raw[0]!.total) : 0
+  const rows: OtListadoRow[] = raw.map((r) => ({
     id: r.id,
     numero_ot: r.numero_ot,
     estado: r.estado,
     creado_en: r.creado_en,
-    patente: r.vehiculos?.patente ?? null,
-    marca: r.vehiculos?.marca ?? null,
-    modelo: r.vehiculos?.modelo ?? null,
-    cliente_nombre: r.vehiculo_id ? nombrePorVehiculo[r.vehiculo_id] ?? null : null,
+    patente: r.patente,
+    marca: r.marca,
+    modelo: r.modelo,
+    cliente_nombre: r.cliente_nombre,
   }))
+  return { rows, total }
 }
 
 /**
