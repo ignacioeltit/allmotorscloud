@@ -9,6 +9,7 @@ const items = [
   { href: '/agenda',      label: 'Agenda',       icon: 'calendar' },
   { href: '/customers',   label: 'Clientes',     icon: 'users' },
   { href: '/vehicles',    label: 'Vehículos',    icon: 'car' },
+  { href: '/repair-orders', label: 'Órdenes',    icon: 'wrench' },
   { href: '/estimates',   label: 'Presupuestos', icon: 'file' },
   { href: '/inventory',   label: 'Inventario',   icon: 'package' },
   { href: '/catalogo',    label: 'Catálogo',     icon: 'catalog' },
@@ -102,6 +103,12 @@ function Icon({ name }: { name: string }) {
         <path d="M8 7h8" />
         <path d="M8 11h8" />
         <path d="M8 15h5" />
+      </svg>
+    )
+  if (name === 'wrench')
+    return (
+      <svg {...common}>
+        <path d="M14.7 6.3a4 4 0 0 1-5.4 5.4L4 17l3 3 5.3-5.3a4 4 0 0 1 5.4-5.4l-2.6 2.6-2-.4-.4-2 2.6-2.6z" />
       </svg>
     )
   if (name === 'settings')

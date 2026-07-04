@@ -70,6 +70,79 @@ export async function listOrdenesTrabajoByVehiculo(
   return unwrapList<OrdenTrabajo>(data, error)
 }
 
+export interface OtListadoRow {
+  id: string
+  numero_ot: string
+  estado: string
+  creado_en: string
+  patente: string | null
+  marca: string | null
+  modelo: string | null
+  cliente_nombre: string | null
+}
+
+/**
+ * Lista OTs del tenant para la pantalla de listado (buscador + filtro estado).
+ * Incluye datos del vehículo (embed) y resuelve el cliente propietario en una
+ * segunda consulta batcheada. El universo por taller es chico (cientos), así
+ * que trae hasta `limit` filas y el filtrado fino se hace en el cliente.
+ */
+export async function listOrdenesTrabajoParaListado(
+  supabase: DbClient,
+  limit = 500,
+): Promise<OtListadoRow[]> {
+  const { orgId } = await getAuthContext(supabase)
+
+  const { data: otData, error } = await supabase
+    .from('ordenes_trabajo')
+    .select('id, numero_ot, estado, creado_en, vehiculo_id, vehiculos(patente, marca, modelo)')
+    .eq('org_id', orgId)
+    .is('eliminado_en', null)
+    .order('creado_en', { ascending: false })
+    .limit(limit)
+  if (error) throw error
+
+  type Raw = {
+    id: string
+    numero_ot: string
+    estado: string
+    creado_en: string
+    vehiculo_id: string | null
+    vehiculos: { patente: string | null; marca: string | null; modelo: string | null } | null
+  }
+  const rows = (otData ?? []) as unknown as Raw[]
+
+  // Cliente = propietario activo del vehículo (segunda consulta, robusta).
+  const vehiculoIds = [...new Set(rows.map((r) => r.vehiculo_id).filter(Boolean) as string[])]
+  const nombrePorVehiculo: Record<string, string> = {}
+  if (vehiculoIds.length > 0) {
+    const { data: pvData } = await supabase
+      .from('propietarios_vehiculo')
+      .select('vehiculo_id, clientes(nombre)')
+      .in('vehiculo_id', vehiculoIds)
+      .is('fecha_fin', null)
+    for (const pv of (pvData ?? []) as unknown as {
+      vehiculo_id: string
+      clientes: { nombre: string | null } | null
+    }[]) {
+      if (pv.clientes?.nombre && !nombrePorVehiculo[pv.vehiculo_id]) {
+        nombrePorVehiculo[pv.vehiculo_id] = pv.clientes.nombre
+      }
+    }
+  }
+
+  return rows.map((r) => ({
+    id: r.id,
+    numero_ot: r.numero_ot,
+    estado: r.estado,
+    creado_en: r.creado_en,
+    patente: r.vehiculos?.patente ?? null,
+    marca: r.vehiculos?.marca ?? null,
+    modelo: r.vehiculos?.modelo ?? null,
+    cliente_nombre: r.vehiculo_id ? nombrePorVehiculo[r.vehiculo_id] ?? null : null,
+  }))
+}
+
 /**
  * Devuelve la OT activa de un vehículo, o null si no hay ninguna.
  * Por invariante de dominio (trigger) hay como máximo una OT activa por vehículo.
