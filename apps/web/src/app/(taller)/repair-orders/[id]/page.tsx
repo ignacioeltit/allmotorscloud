@@ -5,6 +5,7 @@ export const dynamic = 'force-dynamic'
 
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/server'
+import { getAuthContext } from '@/lib/auth/context'
 import { getOrdenTrabajoById } from '@/modules/repair-orders/queries'
 import { getVehiculoById } from '@/modules/vehicles/queries'
 import { getPropietarioActivoByVehiculo } from '@/modules/customers/queries'
@@ -23,7 +24,6 @@ import { StatusBadge } from '@/components/ui/StatusBadge'
 import { OrdenTrabajoActions } from '@/components/repair-orders/OrdenTrabajoActions'
 import { KmIngresoInline } from '@/components/repair-orders/KmIngresoInline'
 import { DiagnosticoSection } from '@/components/repair-orders/DiagnosticoSection'
-import { ComprasSection } from '@/components/repair-orders/ComprasSection'
 import { EntregaSection } from '@/components/repair-orders/EntregaSection'
 import { TrabajosSection } from '@/components/repair-orders/TrabajosSection'
 import { PresupuestoSection } from '@/components/repair-orders/PresupuestoSection'
@@ -66,6 +66,7 @@ export default async function OrdenTrabajoDetailPage({
   const result = await load(async () => {
     const supabase = await createClient()
 
+    const { rol } = await getAuthContext(supabase)
     const orden = await getOrdenTrabajoById(supabase, id)
     const [vehiculo, cliente, eventos, historia, tipoEvento, tipoDiagnostico, reparaciones, presupuesto, mecanicos, configuracion, taller, citasActivas] =
       await Promise.all([
@@ -87,7 +88,7 @@ export default async function OrdenTrabajoDetailPage({
       getTotalesOT(supabase, orden.id),
     ])
 
-    return { orden, vehiculo, cliente, eventos, historia, tipoEvento, tipoDiagnostico, reparaciones, presupuesto, mecanicos, configuracion, taller, citasActivas, entrega, totales }
+    return { orden, vehiculo, cliente, eventos, historia, tipoEvento, tipoDiagnostico, reparaciones, presupuesto, mecanicos, configuracion, taller, citasActivas, entrega, totales, rol }
   })
 
   if (!result.ok) {
@@ -107,8 +108,12 @@ export default async function OrdenTrabajoDetailPage({
     )
   }
 
-  const { orden, vehiculo, cliente, eventos, historia, tipoEvento, tipoDiagnostico, reparaciones, presupuesto, mecanicos, configuracion, taller, citasActivas, entrega, totales } =
+  const { orden, vehiculo, cliente, eventos, historia, tipoEvento, tipoDiagnostico, reparaciones, presupuesto, mecanicos, configuracion, taller, citasActivas, entrega, totales, rol } =
     result.data
+
+  // Costos (compra, utilidad, margen) solo para admin, jefe de taller y asesor
+  // de servicio (recepción). Los mecánicos NO ven costos ni rentabilidad.
+  const puedeVerCostos = rol === 'admin' || rol === 'jefe_taller' || rol === 'recepcionista'
 
   const diagnosticos = tipoDiagnostico
     ? eventos.filter((e) => e.tipo_evento_id === tipoDiagnostico.id).reverse()
@@ -127,14 +132,18 @@ export default async function OrdenTrabajoDetailPage({
   let totalMO = 0
   let totalRep = 0
   let totalOtros = 0
+  let costoCompra = 0 // lo que costó comprar los repuestos (no lo que se cobra)
   for (const rep of reparaciones) {
     for (const item of rep.items) {
       if (item.tipo === 'mano_obra') totalMO += item.costo_total
       else if (item.tipo === 'otros') totalOtros += item.costo_total
       else totalRep += item.costo_total
+      if (item.tipo === 'repuesto') costoCompra += (item.costo_compra_unitario ?? 0) * item.cantidad
     }
   }
   const totalOT = totalMO + totalRep + totalOtros
+  const utilidad = totalOT - costoCompra
+  const margen = totalOT > 0 ? Math.round((utilidad / totalOT) * 100) : 0
 
   return (
     <div className="space-y-6">
@@ -248,7 +257,10 @@ export default async function OrdenTrabajoDetailPage({
         mecanicos={mecanicos}
       />
 
-      {/* ── Trabajos (Client Component con formularios) ── */}
+      {/* ── Trabajos (Client Component con formularios) ──
+           El estado de compra de cada repuesto (En taller / Por comprar /
+           Comprado / Recibido) y su costo se gestionan inline en cada ítem.
+           Las acciones de compra (orden imprimible / WhatsApp) van al pie. */}
       <TrabajosSection
         ordenTrabajoId={orden.id}
         historiaId={historia.id}
@@ -257,14 +269,9 @@ export default async function OrdenTrabajoDetailPage({
         mecanicos={mecanicos}
         configuracion={configuracion}
         motivoOT={orden.notas}
-      />
-
-      {/* ── Repuestos y compras ── */}
-      <ComprasSection
-        ordenTrabajoId={orden.id}
+        puedeVerCostos={puedeVerCostos}
         numeroOt={orden.numero_ot}
         vehiculoLabel={vehiculoLabel}
-        reparaciones={reparaciones}
       />
 
       {/* ── Presupuesto (Client Component con formularios) ── */}
@@ -314,6 +321,37 @@ export default async function OrdenTrabajoDetailPage({
               <p className="mt-0.5 text-base font-bold text-accent-400">{fmtCLP(totalOT)}</p>
             </div>
           </div>
+        </section>
+      )}
+
+      {/* ── Costos y rentabilidad (solo admin / jefe / asesor) ── */}
+      {puedeVerCostos && totalOT > 0 && (
+        <section className="rounded-xl border border-black/[0.06] bg-neutral-900/30 px-5 py-4">
+          <p className={`${sectionLabel} mb-3`}>Costos y rentabilidad</p>
+          <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
+            <div>
+              <p className="text-[11px] uppercase tracking-wider text-neutral-600">Venta (neto)</p>
+              <p className="mt-0.5 text-sm font-semibold text-neutral-200">{fmtCLP(totalOT)}</p>
+            </div>
+            <div>
+              <p className="text-[11px] uppercase tracking-wider text-neutral-600">Costo compra repuestos</p>
+              <p className="mt-0.5 text-sm font-semibold text-neutral-200">{fmtCLP(costoCompra)}</p>
+            </div>
+            <div>
+              <p className="text-[11px] uppercase tracking-wider text-neutral-600">Utilidad</p>
+              <p className={`mt-0.5 text-base font-bold ${utilidad >= 0 ? 'text-emerald-700' : 'text-red-700'}`}>{fmtCLP(utilidad)}</p>
+            </div>
+            <div>
+              <p className="text-[11px] uppercase tracking-wider text-neutral-600">Margen</p>
+              <p className="mt-0.5 text-base font-bold text-neutral-100">{margen}%</p>
+            </div>
+          </div>
+          {costoCompra === 0 && (
+            <p className="mt-2 text-xs text-neutral-500">
+              Aún no ingresas costos de compra de repuestos (sección «Repuestos y compras»). La
+              utilidad no descuenta esos costos todavía.
+            </p>
+          )}
         </section>
       )}
 

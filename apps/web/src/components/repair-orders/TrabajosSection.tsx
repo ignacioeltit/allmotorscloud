@@ -1,10 +1,15 @@
 'use client'
 
 import { useState, useTransition, useEffect, useRef } from 'react'
+import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
-import { crearReparacion, addItemReparacion, softDeleteItemReparacion, asignarMecanicoReparacion } from '@/modules/reparaciones/mutations'
-import { TIPOS_ITEM_REPARACION, TIPOS_ITEM_LABEL } from '@/modules/reparaciones/constants'
+import { crearReparacion, addItemReparacion, softDeleteItemReparacion, asignarMecanicoReparacion, actualizarCompraItem } from '@/modules/reparaciones/mutations'
+import {
+  TIPOS_ITEM_REPARACION, TIPOS_ITEM_LABEL,
+  ESTADOS_COMPRA, ESTADO_COMPRA_LABEL, ESTADO_COMPRA_BADGE, ESTADOS_COMPRA_PENDIENTES,
+  type EstadoCompra,
+} from '@/modules/reparaciones/constants'
 import type { ReparacionConItems, ItemReparacion } from '@/modules/reparaciones/types'
 import type { MecanicoSimple } from '@/modules/users/types'
 import { searchRepuestos } from '@/modules/inventory/queries'
@@ -795,6 +800,75 @@ function AgregarTrabajoForm({
   )
 }
 
+// ── Inline: estado de compra del repuesto (En taller / Por comprar / … ) ──
+// Visible para todos (el mecánico necesita saber si el repuesto está en taller).
+// La nota indica dónde/cómo conseguirlo (Mercado Libre, importación, proveedor…).
+
+function EstadoCompraInline({ item, onSaved }: { item: ItemReparacion; onSaved: () => void }) {
+  const [estado, setEstado] = useState<EstadoCompra>(item.estado_compra)
+  const [nota, setNota] = useState(item.nota_compra ?? '')
+  const [saving, setSaving] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const [ok, setOk] = useState(false)
+
+  const sucio = estado !== item.estado_compra || nota !== (item.nota_compra ?? '')
+
+  async function guardar() {
+    setSaving(true)
+    setError(null)
+    try {
+      await actualizarCompraItem(createClient(), {
+        itemId: item.id,
+        estadoCompra: estado,
+        notaCompra: nota.trim() || null,
+      })
+      setOk(true)
+      setTimeout(() => setOk(false), 1500)
+      onSaved()
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Error al guardar.')
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  return (
+    <div className="mt-1.5 flex flex-wrap items-center gap-2">
+      <span className={`shrink-0 rounded-full border px-2 py-0.5 text-[10px] font-medium ${ESTADO_COMPRA_BADGE[item.estado_compra]}`}>
+        {ESTADO_COMPRA_LABEL[item.estado_compra]}
+      </span>
+      <select
+        value={estado}
+        onChange={(e) => setEstado(e.target.value as EstadoCompra)}
+        disabled={saving}
+        className="rounded-md border border-black/10 bg-white px-2 py-1 text-xs text-neutral-700 outline-none focus:border-accent-500 disabled:opacity-50"
+        aria-label="Estado de compra"
+      >
+        {ESTADOS_COMPRA.map((s) => <option key={s} value={s}>{ESTADO_COMPRA_LABEL[s]}</option>)}
+      </select>
+      <input
+        value={nota}
+        onChange={(e) => setNota(e.target.value)}
+        placeholder="Nota: Mercado Libre, importación, proveedor…"
+        disabled={saving}
+        className="min-w-[9rem] flex-1 rounded-md border border-black/10 bg-white px-2 py-1 text-xs text-neutral-700 outline-none focus:border-accent-500 disabled:opacity-50"
+      />
+      {sucio && (
+        <button
+          type="button"
+          onClick={() => void guardar()}
+          disabled={saving}
+          className="rounded-md bg-accent-600 px-3 py-1 text-xs font-semibold text-white hover:bg-accent-500 disabled:opacity-50"
+        >
+          {saving ? '…' : 'Guardar'}
+        </button>
+      )}
+      {ok && <span className="text-xs text-emerald-700">✓</span>}
+      {error && <span className="text-xs text-red-700">{error}</span>}
+    </div>
+  )
+}
+
 // ── Inline edit: costo de compra en ítems de repuesto ya guardados ──────
 
 interface CostoCompraInlineProps {
@@ -903,9 +977,11 @@ interface TrabajoCardProps {
   onChanged: (hasPendiente?: boolean) => void
   /** true cuando el trabajo recién se creó por el camino directo: la ficha abre sola. */
   initialShowFicha?: boolean
+  /** Muestra costos de compra / utilidad por ítem (solo roles de gestión). */
+  puedeVerCostos: boolean
 }
 
-function TrabajoCard({ reparacion, mecanicos, configuracion, onChanged, initialShowFicha = false }: TrabajoCardProps) {
+function TrabajoCard({ reparacion, mecanicos, configuracion, onChanged, initialShowFicha = false, puedeVerCostos }: TrabajoCardProps) {
   const [showAddItem, setShowAddItem] = useState(false)
   const [showFicha, setShowFicha] = useState(initialShowFicha)
   const [deletingId, setDeletingId] = useState<string | null>(null)
@@ -1017,7 +1093,10 @@ function TrabajoCard({ reparacion, mecanicos, configuracion, onChanged, initialS
                 </p>
               )}
               {item.tipo === 'repuesto' && (
-                <CostoCompraInline item={item} onSaved={onChanged} />
+                <>
+                  <EstadoCompraInline item={item} onSaved={onChanged} />
+                  {puedeVerCostos && <CostoCompraInline item={item} onSaved={onChanged} />}
+                </>
               )}
             </div>
           ))}
@@ -1074,6 +1153,28 @@ interface TrabajosSectionProps {
   configuracion: ConfiguracionManoObra
   /** Motivo de ingreso de la OT — semilla del "Trabajo directo". */
   motivoOT?: string | null
+  /** Muestra costos de compra / utilidad por ítem (solo roles de gestión). */
+  puedeVerCostos: boolean
+  /** Para la orden de compra imprimible / WhatsApp del pie. */
+  numeroOt: string
+  vehiculoLabel: string | null
+}
+
+/** Texto de WhatsApp para el encargado de compras (repuestos por conseguir). */
+function mensajeCompra(
+  vehiculoLabel: string | null,
+  numeroOt: string,
+  items: ItemReparacion[],
+): string {
+  return [
+    `Comprar repuestos${vehiculoLabel ? ` para ${vehiculoLabel}` : ''} (${numeroOt}):`,
+    '',
+    ...items.map((it) => {
+      const cant = it.cantidad !== 1 ? ` x${it.cantidad}` : ''
+      const nota = it.nota_compra ? ` — ${it.nota_compra}` : ''
+      return `• ${it.descripcion}${cant}${nota}`
+    }),
+  ].join('\n')
 }
 
 export function TrabajosSection({
@@ -1084,6 +1185,9 @@ export function TrabajosSection({
   mecanicos,
   configuracion,
   motivoOT = null,
+  puedeVerCostos,
+  numeroOt,
+  vehiculoLabel,
 }: TrabajosSectionProps) {
   const router = useRouter()
   const [showAddTrabajo, setShowAddTrabajo] = useState(false)
@@ -1198,8 +1302,60 @@ export function TrabajosSection({
           configuracion={configuracion}
           onChanged={refresh}
           initialShowFicha={rep.id === fichaAbiertaId}
+          puedeVerCostos={puedeVerCostos}
         />
       ))}
+
+      <ComprasAcciones
+        ordenTrabajoId={ordenTrabajoId}
+        numeroOt={numeroOt}
+        vehiculoLabel={vehiculoLabel}
+        reparaciones={initialReparaciones}
+      />
     </section>
+  )
+}
+
+// ── Pie de acciones de compra: emite la orden imprimible / WhatsApp con los
+//    repuestos que faltan por conseguir. El estado de cada repuesto se marca
+//    inline en su ítem (arriba); esto es solo el "enviar al comprador". ──────
+
+function ComprasAcciones({
+  ordenTrabajoId,
+  numeroOt,
+  vehiculoLabel,
+  reparaciones,
+}: {
+  ordenTrabajoId: string
+  numeroOt: string
+  vehiculoLabel: string | null
+  reparaciones: ReparacionConItems[]
+}) {
+  const repuestos = reparaciones.flatMap((r) => r.items).filter((i) => i.tipo === 'repuesto')
+  const porComprar = repuestos.filter((i) => ESTADOS_COMPRA_PENDIENTES.includes(i.estado_compra))
+  if (porComprar.length === 0) return null
+
+  const waUrl = `https://wa.me/?text=${encodeURIComponent(mensajeCompra(vehiculoLabel, numeroOt, porComprar))}`
+
+  return (
+    <div className="flex flex-wrap items-center gap-2 rounded-xl border border-amber-500/25 bg-amber-500/[0.05] px-4 py-3">
+      <span className="text-sm font-medium text-amber-800">
+        {porComprar.length} repuesto{porComprar.length > 1 ? 's' : ''} por conseguir
+      </span>
+      <Link
+        href={`/repair-orders/${ordenTrabajoId}/orden-compra`}
+        className="inline-flex items-center gap-2 rounded-lg bg-accent-600 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-accent-500"
+      >
+        🛒 Orden de compra
+      </Link>
+      <a
+        href={waUrl}
+        target="_blank"
+        rel="noopener noreferrer"
+        className="inline-flex items-center justify-center gap-2 rounded-lg border border-emerald-500/40 bg-emerald-500/10 px-4 py-2 text-sm font-medium text-emerald-800 transition-colors hover:bg-emerald-500/20"
+      >
+        Enviar lista por WhatsApp
+      </a>
+    </div>
   )
 }
