@@ -4,6 +4,7 @@ export const dynamic = 'force-dynamic'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/server'
 import { getAuthContext } from '@/lib/auth/context'
+import { getResumenFinanzas } from '@/modules/finanzas/queries'
 import { getTipoEventoRecepcionId } from '@/modules/reception/queries'
 import { listCotizacionesRespondidas } from '@/modules/estimates/queries'
 import { getCitasActivasPorVehiculo } from '@/modules/agenda/queries'
@@ -39,8 +40,10 @@ function startOfTodayISO(): string {
 export default async function DashboardPage() {
   const result = await load(async () => {
     const supabase = await createClient()
-    const { orgId } = await getAuthContext(supabase)
+    const { orgId, rol } = await getAuthContext(supabase)
     const desdeHoy = startOfTodayISO()
+    const hoyYMD = new Date().toISOString().slice(0, 10)
+    const puedeFinanzas = rol === 'admin' || rol === 'jefe_taller' || rol === 'recepcionista'
 
     const { data: otData, error: otError } = await supabase
       .from('ordenes_trabajo')
@@ -75,6 +78,11 @@ export default async function DashboardPage() {
 
     const enTaller = rows.filter((r) => !FUERA_TALLER.includes(r.estado))
 
+    // Facturación (ingresos) de hoy — solo para roles con acceso a finanzas.
+    const facturacionHoy = puedeFinanzas
+      ? (await getResumenFinanzas(supabase, hoyYMD, hoyYMD)).ingresos
+      : null
+
     // Mecánicos trabajando en cada OT visible (desde los trabajos asignados).
     const mecanicosPorOt: Record<string, string[]> = {}
     if (enTaller.length > 0) {
@@ -97,6 +105,7 @@ export default async function DashboardPage() {
       mecanicosPorOt,
       cotizacionesRespondidas,
       citasActivas,
+      facturacionHoy,
       metrics: {
         enTaller: enTaller.length,
         abiertas: rows.filter((r) => !TERMINALES.includes(r.estado)).length,
@@ -120,7 +129,7 @@ export default async function DashboardPage() {
     )
   }
 
-  const { metrics, enTaller, mecanicosPorOt, cotizacionesRespondidas, citasActivas } = result.data
+  const { metrics, enTaller, mecanicosPorOt, cotizacionesRespondidas, citasActivas, facturacionHoy } = result.data
   const citaDe = (c: (typeof cotizacionesRespondidas)[number]) =>
     c.vehiculo_id ? citasActivas[c.vehiculo_id] ?? null : null
   const pidenAgendar = cotizacionesRespondidas.filter(
@@ -153,7 +162,12 @@ export default async function DashboardPage() {
         <MetricCard label="Entregados hoy" value={metrics.entregadasHoy} />
         <MetricCard label="Recepciones del día" value={metrics.recepcionesHoy} />
         <MetricCard label="Piden agendar" value={pidenAgendar} accent={pidenAgendar > 0} />
-        <MetricCard label="Facturación del día" value="—" hint="Próximamente" />
+        <MetricCard
+          label="Facturación del día"
+          value={facturacionHoy != null ? fmtCLP(facturacionHoy) : '—'}
+          hint={facturacionHoy != null ? 'Ingresos de hoy' : undefined}
+          accent={facturacionHoy != null && facturacionHoy > 0}
+        />
       </div>
 
       {cotizacionesRespondidas.length > 0 && (
