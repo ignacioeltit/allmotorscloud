@@ -14,6 +14,8 @@ export interface Movimiento {
   forma_pago: string | null
   orden_trabajo_id: string | null
   numero_ot: string | null
+  /** 'manual' = fila de movimientos_financieros (borrable); 'entrega' = ingreso derivado de una OT pagada (no borrable acá). */
+  origen: 'manual' | 'entrega'
 }
 
 export interface ResumenFinanzas {
@@ -35,31 +37,45 @@ export interface CuentaPorCobrar {
   creado_en: string
 }
 
-/** Libro de movimientos del período (fecha en [desde, hasta]). */
+/**
+ * Libro de movimientos del período: une los movimientos manuales
+ * (movimientos_financieros: gastos + ingresos manuales) con los ingresos
+ * derivados de las OT pagadas (entregas con estado_pago='pagada'). Así el pago
+ * de una OT SIEMPRE aparece como ingreso sin depender de una segunda escritura.
+ */
 export async function listMovimientos(
   supabase: DbClient,
-  params: { desde: string; hasta: string; tipo?: TipoMovimiento } = { desde: '', hasta: '' },
+  params: { desde: string; hasta: string } = { desde: '', hasta: '' },
 ): Promise<Movimiento[]> {
   const { orgId } = await getAuthContext(supabase)
 
-  let q = supabase
+  // 1) Movimientos manuales (gastos + ingresos manuales).
+  let mq = supabase
     .from('movimientos_financieros')
     .select('id, tipo, categoria, monto, fecha, descripcion, forma_pago, orden_trabajo_id, ordenes_trabajo(numero_ot)')
     .eq('org_id', orgId)
     .is('eliminado_en', null)
-    .order('fecha', { ascending: false })
-    .order('creado_en', { ascending: false })
     .limit(500)
+  if (params.desde) mq = mq.gte('fecha', params.desde)
+  if (params.hasta) mq = mq.lte('fecha', params.hasta)
 
-  if (params.desde) q = q.gte('fecha', params.desde)
-  if (params.hasta) q = q.lte('fecha', params.hasta)
-  if (params.tipo) q = q.eq('tipo', params.tipo)
+  // 2) Ingresos de OT pagadas (por fecha de pago).
+  let eq = supabase
+    .from('entregas')
+    .select('id, monto_pagado, forma_pago, pagado_en, numero_factura, ordenes_trabajo(numero_ot)')
+    .eq('org_id', orgId)
+    .eq('estado_pago', 'pagada')
+    .not('pagado_en', 'is', null)
+    .limit(500)
+  if (params.desde) eq = eq.gte('pagado_en', params.desde)
+  if (params.hasta) eq = eq.lte('pagado_en', params.hasta)
 
-  const { data, error } = await q
-  if (error) throw new Error(error.message)
+  const [movRes, entRes] = await Promise.all([mq, eq])
+  if (movRes.error) throw new Error(movRes.error.message)
+  if (entRes.error) throw new Error(entRes.error.message)
 
-  type Row = Omit<Movimiento, 'numero_ot'> & { ordenes_trabajo: { numero_ot: string } | null }
-  return ((data ?? []) as unknown as Row[]).map((r) => ({
+  type MovRow = Omit<Movimiento, 'numero_ot' | 'origen'> & { ordenes_trabajo: { numero_ot: string } | null }
+  const manuales: Movimiento[] = ((movRes.data ?? []) as unknown as MovRow[]).map((r) => ({
     id: r.id,
     tipo: r.tipo,
     categoria: r.categoria,
@@ -69,10 +85,34 @@ export async function listMovimientos(
     forma_pago: r.forma_pago,
     orden_trabajo_id: r.orden_trabajo_id,
     numero_ot: r.ordenes_trabajo?.numero_ot ?? null,
+    origen: 'manual',
   }))
+
+  type EntRow = {
+    id: string
+    monto_pagado: number | null
+    forma_pago: string | null
+    pagado_en: string
+    numero_factura: string | null
+    ordenes_trabajo: { numero_ot: string } | null
+  }
+  const ingresosOT: Movimiento[] = ((entRes.data ?? []) as unknown as EntRow[]).map((e) => ({
+    id: `entrega:${e.id}`,
+    tipo: 'ingreso',
+    categoria: 'pago_ot',
+    monto: e.monto_pagado ?? 0,
+    fecha: e.pagado_en,
+    descripcion: e.numero_factura ? `Documento N° ${e.numero_factura}` : null,
+    forma_pago: e.forma_pago,
+    orden_trabajo_id: null,
+    numero_ot: e.ordenes_trabajo?.numero_ot ?? null,
+    origen: 'entrega',
+  }))
+
+  return [...manuales, ...ingresosOT].sort((a, b) => b.fecha.localeCompare(a.fecha))
 }
 
-/** Suma de ingresos y gastos del período. */
+/** Suma de ingresos (manuales + OT pagadas) y gastos del período. */
 export async function getResumenFinanzas(
   supabase: DbClient,
   desde: string,
@@ -80,21 +120,34 @@ export async function getResumenFinanzas(
 ): Promise<ResumenFinanzas> {
   const { orgId } = await getAuthContext(supabase)
 
-  const { data, error } = await supabase
-    .from('movimientos_financieros')
-    .select('tipo, monto')
-    .eq('org_id', orgId)
-    .is('eliminado_en', null)
-    .gte('fecha', desde)
-    .lte('fecha', hasta)
-
-  if (error) throw new Error(error.message)
+  const [movRes, entRes] = await Promise.all([
+    supabase
+      .from('movimientos_financieros')
+      .select('tipo, monto')
+      .eq('org_id', orgId)
+      .is('eliminado_en', null)
+      .gte('fecha', desde)
+      .lte('fecha', hasta),
+    supabase
+      .from('entregas')
+      .select('monto_pagado')
+      .eq('org_id', orgId)
+      .eq('estado_pago', 'pagada')
+      .not('pagado_en', 'is', null)
+      .gte('pagado_en', desde)
+      .lte('pagado_en', hasta),
+  ])
+  if (movRes.error) throw new Error(movRes.error.message)
+  if (entRes.error) throw new Error(entRes.error.message)
 
   let ingresos = 0
   let gastos = 0
-  for (const m of (data ?? []) as { tipo: TipoMovimiento; monto: number }[]) {
+  for (const m of (movRes.data ?? []) as { tipo: TipoMovimiento; monto: number }[]) {
     if (m.tipo === 'ingreso') ingresos += m.monto
     else gastos += m.monto
+  }
+  for (const e of (entRes.data ?? []) as { monto_pagado: number | null }[]) {
+    ingresos += e.monto_pagado ?? 0
   }
   return { ingresos, gastos, balance: ingresos - gastos }
 }

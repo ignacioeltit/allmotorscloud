@@ -91,8 +91,6 @@ export function EntregaSection({
     try {
       await marcarEntregaPagada(createClient(), {
         entregaId: entrega.id,
-        ordenTrabajoId,
-        monto: entrega.monto_pagado ?? totales.total_con_iva,
         formaPago: formaPagoCobro,
       })
       router.refresh()

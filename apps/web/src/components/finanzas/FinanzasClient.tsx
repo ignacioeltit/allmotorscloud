@@ -237,9 +237,15 @@ export function FinanzasClient({
                       {m.tipo === 'ingreso' ? '+' : '−'}{fmtCLP(m.monto)}
                     </td>
                     <td className="py-2 text-right">
-                      <button onClick={() => void borrar(m.id)} disabled={borrando === m.id} className={`${btnGhost} px-2 py-0.5 text-xs text-red-700`}>
-                        {borrando === m.id ? '…' : '×'}
-                      </button>
+                      {m.origen === 'manual' ? (
+                        <button onClick={() => void borrar(m.id)} disabled={borrando === m.id} className={`${btnGhost} px-2 py-0.5 text-xs text-red-700`}>
+                          {borrando === m.id ? '…' : '×'}
+                        </button>
+                      ) : (
+                        m.orden_trabajo_id === null && m.numero_ot ? (
+                          <span className="text-[10px] text-neutral-600">OT</span>
+                        ) : null
+                      )}
                     </td>
                   </tr>
                 ))}

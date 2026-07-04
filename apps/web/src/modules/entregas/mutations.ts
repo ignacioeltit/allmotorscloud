@@ -11,7 +11,6 @@ import { getAuthContext } from '@/lib/auth/context'
 import { unwrapWritten } from '@/lib/supabase/result'
 import { ValidationError } from '@/lib/errors'
 import { cambiarEstadoOrdenTrabajo } from '@/modules/repair-orders/mutations'
-import { registrarIngresoDeEntrega } from '@/modules/finanzas/mutations'
 import type { TipoDocumento, CondicionPago } from '@/modules/finanzas/constants'
 import { FORMAS_PAGO, type FormaPago } from './constants'
 
@@ -78,19 +77,9 @@ export async function registrarEntrega(
 
   const entrega = unwrapWritten<{ id: string }>(data, error)
 
-  // La OT queda 'entregada'.
+  // La OT queda 'entregada'. El ingreso (si es al contado) lo deriva Finanzas
+  // de la entrega pagada — sin escritura aparte.
   await cambiarEstadoOrdenTrabajo(supabase, input.ordenTrabajoId, { estado: 'entregada' })
-
-  // Al contado: el ingreso entra al libro de una vez.
-  if (esContado) {
-    await registrarIngresoDeEntrega(supabase, {
-      entregaId: entrega.id,
-      ordenTrabajoId: input.ordenTrabajoId,
-      monto: input.montoPagado,
-      fecha: hoy,
-      formaPago: input.formaPago,
-    })
-  }
 
   return entrega
 }

@@ -61,45 +61,13 @@ export async function eliminarMovimiento(supabase: DbClient, id: string): Promis
 }
 
 /**
- * Registra el ingreso correspondiente a una entrega pagada. Idempotente: si ya
- * existe el ingreso de esa entrega (índice único), no duplica.
- */
-export async function registrarIngresoDeEntrega(
-  supabase: DbClient,
-  input: {
-    entregaId: string
-    ordenTrabajoId: string
-    monto: number
-    fecha: string
-    formaPago?: string | null
-  },
-): Promise<void> {
-  const { userId, orgId } = await getAuthContext(supabase)
-
-  const { error } = await supabase.from('movimientos_financieros').insert({
-    org_id: orgId,
-    tipo: 'ingreso',
-    categoria: 'pago_ot',
-    monto: Math.round(input.monto * 100) / 100,
-    fecha: input.fecha,
-    descripcion: 'Pago de orden de trabajo',
-    ...(input.formaPago?.trim() ? { forma_pago: input.formaPago.trim() } : {}),
-    orden_trabajo_id: input.ordenTrabajoId,
-    entrega_id: input.entregaId,
-    creado_por: userId,
-  })
-
-  // 23505 = ya existe el ingreso de esta entrega (unique parcial) → ok, no duplicar.
-  if (error && error.code !== '23505') throw mapPostgrestError(error)
-}
-
-/**
- * Marca una entrega a crédito como pagada: fija estado/fecha/forma de pago y
- * registra el ingreso en el libro.
+ * Marca una entrega (a crédito) como pagada: fija estado, fecha de pago y forma
+ * de pago. El ingreso NO se escribe aparte — Finanzas lo deriva de las entregas
+ * pagadas (fuente única, sin doble escritura frágil).
  */
 export async function marcarEntregaPagada(
   supabase: DbClient,
-  input: { entregaId: string; ordenTrabajoId: string; monto: number; formaPago: string; fecha?: string },
+  input: { entregaId: string; formaPago: string; fecha?: string },
 ): Promise<void> {
   const { orgId } = await getAuthContext(supabase)
   const fecha = input.fecha || new Date().toISOString().slice(0, 10)
@@ -112,12 +80,4 @@ export async function marcarEntregaPagada(
     .select('id')
 
   unwrapWritten<{ id: string }>(data, error)
-
-  await registrarIngresoDeEntrega(supabase, {
-    entregaId: input.entregaId,
-    ordenTrabajoId: input.ordenTrabajoId,
-    monto: input.monto,
-    fecha,
-    formaPago: input.formaPago,
-  })
 }
