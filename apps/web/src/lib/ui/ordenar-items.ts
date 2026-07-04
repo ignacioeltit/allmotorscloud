@@ -1,10 +1,10 @@
 // Orden de presentación de ítems en OTs, presupuestos y documentos:
-// primero toda la mano de obra, luego repuestos/materiales, luego otros.
+// primero repuestos/materiales, luego mano de obra, luego otros.
 // El sort es estable → dentro de cada grupo se conserva el orden de creación.
 
 const ORDEN_TIPO: Record<string, number> = {
-  mano_obra: 0,
-  repuesto: 1,
+  repuesto: 0,
+  mano_obra: 1,
   otros: 2,
 }
 
