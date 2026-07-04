@@ -7,10 +7,11 @@ import { createClient } from '@/lib/supabase/server'
 import { getVehiculoById } from '@/modules/vehicles/queries'
 import { getHistoriaByVehiculoId } from '@/modules/technical-history/queries'
 import { listEventosByHistoria } from '@/modules/events/queries'
-import { listOrdenesTrabajoByVehiculo } from '@/modules/repair-orders/queries'
+import { listOrdenesTrabajoByVehiculo, getHistorialServiciosVehiculo } from '@/modules/repair-orders/queries'
 import { load } from '@/lib/ui/load'
 import { PageHeader } from '@/components/ui/PageHeader'
 import { Notice } from '@/components/ui/Notice'
+import { HistorialServiciosVehiculo } from '@/components/vehicles/HistorialServiciosVehiculo'
 import {
   card,
   badge,
@@ -45,11 +46,12 @@ export default async function VehiculoDetailPage({
     const supabase = await createClient()
     const vehiculo = await getVehiculoById(supabase, id)
     const historia = await getHistoriaByVehiculoId(supabase, id)
-    const [eventos, ordenes] = await Promise.all([
+    const [eventos, ordenes, servicios] = await Promise.all([
       listEventosByHistoria(supabase, historia.id),
       listOrdenesTrabajoByVehiculo(supabase, id),
+      getHistorialServiciosVehiculo(supabase, id),
     ])
-    return { vehiculo, historia, eventos, ordenes }
+    return { vehiculo, historia, eventos, ordenes, servicios }
   })
 
   if (!result.ok) {
@@ -70,7 +72,7 @@ export default async function VehiculoDetailPage({
     )
   }
 
-  const { vehiculo, historia, eventos, ordenes } = result.data
+  const { vehiculo, historia, eventos, ordenes, servicios } = result.data
 
   return (
     <div className="space-y-8">
@@ -95,6 +97,15 @@ export default async function VehiculoDetailPage({
           <Info label="Color" value={vehiculo.color ?? '—'} />
         </div>
       </div>
+
+      {/* Historial de servicios — lo primero: "¿cuándo se le cambió X?" */}
+      <section id="historial-servicios">
+        <div className="mb-3 flex items-center justify-between">
+          <h2 className="text-lg font-semibold text-neutral-100">Historial de servicios</h2>
+          <span className="text-xs text-neutral-500">Todo lo hecho al vehículo, en todas sus OTs</span>
+        </div>
+        <HistorialServiciosVehiculo rows={servicios} />
+      </section>
 
       {/* Historia Técnica */}
       <section>

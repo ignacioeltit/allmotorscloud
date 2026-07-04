@@ -419,6 +419,12 @@ export default async function OrdenTrabajoDetailPage({
             >
               🖨 Imprimir OT
             </Link>
+            <Link
+              href={`/vehicles/${orden.vehiculo_id}#historial-servicios`}
+              className="inline-flex items-center gap-2 rounded-lg border border-accent-500/40 bg-accent-500/10 px-3.5 py-2 text-sm font-semibold text-accent-400 transition-colors hover:bg-accent-500/20"
+            >
+              🔧 Historial del vehículo
+            </Link>
             <Link href={`/vehicles/${orden.vehiculo_id}`} className={`${linkClass} text-sm`}>
               Ver ficha vehículo →
             </Link>

@@ -122,6 +122,78 @@ export async function buscarOrdenesTrabajo(
   return { rows, total }
 }
 
+export interface ServicioHistorialRow {
+  itemId: string
+  otId: string
+  numeroOt: string
+  fecha: string
+  km: number | null
+  tipo: string
+  descripcion: string
+  cantidad: number
+}
+
+/**
+ * Historial plano de servicios de un vehículo: TODAS las líneas (mano de obra,
+ * repuestos, otros) de TODAS sus OTs, con su fecha y N° de OT. Permite buscar
+ * "cuándo se cambió el filtro" sin abrir OT por OT. Ámbito por vehículo → acotado.
+ */
+export async function getHistorialServiciosVehiculo(
+  supabase: DbClient,
+  vehiculoId: string,
+): Promise<ServicioHistorialRow[]> {
+  const { orgId } = await getAuthContext(supabase)
+
+  const { data: ots, error: e1 } = await supabase
+    .from('ordenes_trabajo')
+    .select('id, numero_ot, creado_en, cerrado_en, km_ingreso')
+    .eq('org_id', orgId)
+    .eq('vehiculo_id', vehiculoId)
+    .is('eliminado_en', null)
+  if (e1) throw e1
+  if (!ots || ots.length === 0) return []
+
+  type Ot = { id: string; numero_ot: string; creado_en: string; cerrado_en: string | null; km_ingreso: number | null }
+  const otById = new Map((ots as Ot[]).map((o) => [o.id, o]))
+
+  const { data: reps, error: e2 } = await supabase
+    .from('reparaciones')
+    .select('id, orden_trabajo_id')
+    .in('orden_trabajo_id', (ots as Ot[]).map((o) => o.id))
+  if (e2) throw e2
+  if (!reps || reps.length === 0) return []
+
+  const otByRep = new Map(
+    (reps as { id: string; orden_trabajo_id: string }[]).map((r) => [r.id, r.orden_trabajo_id]),
+  )
+
+  const { data: items, error: e3 } = await supabase
+    .from('items_reparacion')
+    .select('id, tipo, descripcion, cantidad, reparacion_id')
+    .in('reparacion_id', (reps as { id: string }[]).map((r) => r.id))
+    .is('eliminado_en', null)
+  if (e3) throw e3
+
+  type It = { id: string; tipo: string; descripcion: string; cantidad: number; reparacion_id: string }
+  const rows = (items as It[] | null ?? []).flatMap((it) => {
+    const otId = otByRep.get(it.reparacion_id)
+    const ot = otId ? otById.get(otId) : undefined
+    if (!ot) return []
+    return [{
+      itemId: it.id,
+      otId: ot.id,
+      numeroOt: ot.numero_ot,
+      fecha: ot.cerrado_en ?? ot.creado_en,
+      km: ot.km_ingreso,
+      tipo: it.tipo,
+      descripcion: it.descripcion,
+      cantidad: it.cantidad,
+    }]
+  })
+  rows.sort((a, b) => b.fecha.localeCompare(a.fecha))
+  return rows
+}
+
 /**
  * Devuelve la OT activa de un vehículo, o null si no hay ninguna.
  * Por invariante de dominio (trigger) hay como máximo una OT activa por vehículo.
