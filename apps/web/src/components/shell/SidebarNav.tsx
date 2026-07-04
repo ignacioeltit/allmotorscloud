@@ -35,6 +35,14 @@ function Icon({ name }: { name: string }) {
         <rect x="14" y="14" width="7" height="7" rx="1.5" />
       </svg>
     )
+  if (name === 'wallet')
+    return (
+      <svg {...common}>
+        <path d="M19 7V5a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-2" />
+        <path d="M21 7H7a2 2 0 0 0-2 2v0a2 2 0 0 0 2 2h14v-4z" />
+        <circle cx="16" cy="11" r="1" />
+      </svg>
+    )
   if (name === 'layers')
     return (
       <svg {...common}>
@@ -121,6 +129,7 @@ export function SidebarNav({ pendientesCatalogo = 0, rolUsuario }: SidebarNavPro
   }
   const receptionActive = pathname.startsWith('/recepcion') || pathname.startsWith('/reception')
   const canConfig = rolUsuario === 'admin' || rolUsuario === 'jefe_taller'
+  const canFinanzas = canConfig || rolUsuario === 'recepcionista'
 
   return (
     <nav className="flex flex-col gap-1">
@@ -165,6 +174,25 @@ export function SidebarNav({ pendientesCatalogo = 0, rolUsuario }: SidebarNavPro
           </Link>
         )
       })}
+
+      {canFinanzas && (() => {
+        const active = isActive('/finanzas')
+        return (
+          <Link
+            href="/finanzas"
+            className={`flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors ${
+              active
+                ? 'bg-black/[0.07] text-neutral-50'
+                : 'text-neutral-400 hover:bg-black/[0.04] hover:text-neutral-200'
+            }`}
+          >
+            <span className={active ? 'text-accent-400' : 'text-neutral-500'}>
+              <Icon name="wallet" />
+            </span>
+            Finanzas
+          </Link>
+        )
+      })()}
 
       {canConfig && (() => {
         const active = isActive('/settings/equipo')

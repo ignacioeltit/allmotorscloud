@@ -134,13 +134,24 @@ export function ComprobanteEntrega({
           </div>
         </div>
 
-        {/* Pago */}
+        {/* Documento + pago */}
         {entrega && (
           <div className="mt-5 rounded-lg border border-[#e5e7eb] bg-[#f9fafb] px-4 py-3 text-sm">
-            <span className="font-medium">Pago:</span>{' '}
-            {entrega.forma_pago ? FORMA_PAGO_LABEL[entrega.forma_pago] : '—'}
-            {entrega.monto_pagado != null ? ` · ${fmtCLP(entrega.monto_pagado)}` : ''}
-            {entrega.notas ? ` · ${entrega.notas}` : ''}
+            {entrega.tipo_documento !== 'ninguno' && (
+              <p>
+                <span className="font-medium">
+                  {entrega.tipo_documento === 'factura' ? 'Factura' : 'Boleta'} N°:
+                </span>{' '}
+                {entrega.numero_factura ?? '—'}
+              </p>
+            )}
+            <p>
+              <span className="font-medium">Pago:</span>{' '}
+              {entrega.condicion_pago === 'credito' && entrega.estado_pago === 'pendiente'
+                ? `Crédito${entrega.vence_en ? ` · vence ${new Date(entrega.vence_en + 'T00:00').toLocaleDateString('es-CL')}` : ''} · PENDIENTE`
+                : `${entrega.forma_pago ? FORMA_PAGO_LABEL[entrega.forma_pago] : 'Contado'}${entrega.monto_pagado != null ? ` · ${fmtCLP(entrega.monto_pagado)}` : ''}`}
+              {entrega.notas ? ` · ${entrega.notas}` : ''}
+            </p>
           </div>
         )}
 

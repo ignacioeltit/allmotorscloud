@@ -1,15 +1,18 @@
 // Escrituras del módulo entregas.
 //
-// La entrega es el cierre operativo de la OT frente al cliente: registra forma
-// de pago, monto y km de salida, y deja la OT en estado 'entregada'. RLS:
-// admin/jefe_taller/recepcionista (migration 003). UNIQUE(orden_trabajo_id) →
-// una sola entrega por OT (el comprobante es único).
+// La entrega es el cierre operativo + facturación de la OT: registra forma de
+// pago, monto, km de salida, N° de documento (boleta/factura) y condición de
+// pago (contado/crédito). Deja la OT en 'entregada'. Si es al contado, además
+// registra el ingreso en el libro de finanzas. RLS: admin/jefe_taller/
+// recepcionista (migration 003 + 027). UNIQUE(orden_trabajo_id): una por OT.
 
 import type { DbClient } from '@/lib/supabase/types'
 import { getAuthContext } from '@/lib/auth/context'
 import { unwrapWritten } from '@/lib/supabase/result'
 import { ValidationError } from '@/lib/errors'
 import { cambiarEstadoOrdenTrabajo } from '@/modules/repair-orders/mutations'
+import { registrarIngresoDeEntrega } from '@/modules/finanzas/mutations'
+import type { TipoDocumento, CondicionPago } from '@/modules/finanzas/constants'
 import { FORMAS_PAGO, type FormaPago } from './constants'
 
 export interface RegistrarEntregaInput {
@@ -18,24 +21,27 @@ export interface RegistrarEntregaInput {
   montoPagado: number
   kmSalida?: number | null
   notas?: string | null
+  // Facturación
+  tipoDocumento: TipoDocumento
+  numeroFactura?: string | null
+  condicionPago: CondicionPago
+  /** Solo para crédito: fecha de vencimiento (YYYY-MM-DD). */
+  venceEn?: string | null
 }
 
 /**
- * Registra la entrega del vehículo y mueve la OT a 'entregada'. El cambio de
- * estado pasa por cambiarEstadoOrdenTrabajo, que exige km_ingreso (regla del
- * taller). Si el km de salida viene, se guarda en la entrega.
+ * Registra la entrega + facturación y mueve la OT a 'entregada'. Al contado, la
+ * entrega queda pagada y se registra el ingreso; a crédito queda pendiente (va a
+ * cuentas por cobrar) y el ingreso se registra al cobrar (marcarEntregaPagada).
  */
 export async function registrarEntrega(
   supabase: DbClient,
   input: RegistrarEntregaInput,
 ): Promise<{ id: string }> {
-  if (!FORMAS_PAGO.includes(input.formaPago)) {
-    throw new ValidationError('Forma de pago inválida.')
-  }
+  if (!FORMAS_PAGO.includes(input.formaPago)) throw new ValidationError('Forma de pago inválida.')
   const { userId, orgId } = await getAuthContext(supabase)
 
-  // Regla del taller: sin km de ingreso no se entrega. Se valida ANTES de
-  // insertar la entrega para no dejar un registro huérfano.
+  // Regla del taller: sin km de ingreso no se entrega (valida antes de insertar).
   const { data: ot } = await supabase
     .from('ordenes_trabajo')
     .select('km_ingreso')
@@ -48,6 +54,9 @@ export async function registrarEntrega(
     )
   }
 
+  const esContado = input.condicionPago === 'contado'
+  const hoy = new Date().toISOString().slice(0, 10)
+
   const { data, error } = await supabase
     .from('entregas')
     .insert({
@@ -55,6 +64,12 @@ export async function registrarEntrega(
       orden_trabajo_id: input.ordenTrabajoId,
       forma_pago: input.formaPago,
       monto_pagado: input.montoPagado,
+      tipo_documento: input.tipoDocumento,
+      condicion_pago: input.condicionPago,
+      estado_pago: esContado ? 'pagada' : 'pendiente',
+      ...(esContado ? { pagado_en: hoy } : {}),
+      ...(!esContado && input.venceEn ? { vence_en: input.venceEn } : {}),
+      ...(input.numeroFactura?.trim() ? { numero_factura: input.numeroFactura.trim() } : {}),
       ...(input.kmSalida != null ? { km_salida: Math.round(input.kmSalida) } : {}),
       ...(input.notas?.trim() ? { notas: input.notas.trim() } : {}),
       creado_por: userId,
@@ -63,9 +78,19 @@ export async function registrarEntrega(
 
   const entrega = unwrapWritten<{ id: string }>(data, error)
 
-  // La OT queda 'entregada'. Si falla (ej: falta km_ingreso), se propaga el
-  // error pero la entrega ya quedó — el estado se puede ajustar arriba.
+  // La OT queda 'entregada'.
   await cambiarEstadoOrdenTrabajo(supabase, input.ordenTrabajoId, { estado: 'entregada' })
+
+  // Al contado: el ingreso entra al libro de una vez.
+  if (esContado) {
+    await registrarIngresoDeEntrega(supabase, {
+      entregaId: entrega.id,
+      ordenTrabajoId: input.ordenTrabajoId,
+      monto: input.montoPagado,
+      fecha: hoy,
+      formaPago: input.formaPago,
+    })
+  }
 
   return entrega
 }
