@@ -93,6 +93,21 @@ export async function cambiarEstadoOrdenTrabajo(
         'La OT no tiene kilometraje registrado. Ingrésalo (campo "Km ingreso" en la cabecera) antes de entregarla o cerrarla.',
       )
     }
+
+    // No se puede entregar/cerrar sin registrar la entrega: eso captura el cobro
+    // (al contado ahora, o marcado para más tarde como crédito / por facturar).
+    // Evita cerrar una OT y perder el ingreso de vista, como pasó con OT-000034.
+    const { data: ent } = await supabase
+      .from('entregas')
+      .select('id')
+      .eq('org_id', orgId)
+      .eq('orden_trabajo_id', id)
+      .limit(1)
+    if (!ent || ent.length === 0) {
+      throw new ValidationError(
+        'No puedes cerrar la OT sin registrar la entrega. Usa "Entregar y facturar" en la OT — si el cobro es para otro momento, márcala como crédito o "por facturar". Para cierres sin cobro (garantía/cortesía), registra la entrega con documento "Sin documento".',
+      )
+    }
   }
 
   const { data, error } = await supabase
