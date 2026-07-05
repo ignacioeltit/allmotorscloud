@@ -53,11 +53,14 @@ export function CotizacionDetailClient({
   cotizacion,
   tallerNombre,
   citaActiva = null,
+  valorHora,
 }: {
   cotizacion: CotizacionDetalle
   tallerNombre: string
   /** fecha_cita de la próxima cita activa del vehículo, si existe. */
   citaActiva?: string | null
+  /** Valor hora configurado — semilla del precio de mano de obra. */
+  valorHora?: number
 }) {
   const router = useRouter()
   const [showAdd, setShowAdd] = useState(false)
@@ -296,7 +299,7 @@ export function CotizacionDetailClient({
                 <p className="text-xs font-semibold uppercase tracking-wider text-neutral-500">Cargar líneas</p>
                 <button onClick={() => setShowAdd(false)} className={`${btnGhost} text-xs`}>Cerrar</button>
               </div>
-              <FichaIngresoLineas presupuestoId={p.id} onGuardado={() => { setShowAdd(false); router.refresh() }} />
+              <FichaIngresoLineas presupuestoId={p.id} valorHora={valorHora} onGuardado={() => { setShowAdd(false); router.refresh() }} />
             </div>
           ) : (
             <div className="flex flex-wrap gap-2">

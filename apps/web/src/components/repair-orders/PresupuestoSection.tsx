@@ -35,6 +35,8 @@ interface PresupuestoSectionProps {
   tipoEventoReparacionId: string | null
   /** true si los ítems de este presupuesto ya fueron copiados a Trabajos. */
   yaEnTrabajos: boolean
+  /** Valor hora configurado — semilla del precio de mano de obra. */
+  valorHora?: number
 }
 
 export function PresupuestoSection({
@@ -48,6 +50,7 @@ export function PresupuestoSection({
   historiaId,
   tipoEventoReparacionId,
   yaEnTrabajos,
+  valorHora,
 }: PresupuestoSectionProps) {
   const router = useRouter()
   const [showAddItem, setShowAddItem] = useState(false)
@@ -232,6 +235,7 @@ export function PresupuestoSection({
             </div>
             <FichaIngresoLineas
               presupuestoId={p.id}
+              valorHora={valorHora}
               onGuardado={() => {
                 setShowAddItem(false)
                 refresh()

@@ -292,6 +292,7 @@ export default async function OrdenTrabajoDetailPage({
           citaActiva={citaActivaVehiculo}
           historiaId={historia?.id ?? null}
           tipoEventoReparacionId={tipoEvento?.id ?? null}
+          valorHora={configuracion.valor_hora_mecanica}
           yaEnTrabajos={
             presupuesto != null &&
             reparaciones.some((r) =>

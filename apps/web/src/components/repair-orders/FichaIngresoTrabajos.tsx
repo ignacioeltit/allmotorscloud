@@ -59,6 +59,12 @@ function filaVacia(): LineaT {
   return { descripcion: '', cantidad: '1', precio: '', repuesto: null, servicio: null }
 }
 
+// Mano de obra: arranca con el valor hora configurado como "precio" → total =
+// horas × valor hora. Editable por línea.
+function filaManoObra(valorHora: number): LineaT {
+  return { descripcion: '', cantidad: '1', precio: String(valorHora), repuesto: null, servicio: null }
+}
+
 function totalLinea(l: LineaT): number {
   const c = parseFloat(l.cantidad)
   const p = parseFloat(l.precio)
@@ -305,7 +311,16 @@ function GrillaTrabajos({
           </tbody>
         </table>
       </div>
-      <button type="button" onClick={() => setLineas((prev) => [...prev, filaVacia()])} className={`${btnGhost} mt-2 text-xs`}>
+      <button
+        type="button"
+        onClick={() =>
+          setLineas((prev) => [
+            ...prev,
+            grupo === 'mano_obra' ? filaManoObra(configuracion.valor_hora_mecanica) : filaVacia(),
+          ])
+        }
+        className={`${btnGhost} mt-2 text-xs`}
+      >
         + Agregar línea
       </button>
     </div>
@@ -323,7 +338,9 @@ export function FichaIngresoTrabajos({
   onGuardado: (hasPendiente?: boolean) => void
 }) {
   const [materiales, setMateriales] = useState<LineaT[]>(() => Array.from({ length: FILAS_INICIALES }, filaVacia))
-  const [manoObra, setManoObra] = useState<LineaT[]>(() => Array.from({ length: FILAS_INICIALES }, filaVacia))
+  const [manoObra, setManoObra] = useState<LineaT[]>(
+    () => Array.from({ length: FILAS_INICIALES }, () => filaManoObra(configuracion.valor_hora_mecanica)),
+  )
   const [otros, setOtros] = useState<LineaT[]>(() => Array.from({ length: FILAS_INICIALES }, filaVacia))
   const [error, setError] = useState<string | null>(null)
   const [pending, startTransition] = useTransition()

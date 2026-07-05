@@ -8,6 +8,7 @@ import { createClient } from '@/lib/supabase/server'
 import { getCotizacionById } from '@/modules/estimates/queries'
 import { getCitasActivasPorVehiculo } from '@/modules/agenda/queries'
 import { getOrganizacion } from '@/modules/org/queries'
+import { getConfiguracionManoObra } from '@/modules/taller/queries'
 import { load } from '@/lib/ui/load'
 import { PageHeader } from '@/components/ui/PageHeader'
 import { Notice } from '@/components/ui/Notice'
@@ -22,9 +23,10 @@ export default async function CotizacionDetailPage({
 
   const result = await load(async () => {
     const supabase = await createClient()
-    const [cotizacion, taller] = await Promise.all([
+    const [cotizacion, taller, configuracion] = await Promise.all([
       getCotizacionById(supabase, id),
       getOrganizacion(supabase),
+      getConfiguracionManoObra(supabase),
     ])
     // Próxima cita activa del vehículo (apaga el aviso "quiere agendar").
     let citaActiva: string | null = null
@@ -32,7 +34,7 @@ export default async function CotizacionDetailPage({
       const citas = await getCitasActivasPorVehiculo(supabase, [cotizacion.vehiculo.id])
       citaActiva = citas[cotizacion.vehiculo.id] ?? null
     }
-    return { cotizacion, taller, citaActiva }
+    return { cotizacion, taller, citaActiva, valorHora: configuracion.valor_hora_mecanica }
   })
 
   if (!result.ok) {
@@ -62,6 +64,7 @@ export default async function CotizacionDetailPage({
         cotizacion={result.data.cotizacion}
         tallerNombre={result.data.taller?.nombre ?? 'el taller'}
         citaActiva={result.data.citaActiva}
+        valorHora={result.data.valorHora}
       />
     </div>
   )

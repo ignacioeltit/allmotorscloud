@@ -29,6 +29,12 @@ function filaVacia(): Linea {
   return { descripcion: '', cantidad: '1', precio: '', descuento: '0' }
 }
 
+// Mano de obra: la línea arranca con el valor hora configurado como "precio",
+// de modo que total = horas × valor hora. El usuario puede sobrescribirlo.
+function filaManoObra(valorHora?: number): Linea {
+  return { descripcion: '', cantidad: '1', precio: valorHora ? String(valorHora) : '', descuento: '0' }
+}
+
 function totalLinea(l: Linea): number {
   const c = parseFloat(l.cantidad)
   const p = parseFloat(l.precio)
@@ -54,12 +60,14 @@ function Grilla({
   grupo,
   lineas,
   setLineas,
+  nuevaFila = filaVacia,
 }: {
   titulo: string
   labelCantidad: string
   grupo: Grupo
   lineas: Linea[]
   setLineas: (fn: (prev: Linea[]) => Linea[]) => void
+  nuevaFila?: () => Linea
 }) {
   function set(i: number, campo: keyof Linea, valor: string) {
     setLineas((prev) => prev.map((l, idx) => (idx === i ? { ...l, [campo]: valor } : l)))
@@ -154,7 +162,7 @@ function Grilla({
       </div>
       <button
         type="button"
-        onClick={() => setLineas((prev) => [...prev, filaVacia()])}
+        onClick={() => setLineas((prev) => [...prev, nuevaFila()])}
         className={`${btnGhost} mt-2 text-xs`}
       >
         + Agregar línea
@@ -166,12 +174,16 @@ function Grilla({
 export function FichaIngresoLineas({
   presupuestoId,
   onGuardado,
+  valorHora,
 }: {
   presupuestoId: string
   onGuardado: () => void
+  /** Valor hora configurado (Configuración). Semilla del precio de mano de obra. */
+  valorHora?: number
 }) {
+  const nuevaFilaMO = () => filaManoObra(valorHora)
   const [materiales, setMateriales] = useState<Linea[]>(() => Array.from({ length: FILAS_INICIALES }, filaVacia))
-  const [manoObra, setManoObra] = useState<Linea[]>(() => Array.from({ length: FILAS_INICIALES }, filaVacia))
+  const [manoObra, setManoObra] = useState<Linea[]>(() => Array.from({ length: FILAS_INICIALES }, nuevaFilaMO))
   const [otros, setOtros] = useState<Linea[]>(() => Array.from({ length: FILAS_INICIALES }, filaVacia))
   const [error, setError] = useState<string | null>(null)
   const [pending, startTransition] = useTransition()
@@ -224,7 +236,14 @@ export function FichaIngresoLineas({
       </div>
 
       <Grilla titulo="Materiales / Repuestos" labelCantidad="Cantidad" grupo="repuesto" lineas={materiales} setLineas={setMateriales} />
-      <Grilla titulo="Mano de obra" labelCantidad="Horas" grupo="mano_obra" lineas={manoObra} setLineas={setManoObra} />
+      <div>
+        {valorHora != null && (
+          <p className="mb-1 text-[11px] text-neutral-500">
+            Valor hora: <span className="font-semibold text-neutral-300">{fmtCLP(valorHora)}</span> (Configuración) · total = horas × valor hora
+          </p>
+        )}
+        <Grilla titulo="Mano de obra" labelCantidad="Horas" grupo="mano_obra" lineas={manoObra} setLineas={setManoObra} nuevaFila={nuevaFilaMO} />
+      </div>
       <Grilla titulo="Otros" labelCantidad="Cantidad" grupo="otros" lineas={otros} setLineas={setOtros} />
 
       {error && <p className="text-xs text-red-800">{error}</p>}
