@@ -115,12 +115,23 @@ function Grilla({
             {lineas.map((l, i) => (
               <tr key={i} className="border-b border-black/[0.03] last:border-0">
                 <td className="px-2 py-1.5">
-                  <input
-                    className={inputCell}
-                    placeholder={i === 0 ? 'Código' : ''}
-                    value={l.codigo}
-                    onChange={(e) => set(i, 'codigo', e.target.value)}
-                  />
+                  {grupo === 'otros' ? (
+                    <input
+                      className={inputCell}
+                      placeholder={i === 0 ? 'Código' : ''}
+                      value={l.codigo}
+                      onChange={(e) => set(i, 'codigo', e.target.value)}
+                    />
+                  ) : (
+                    <BuscadorLineaCatalogo
+                      grupo={grupo}
+                      className={inputCell}
+                      placeholder={i === 0 ? 'Código' : ''}
+                      value={l.codigo}
+                      onChangeText={(text) => set(i, 'codigo', text)}
+                      onPick={(s) => elegirDelCatalogo(i, s.descripcion, s.codigo, s.precio, s.cantidad)}
+                    />
+                  )}
                 </td>
                 <td className="px-2 py-1.5">
                   {grupo === 'otros' ? (

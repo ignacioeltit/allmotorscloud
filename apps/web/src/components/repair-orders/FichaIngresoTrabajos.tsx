@@ -270,12 +270,23 @@ function GrillaTrabajos({
             {lineas.map((l, i) => (
               <tr key={i} className="border-b border-black/[0.03] last:border-0">
                 <td className="px-2 py-1.5">
-                  <input
-                    className={inputCell}
-                    placeholder={i === 0 ? 'Código' : ''}
-                    value={l.codigo}
-                    onChange={(e) => set(i, { codigo: e.target.value })}
-                  />
+                  {grupo === 'otros' ? (
+                    <input
+                      className={inputCell}
+                      placeholder={i === 0 ? 'Código' : ''}
+                      value={l.codigo}
+                      onChange={(e) => set(i, { codigo: e.target.value })}
+                    />
+                  ) : (
+                    <CeldaBuscador
+                      grupo={grupo}
+                      value={l.codigo}
+                      placeholder={i === 0 ? 'Código' : ''}
+                      onChangeText={(text) => set(i, { codigo: text })}
+                      onPickRepuesto={(r) => pickRepuesto(i, r)}
+                      onPickServicio={(s) => pickServicio(i, s)}
+                    />
+                  )}
                 </td>
                 <td className="px-2 py-1.5">
                   {grupo === 'otros' ? (
