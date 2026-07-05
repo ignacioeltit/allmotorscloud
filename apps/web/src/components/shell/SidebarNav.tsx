@@ -111,6 +111,14 @@ function Icon({ name }: { name: string }) {
         <path d="M14.7 6.3a4 4 0 0 1-5.4 5.4L4 17l3 3 5.3-5.3a4 4 0 0 1 5.4-5.4l-2.6 2.6-2-.4-.4-2 2.6-2.6z" />
       </svg>
     )
+  if (name === 'building')
+    return (
+      <svg {...common}>
+        <path d="M3 21h18" />
+        <path d="M5 21V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v16" />
+        <path d="M9 7h1M9 11h1M9 15h1M14 7h1M14 11h1M14 15h1" />
+      </svg>
+    )
   if (name === 'settings')
     return (
       <svg {...common}>
@@ -137,6 +145,7 @@ export function SidebarNav({ pendientesCatalogo = 0, rolUsuario }: SidebarNavPro
   const receptionActive = pathname.startsWith('/recepcion') || pathname.startsWith('/reception')
   const canConfig = rolUsuario === 'admin' || rolUsuario === 'jefe_taller'
   const canFinanzas = canConfig || rolUsuario === 'recepcionista'
+  const canEmpresa = rolUsuario === 'admin'
 
   return (
     <nav className="flex flex-col gap-1">
@@ -216,6 +225,25 @@ export function SidebarNav({ pendientesCatalogo = 0, rolUsuario }: SidebarNavPro
               <Icon name="users" />
             </span>
             Equipo
+          </Link>
+        )
+      })()}
+
+      {canEmpresa && (() => {
+        const active = isActive('/settings/empresa')
+        return (
+          <Link
+            href="/settings/empresa"
+            className={`flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors ${
+              active
+                ? 'bg-black/[0.07] text-neutral-50'
+                : 'text-neutral-400 hover:bg-black/[0.04] hover:text-neutral-200'
+            }`}
+          >
+            <span className={active ? 'text-accent-400' : 'text-neutral-500'}>
+              <Icon name="building" />
+            </span>
+            Empresa
           </Link>
         )
       })()}

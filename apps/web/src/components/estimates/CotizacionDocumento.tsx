@@ -42,7 +42,12 @@ export function CotizacionDocumento({
       <div className="rounded-xl border border-[#e5e7eb] bg-white p-8 print:border-0 print:p-0">
         {/* Encabezado taller */}
         <div className="flex items-start justify-between gap-6 border-b border-[#e5e7eb] pb-5">
-          <div>
+          <div className="flex items-start gap-4">
+            {taller?.logo_url && (
+              /* eslint-disable-next-line @next/next/no-img-element */
+              <img src={taller.logo_url} alt="" className="h-14 w-auto max-w-[140px] object-contain" />
+            )}
+            <div>
             <h1 className="text-xl font-semibold text-[#111827]">{taller?.nombre ?? 'Taller'}</h1>
             <div className="mt-1 space-y-0.5 text-xs text-[#6b7280]">
               {taller?.rut && <p>RUT {taller.rut}</p>}
@@ -50,6 +55,7 @@ export function CotizacionDocumento({
               {(taller?.telefono || taller?.email) && (
                 <p>{[taller.telefono, taller.email].filter(Boolean).join(' · ')}</p>
               )}
+            </div>
             </div>
           </div>
           <div className="text-right">

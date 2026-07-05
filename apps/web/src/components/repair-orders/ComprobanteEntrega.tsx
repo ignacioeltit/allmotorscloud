@@ -56,13 +56,19 @@ export function ComprobanteEntrega({
       <div className="rounded-2xl border border-[#e5e7eb] bg-white p-6 shadow-sm sm:p-8 print:rounded-none print:border-0 print:p-0 print:shadow-none">
         {/* Encabezado */}
         <div className="flex items-start justify-between gap-4 border-b border-[#e5e7eb] pb-5">
-          <div>
-            <h1 className="text-lg font-semibold">{taller?.nombre ?? 'Taller'}</h1>
-            <div className="mt-1 space-y-0.5 text-xs text-[#6b7280]">
-              {taller?.rut && <p>RUT {taller.rut}</p>}
-              {(taller?.telefono || taller?.direccion) && (
-                <p>{[taller?.telefono, taller?.direccion, taller?.ciudad].filter(Boolean).join(' · ')}</p>
-              )}
+          <div className="flex items-start gap-3">
+            {taller?.logo_url && (
+              /* eslint-disable-next-line @next/next/no-img-element */
+              <img src={taller.logo_url} alt="" className="h-12 w-auto max-w-[120px] object-contain" />
+            )}
+            <div>
+              <h1 className="text-lg font-semibold">{taller?.nombre ?? 'Taller'}</h1>
+              <div className="mt-1 space-y-0.5 text-xs text-[#6b7280]">
+                {taller?.rut && <p>RUT {taller.rut}</p>}
+                {(taller?.telefono || taller?.direccion) && (
+                  <p>{[taller?.telefono, taller?.direccion, taller?.ciudad].filter(Boolean).join(' · ')}</p>
+                )}
+              </div>
             </div>
           </div>
           <div className="text-right">
