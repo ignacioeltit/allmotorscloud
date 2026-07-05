@@ -7,7 +7,8 @@ import { useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
-import { registrarMovimiento, eliminarMovimiento, facturarEntrega } from '@/modules/finanzas/mutations'
+import { registrarMovimiento, eliminarMovimiento, facturarEntrega, marcarEntregaPagada } from '@/modules/finanzas/mutations'
+import { FORMAS_PAGO, FORMA_PAGO_LABEL } from '@/modules/entregas/constants'
 import {
   CATEGORIAS_GASTO, CATEGORIA_GASTO_LABEL, type TipoMovimiento,
 } from '@/modules/finanzas/constants'
@@ -57,6 +58,26 @@ export function FinanzasClient({
   // Facturación de entregas mensuales
   const [facturandoId, setFacturandoId] = useState<string | null>(null)
   const [nroFactura, setNroFactura] = useState('')
+
+  // Registrar pago de una cuenta por cobrar (inline)
+  const [pagandoId, setPagandoId] = useState<string | null>(null)
+  const [formaPago, setFormaPago] = useState<string>('efectivo')
+  const [pagandoBusy, setPagandoBusy] = useState(false)
+
+  async function registrarPago(entregaId: string) {
+    setPagandoBusy(true)
+    setError(null)
+    try {
+      await marcarEntregaPagada(createClient(), { entregaId, formaPago })
+      setPagandoId(null)
+      setFormaPago('efectivo')
+      router.refresh()
+    } catch (e) {
+      setError(toErrorMessage(e))
+    } finally {
+      setPagandoBusy(false)
+    }
+  }
 
   function setPeriodo(d: string, h: string) {
     router.push(`/finanzas?desde=${d}&hasta=${h}`)
@@ -176,9 +197,43 @@ export function FinanzasClient({
                     </td>
                     <td className="py-2 text-right font-medium text-neutral-200">{fmtCLP(c.monto)}</td>
                     <td className="py-2 text-right">
-                      <Link href={`/repair-orders/${c.orden_trabajo_id}`} className="text-accent-400 hover:text-accent-300">
-                        Cobrar →
-                      </Link>
+                      {pagandoId === c.entrega_id ? (
+                        <div className="flex items-center justify-end gap-2">
+                          <select
+                            className="rounded-md border border-black/10 bg-white px-2 py-1 text-xs text-neutral-700 outline-none focus:border-accent-500"
+                            value={formaPago}
+                            onChange={(e) => setFormaPago(e.target.value)}
+                            disabled={pagandoBusy}
+                            aria-label="Forma de pago"
+                          >
+                            {FORMAS_PAGO.map((f) => <option key={f} value={f}>{FORMA_PAGO_LABEL[f]}</option>)}
+                          </select>
+                          <button
+                            type="button"
+                            onClick={() => void registrarPago(c.entrega_id)}
+                            disabled={pagandoBusy}
+                            className="rounded-md bg-emerald-600 px-3 py-1 text-xs font-semibold text-white hover:bg-emerald-500 disabled:opacity-50"
+                          >
+                            {pagandoBusy ? '…' : 'Confirmar pago'}
+                          </button>
+                          <button type="button" onClick={() => setPagandoId(null)} disabled={pagandoBusy} className="text-xs text-neutral-500 hover:text-neutral-300">
+                            Cancelar
+                          </button>
+                        </div>
+                      ) : (
+                        <div className="flex items-center justify-end gap-3">
+                          <button
+                            type="button"
+                            onClick={() => { setPagandoId(c.entrega_id); setFormaPago('efectivo') }}
+                            className="font-medium text-emerald-700 hover:text-emerald-600"
+                          >
+                            Registrar pago
+                          </button>
+                          <Link href={`/repair-orders/${c.orden_trabajo_id}`} className="text-xs text-neutral-500 hover:text-neutral-300">
+                            Ver OT
+                          </Link>
+                        </div>
+                      )}
                     </td>
                   </tr>
                 ))}
