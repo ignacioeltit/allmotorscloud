@@ -27,7 +27,7 @@ const REP_COLUMNS =
   'id, org_id, orden_trabajo_id, evento_trabajo_id, mecanico_id, descripcion, observaciones, inicio_en, fin_en, creado_en, actualizado_en, creado_por'
 
 const ITEM_COLUMNS =
-  'id, org_id, reparacion_id, item_presupuesto_id, tipo, descripcion, repuesto_id, cantidad, costo_unitario, costo_total, costo_compra_unitario, inicio_en, fin_en, creado_en, actualizado_en, creado_por, eliminado_en, eliminado_por, servicio_catalogo_id, plantilla_id, nombre_servicio_snapshot, horas_estandar_snapshot, valor_hora_snapshot, precio_catalogo_snapshot, estado_compra, nota_compra'
+  'id, org_id, reparacion_id, item_presupuesto_id, tipo, codigo, descripcion, repuesto_id, cantidad, costo_unitario, costo_total, costo_compra_unitario, inicio_en, fin_en, creado_en, actualizado_en, creado_por, eliminado_en, eliminado_por, servicio_catalogo_id, plantilla_id, nombre_servicio_snapshot, horas_estandar_snapshot, valor_hora_snapshot, precio_catalogo_snapshot, estado_compra, nota_compra'
 
 /**
  * Crea una reparación para una OT.
@@ -82,7 +82,7 @@ export async function addItemReparacion(
 
   const { userId, orgId } = await getAuthContext(supabase)
   const {
-    reparacionId, tipo, descripcion, cantidad, costoUnitario, repuestoId,
+    reparacionId, tipo, codigo, descripcion, cantidad, costoUnitario, repuestoId,
     itemPresupuestoId, servicioCatalogoId, nombreServicioSnapshot,
     horasEstandarSnapshot, valorHoraSnapshot, precioCatalogoSnapshot,
     costoCompraUnitario,
@@ -96,6 +96,7 @@ export async function addItemReparacion(
       org_id: orgId,
       reparacion_id: reparacionId,
       tipo,
+      ...(codigo ? { codigo } : {}),
       descripcion,
       cantidad,
       costo_unitario: costoUnitario,
@@ -131,6 +132,7 @@ export async function pasarPresupuestoATrabajos(
     items: Array<{
       id: string
       tipo: 'mano_obra' | 'repuesto' | 'otros'
+      codigo?: string | null
       descripcion: string
       cantidad: number
       precio_unitario: number
@@ -157,6 +159,7 @@ export async function pasarPresupuestoATrabajos(
     await addItemReparacion(supabase, {
       reparacionId: reparacion.id,
       tipo: it.tipo,
+      ...(it.codigo ? { codigo: it.codigo } : {}),
       descripcion: it.descripcion,
       cantidad: it.cantidad,
       costoUnitario,

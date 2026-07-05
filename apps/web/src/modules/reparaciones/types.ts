@@ -31,6 +31,7 @@ export interface ItemReparacion {
   reparacion_id: string
   item_presupuesto_id: string | null
   tipo: TipoItemReparacion
+  codigo: string | null
   descripcion: string
   repuesto_id: string | null
   cantidad: number
@@ -85,6 +86,7 @@ export const crearReparacionSchema = z.object({
 export const addItemReparacionSchema = z.object({
   reparacionId: uuid,
   tipo: z.enum(TIPOS_ITEM_REPARACION),
+  codigo: z.string().trim().max(60).nullish(),
   descripcion: textoCorto,
   cantidad: z.number().positive().multipleOf(0.001),
   costoUnitario: z.number().min(0),

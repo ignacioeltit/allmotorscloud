@@ -48,6 +48,7 @@ interface MetaServicio {
 }
 
 interface LineaT {
+  codigo: string
   descripcion: string
   cantidad: string
   precio: string
@@ -56,13 +57,13 @@ interface LineaT {
 }
 
 function filaVacia(): LineaT {
-  return { descripcion: '', cantidad: '1', precio: '', repuesto: null, servicio: null }
+  return { codigo: '', descripcion: '', cantidad: '1', precio: '', repuesto: null, servicio: null }
 }
 
 // Mano de obra: arranca con el valor hora configurado como "precio" → total =
 // horas × valor hora. Editable por línea.
 function filaManoObra(valorHora: number): LineaT {
-  return { descripcion: '', cantidad: '1', precio: String(valorHora), repuesto: null, servicio: null }
+  return { codigo: '', descripcion: '', cantidad: '1', precio: String(valorHora), repuesto: null, servicio: null }
 }
 
 function totalLinea(l: LineaT): number {
@@ -215,6 +216,7 @@ function GrillaTrabajos({
 
   function pickRepuesto(i: number, r: RepuestoResumen) {
     set(i, {
+      ...(r.codigo ? { codigo: r.codigo } : {}),
       descripcion: r.nombre + (r.marca ? ` — ${r.marca}` : ''),
       precio: r.precio_venta != null ? String(r.precio_venta) : '',
       repuesto: { id: r.id, stock: r.stock_actual, costoCompra: r.precio_costo },
@@ -228,6 +230,7 @@ function GrillaTrabajos({
       ? getValorHoraForServicio(configuracion, s.categoria)
       : s.precio_unitario
     set(i, {
+      ...(s.codigo ? { codigo: s.codigo } : {}),
       descripcion: s.nombre,
       cantidad: esHora ? String(s.horas_estandar) : '1',
       precio: String(valorHora),
@@ -255,6 +258,7 @@ function GrillaTrabajos({
         <table className="w-full text-sm">
           <thead>
             <tr className="border-b border-black/[0.06] bg-black/[0.02] text-left text-[10px] uppercase tracking-wider text-neutral-500">
+              <th className="w-28 px-2 py-2 font-medium">Código</th>
               <th className="px-2 py-2 font-medium">Descripción</th>
               <th className="w-20 px-2 py-2 font-medium">{labelCantidad}</th>
               <th className="w-28 px-2 py-2 font-medium">Precio</th>
@@ -265,6 +269,14 @@ function GrillaTrabajos({
           <tbody>
             {lineas.map((l, i) => (
               <tr key={i} className="border-b border-black/[0.03] last:border-0">
+                <td className="px-2 py-1.5">
+                  <input
+                    className={inputCell}
+                    placeholder={i === 0 ? 'Código' : ''}
+                    value={l.codigo}
+                    onChange={(e) => set(i, { codigo: e.target.value })}
+                  />
+                </td>
                 <td className="px-2 py-1.5">
                   {grupo === 'otros' ? (
                     <input
@@ -351,7 +363,8 @@ export function FichaIngresoTrabajos({
   async function agregarPaquete(pl: PlantillaResumen) {
     try {
       const lineas = await expandirPlantilla(createClient(), pl)
-      const aFila = (l: { descripcion: string; cantidad: number; precio: number }): LineaT => ({
+      const aFila = (l: { descripcion: string; cantidad: number; precio: number; codigo?: string | null }): LineaT => ({
+        codigo: l.codigo ?? '',
         descripcion: l.descripcion,
         cantidad: String(l.cantidad),
         precio: String(l.precio),
@@ -396,6 +409,7 @@ export function FichaIngresoTrabajos({
           const nuevo = await addItemReparacion(supabase, {
             reparacionId,
             tipo,
+            ...(linea.codigo.trim() ? { codigo: linea.codigo.trim() } : {}),
             descripcion: linea.descripcion.trim(),
             cantidad,
             costoUnitario,

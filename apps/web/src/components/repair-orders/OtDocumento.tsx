@@ -181,6 +181,7 @@ export function OtDocumento({
                         <tr key={it.id} className="border-b border-[#f3f4f6]">
                           <td className="w-6 py-1.5 align-top">☐</td>
                           <td className="py-1.5">
+                            {it.codigo && <span className="mr-1.5 font-mono text-[11px] text-[#6b7280]">{it.codigo}</span>}
                             {it.descripcion}
                             <span className="ml-2 text-[10px] uppercase text-[#9ca3af]">{TIPO_LABEL[it.tipo] ?? it.tipo}</span>
                           </td>
@@ -207,6 +208,7 @@ export function OtDocumento({
                   <tr key={it.id} className="border-b border-[#f3f4f6]">
                     <td className="w-6 py-1.5 align-top">☐</td>
                     <td className="py-1.5">
+                      {it.codigo && <span className="mr-1.5 font-mono text-[11px] text-[#6b7280]">{it.codigo}</span>}
                       {it.descripcion}
                       <span className="ml-2 text-[10px] uppercase text-[#9ca3af]">{TIPO_LABEL[it.tipo] ?? it.tipo}</span>
                     </td>

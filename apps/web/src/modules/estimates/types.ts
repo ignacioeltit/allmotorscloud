@@ -43,6 +43,7 @@ export interface ItemPresupuesto {
   org_id: string
   presupuesto_id: string
   tipo: TipoItemPresupuesto
+  codigo: string | null
   descripcion: string
   repuesto_id: string | null
   cantidad: number
@@ -88,6 +89,7 @@ export const addItemsPresupuestoSchema = z.object({
     .array(
       z.object({
         tipo: z.enum(TIPOS_ITEM_PRESUPUESTO),
+        codigo: z.string().trim().max(60).nullish(),
         descripcion: textoCorto,
         cantidad: z.number().positive().multipleOf(0.001),
         precioUnitario: z.number().min(0),

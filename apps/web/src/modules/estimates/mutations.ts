@@ -30,7 +30,7 @@ const PRES_COLUMNS =
   'id, org_id, orden_trabajo_id, presupuesto_anterior_id, version, estado, total_mano_obra, total_repuestos, total_otros, total_descuentos, total_neto, notas, enviado_en, autorizado_en, autorizado_por_nombre, rechazado_en, razon_rechazo, creado_en, actualizado_en, creado_por, eliminado_en, eliminado_por, token_publico, nota_cliente, agendar_solicitado, folio'
 
 const ITEM_COLUMNS =
-  'id, org_id, presupuesto_id, tipo, descripcion, repuesto_id, cantidad, precio_unitario, descuento_porcentaje, precio_total, autorizador_id, creado_en, actualizado_en, creado_por, eliminado_en, eliminado_por'
+  'id, org_id, presupuesto_id, tipo, codigo, descripcion, repuesto_id, cantidad, precio_unitario, descuento_porcentaje, precio_total, autorizador_id, creado_en, actualizado_en, creado_por, eliminado_en, eliminado_por'
 
 /** Crea un presupuesto borrador (versión 1, sin presupuesto_anterior_id) para una OT. */
 export async function crearPresupuesto(
@@ -145,6 +145,7 @@ export async function addItemsPresupuesto(
       org_id: orgId,
       presupuesto_id: presupuestoId,
       tipo: it.tipo,
+      ...(it.codigo ? { codigo: it.codigo } : {}),
       descripcion: it.descripcion,
       cantidad: it.cantidad,
       precio_unitario: it.precioUnitario,

@@ -73,6 +73,7 @@ export function PresupuestoSection({
         items: p.items.map((it) => ({
           id: it.id,
           tipo: it.tipo,
+          codigo: it.codigo,
           descripcion: it.descripcion,
           cantidad: it.cantidad,
           precio_unitario: it.precio_unitario,
@@ -190,6 +191,11 @@ export function PresupuestoSection({
                 <span className="mr-2 rounded-full border border-white/[0.06] bg-white/[0.04] px-2 py-0.5 text-[10px] text-neutral-500">
                   {TIPO_ITEM_LABEL[item.tipo] ?? item.tipo}
                 </span>
+                {item.codigo && (
+                  <span className="mr-1.5 rounded border border-white/[0.08] bg-white/[0.04] px-1.5 py-0.5 font-mono text-[10px] text-neutral-400">
+                    {item.codigo}
+                  </span>
+                )}
                 <span className="text-neutral-300">{item.descripcion}</span>
                 {item.cantidad !== 1 && (
                   <span className="ml-2 text-xs text-neutral-600">× {item.cantidad}</span>

@@ -260,6 +260,11 @@ export function CotizacionDetailClient({
                   <span className="mr-2 rounded-full border border-black/[0.08] bg-black/[0.04] px-2 py-0.5 text-[10px] text-neutral-500">
                     {TIPO_ITEM_LABEL[item.tipo]}
                   </span>
+                  {item.codigo && (
+                    <span className="mr-1.5 rounded border border-black/[0.08] bg-black/[0.04] px-1.5 py-0.5 font-mono text-[10px] text-neutral-500">
+                      {item.codigo}
+                    </span>
+                  )}
                   <span className="text-neutral-300">{item.descripcion}</span>
                   {item.cantidad !== 1 && <span className="ml-2 text-xs text-neutral-500">× {item.cantidad}</span>}
                 </div>

@@ -90,6 +90,7 @@ export function CotizacionDocumento({
             {ordenarItemsPorTipo(p.items).map((item) => (
               <tr key={item.id} className="border-b border-[#f3f4f6]">
                 <td className="py-2">
+                  {item.codigo && <span className="mr-1.5 font-mono text-[11px] text-[#6b7280]">{item.codigo}</span>}
                   <span className="text-[#1f2937]">{item.descripcion}</span>
                   <span className="ml-2 text-[10px] uppercase text-[#9ca3af]">{TIPO_ITEM_LABEL[item.tipo]}</span>
                 </td>

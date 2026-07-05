@@ -19,6 +19,7 @@ const FILAS_INICIALES = 5
 type Grupo = 'mano_obra' | 'repuesto' | 'otros'
 
 interface Linea {
+  codigo: string
   descripcion: string
   cantidad: string
   precio: string
@@ -26,13 +27,13 @@ interface Linea {
 }
 
 function filaVacia(): Linea {
-  return { descripcion: '', cantidad: '1', precio: '', descuento: '0' }
+  return { codigo: '', descripcion: '', cantidad: '1', precio: '', descuento: '0' }
 }
 
 // Mano de obra: la línea arranca con el valor hora configurado como "precio",
 // de modo que total = horas × valor hora. El usuario puede sobrescribirlo.
 function filaManoObra(valorHora?: number): Linea {
-  return { descripcion: '', cantidad: '1', precio: valorHora ? String(valorHora) : '', descuento: '0' }
+  return { codigo: '', descripcion: '', cantidad: '1', precio: valorHora ? String(valorHora) : '', descuento: '0' }
 }
 
 function totalLinea(l: Linea): number {
@@ -73,7 +74,7 @@ function Grilla({
     setLineas((prev) => prev.map((l, idx) => (idx === i ? { ...l, [campo]: valor } : l)))
   }
 
-  function elegirDelCatalogo(i: number, descripcion: string, precio: number | null, cantidad: number) {
+  function elegirDelCatalogo(i: number, descripcion: string, codigo: string | null, precio: number | null, cantidad: number) {
     setLineas((prev) =>
       prev.map((l, idx) =>
         idx === i
@@ -81,6 +82,7 @@ function Grilla({
               ...l,
               descripcion,
               cantidad: String(cantidad),
+              ...(codigo ? { codigo } : {}),
               ...(precio != null ? { precio: String(precio) } : {}),
             }
           : l,
@@ -100,6 +102,7 @@ function Grilla({
         <table className="w-full text-sm">
           <thead>
             <tr className="border-b border-black/[0.06] bg-black/[0.02] text-left text-[10px] uppercase tracking-wider text-neutral-500">
+              <th className="w-28 px-2 py-2 font-medium">Código</th>
               <th className="px-2 py-2 font-medium">Descripción</th>
               <th className="w-20 px-2 py-2 font-medium">{labelCantidad}</th>
               <th className="w-28 px-2 py-2 font-medium">Precio</th>
@@ -112,6 +115,14 @@ function Grilla({
             {lineas.map((l, i) => (
               <tr key={i} className="border-b border-black/[0.03] last:border-0">
                 <td className="px-2 py-1.5">
+                  <input
+                    className={inputCell}
+                    placeholder={i === 0 ? 'Código' : ''}
+                    value={l.codigo}
+                    onChange={(e) => set(i, 'codigo', e.target.value)}
+                  />
+                </td>
+                <td className="px-2 py-1.5">
                   {grupo === 'otros' ? (
                     <input
                       className={inputCell}
@@ -123,10 +134,10 @@ function Grilla({
                     <BuscadorLineaCatalogo
                       grupo={grupo}
                       className={inputCell}
-                      placeholder={i === 0 ? 'Buscar en catálogo o escribir…' : ''}
+                      placeholder={i === 0 ? 'Buscar por código o nombre…' : ''}
                       value={l.descripcion}
                       onChangeText={(text) => set(i, 'descripcion', text)}
-                      onPick={(s) => elegirDelCatalogo(i, s.descripcion, s.precio, s.cantidad)}
+                      onPick={(s) => elegirDelCatalogo(i, s.descripcion, s.codigo, s.precio, s.cantidad)}
                     />
                   )}
                 </td>
@@ -263,6 +274,7 @@ export function FichaIngresoLineas({
 
 function aItem(l: Linea) {
   return {
+    codigo: l.codigo.trim() || null,
     descripcion: l.descripcion.trim(),
     cantidad: parseFloat(l.cantidad),
     precioUnitario: parseFloat(l.precio),
@@ -270,8 +282,9 @@ function aItem(l: Linea) {
   }
 }
 
-function expandidaALinea(l: { descripcion: string; cantidad: number; precio: number }): Linea {
+function expandidaALinea(l: { descripcion: string; cantidad: number; precio: number; codigo?: string | null }): Linea {
   return {
+    codigo: l.codigo ?? '',
     descripcion: l.descripcion,
     cantidad: String(l.cantidad),
     precio: String(l.precio),

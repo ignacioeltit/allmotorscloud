@@ -20,6 +20,8 @@ import { FloatingDropdown } from '@/components/ui/FloatingDropdown'
 
 export interface SugerenciaCatalogo {
   descripcion: string
+  /** Código del catálogo / SKU del repuesto (si tiene). */
+  codigo: string | null
   /** Cantidad sugerida: horas estándar del servicio (si es por hora) o 1. */
   cantidad: number
   /** Precio unitario: valor hora según categoría (servicio por hora) o precio fijo. */
@@ -45,6 +47,7 @@ async function buscar(grupo: 'mano_obra' | 'repuesto', q: string): Promise<Suger
     const rows = await searchRepuestos(supabase, q)
     return rows.map((r) => ({
       descripcion: r.nombre,
+      codigo: r.codigo ?? null,
       cantidad: 1,
       precio: r.precio_venta,
       detalle: [r.codigo, r.stock_actual != null ? `stock ${r.stock_actual}` : null].filter(Boolean).join(' · '),
@@ -60,6 +63,7 @@ async function buscar(grupo: 'mano_obra' | 'repuesto', q: string): Promise<Suger
     const valorHora = esHora ? getValorHoraForServicio(config!, s.categoria) : null
     return {
       descripcion: s.nombre,
+      codigo: s.codigo ?? null,
       cantidad: esHora ? s.horas_estandar! : 1,
       precio: esHora ? valorHora : s.precio_unitario,
       detalle: [

@@ -192,6 +192,7 @@ interface AgregarItemFormProps {
 
 function AgregarItemForm({ reparacionId, configuracion, onDone, onCancel }: AgregarItemFormProps) {
   const [tipo, setTipo] = useState<'mano_obra' | 'repuesto'>('mano_obra')
+  const [codigo, setCodigo] = useState('')
   const [descripcion, setDescripcion] = useState('')
   const [cantidad, setCantidad] = useState('1')
   // Mano de obra: el precio unitario es el valor hora (arranca con la tarifa
@@ -266,6 +267,7 @@ function AgregarItemForm({ reparacionId, configuracion, onDone, onCancel }: Agre
 
   function selectServicio(s: CatalogoServicio) {
     setSelectedServicio(s)
+    if (s.codigo) setCodigo(s.codigo)
     setDescripcion(s.nombre)
     if (s.unidad_precio === 'hora' && s.horas_estandar != null) {
       // Mano de obra por hora: la cantidad son las horas (editable — el usuario
@@ -285,6 +287,7 @@ function AgregarItemForm({ reparacionId, configuracion, onDone, onCancel }: Agre
 
   function clearServicio() {
     setSelectedServicio(null)
+    setCodigo('')
     setDescripcion('')
     setCantidad('1')
     setCostoUnitario(String(configuracion.valor_hora_mecanica))
@@ -292,6 +295,7 @@ function AgregarItemForm({ reparacionId, configuracion, onDone, onCancel }: Agre
 
   function selectRepuesto(r: RepuestoResumen) {
     setSelectedRepuesto(r)
+    if (r.codigo) setCodigo(r.codigo)
     setDescripcion(r.nombre + (r.marca ? ` — ${r.marca}` : ''))
     setCostoUnitario(String(r.precio_venta ?? ''))
     setCostoCompra(r.precio_costo != null ? String(r.precio_costo) : '')
@@ -301,6 +305,7 @@ function AgregarItemForm({ reparacionId, configuracion, onDone, onCancel }: Agre
 
   function clearRepuesto() {
     setSelectedRepuesto(null)
+    setCodigo('')
     setDescripcion('')
     setCostoUnitario('')
     setCostoCompra('')
@@ -336,6 +341,7 @@ function AgregarItemForm({ reparacionId, configuracion, onDone, onCancel }: Agre
         const newItem = await addItemReparacion(supabase, {
           reparacionId,
           tipo,
+          ...(codigo.trim() ? { codigo: codigo.trim() } : {}),
           descripcion: descripcion.trim(),
           cantidad: cantNum,
           costoUnitario: costoNum,
@@ -599,6 +605,16 @@ function AgregarItemForm({ reparacionId, configuracion, onDone, onCancel }: Agre
             placeholder={tipo === 'mano_obra' ? 'ej: Revisión de frenos delanteros…' : 'ej: Pastillas de freno Bosch…'}
             value={descripcion}
             onChange={(e) => setDescripcion(e.target.value)}
+            disabled={pending}
+          />
+        </div>
+        <div>
+          <label className={labelClass}>Código</label>
+          <input
+            className={inputClass}
+            placeholder="Código / SKU (opcional)"
+            value={codigo}
+            onChange={(e) => setCodigo(e.target.value)}
             disabled={pending}
           />
         </div>
@@ -1071,6 +1087,11 @@ function TrabajoCard({ reparacion, mecanicos, configuracion, onChanged, initialS
                   <span className="mr-2 rounded-full border border-black/[0.06] bg-black/[0.04] px-2 py-0.5 text-[10px] text-neutral-500">
                     {TIPOS_ITEM_LABEL[item.tipo]}
                   </span>
+                  {item.codigo && (
+                    <span className="mr-1.5 rounded border border-black/[0.08] bg-black/[0.04] px-1.5 py-0.5 font-mono text-[10px] text-neutral-400">
+                      {item.codigo}
+                    </span>
+                  )}
                   <span className="text-sm text-neutral-200">{item.descripcion}</span>
                   {item.tipo === 'repuesto' && item.cantidad !== 1 && (
                     <span className="ml-2 text-xs text-neutral-600">× {item.cantidad}</span>
