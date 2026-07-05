@@ -37,6 +37,9 @@ function filaManoObra(valorHora?: number): Linea {
 }
 
 function totalLinea(l: Linea): number {
+  // Sin descripción no hay cobro: el precio por defecto (valor hora) no debe
+  // generar total hasta que se indique qué servicio se hace.
+  if (!l.descripcion.trim()) return 0
   const c = parseFloat(l.cantidad)
   const p = parseFloat(l.precio)
   const d = parseFloat(l.descuento) || 0
