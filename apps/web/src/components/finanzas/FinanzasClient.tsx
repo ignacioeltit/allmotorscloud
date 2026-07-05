@@ -55,9 +55,11 @@ export function FinanzasClient({
   const totalPorCobrar = cuentasPorCobrar.reduce((a, c) => a + c.monto, 0)
   const totalPorFacturar = porFacturar.reduce((a, c) => a + c.monto, 0)
 
-  // Facturación de entregas mensuales
+  // Facturación de entregas mensuales (+ pago en el mismo paso)
   const [facturandoId, setFacturandoId] = useState<string | null>(null)
   const [nroFactura, setNroFactura] = useState('')
+  const [factPagar, setFactPagar] = useState(true)
+  const [factForma, setFactForma] = useState<string>('efectivo')
 
   // Registrar pago de una cuenta por cobrar (inline)
   const [pagandoId, setPagandoId] = useState<string | null>(null)
@@ -83,13 +85,20 @@ export function FinanzasClient({
     router.push(`/finanzas?desde=${d}&hasta=${h}`)
   }
 
-  async function facturar(entregaId: string) {
+  async function facturar(entregaId: string, pendiente: boolean) {
     if (!nroFactura.trim()) return
     setError(null)
     try {
       await facturarEntrega(createClient(), { entregaId, numeroFactura: nroFactura })
+      // "Siempre solicitar el pago": si estaba pendiente y el usuario confirma
+      // que se pagó, se registra el pago en el mismo paso.
+      if (pendiente && factPagar) {
+        await marcarEntregaPagada(createClient(), { entregaId, formaPago: factForma })
+      }
       setFacturandoId(null)
       setNroFactura('')
+      setFactPagar(true)
+      setFactForma('efectivo')
       router.refresh()
     } catch (e) {
       setError(toErrorMessage(e))
@@ -274,20 +283,36 @@ export function FinanzasClient({
                     <td className="py-2 text-right font-medium text-neutral-200">{fmtCLP(c.monto)}</td>
                     <td className="py-2 text-right">
                       {facturandoId === c.entrega_id ? (
-                        <span className="inline-flex items-center gap-1.5">
-                          <input
-                            autoFocus
-                            className="w-28 rounded border border-black/10 bg-white px-2 py-0.5 text-xs text-neutral-800"
-                            placeholder="N° factura"
-                            value={nroFactura}
-                            onChange={(e) => setNroFactura(e.target.value)}
-                            onKeyDown={(e) => { if (e.key === 'Enter') void facturar(c.entrega_id) }}
-                          />
-                          <button onClick={() => void facturar(c.entrega_id)} className={`${btnPrimary} px-2 py-0.5 text-xs`}>Guardar</button>
-                          <button onClick={() => { setFacturandoId(null); setNroFactura('') }} className={`${btnGhost} px-1 text-xs`}>×</button>
-                        </span>
+                        <div className="flex flex-col items-end gap-1.5">
+                          <div className="flex items-center gap-1.5">
+                            <input
+                              autoFocus
+                              className="w-28 rounded border border-black/10 bg-white px-2 py-0.5 text-xs text-neutral-800"
+                              placeholder="N° factura"
+                              value={nroFactura}
+                              onChange={(e) => setNroFactura(e.target.value)}
+                              onKeyDown={(e) => { if (e.key === 'Enter') void facturar(c.entrega_id, c.estado_pago === 'pendiente') }}
+                            />
+                            <button onClick={() => void facturar(c.entrega_id, c.estado_pago === 'pendiente')} className={`${btnPrimary} px-2 py-0.5 text-xs`}>Guardar</button>
+                            <button onClick={() => { setFacturandoId(null); setNroFactura('') }} className={`${btnGhost} px-1 text-xs`}>×</button>
+                          </div>
+                          {c.estado_pago === 'pendiente' && (
+                            <label className="flex items-center gap-1.5 text-[11px] text-neutral-500">
+                              <input type="checkbox" checked={factPagar} onChange={(e) => setFactPagar(e.target.checked)} />
+                              Se pagó
+                              <select
+                                className="rounded border border-black/10 bg-white px-1.5 py-0.5 text-[11px] text-neutral-700 disabled:opacity-40"
+                                value={factForma}
+                                onChange={(e) => setFactForma(e.target.value)}
+                                disabled={!factPagar}
+                              >
+                                {FORMAS_PAGO.map((f) => <option key={f} value={f}>{FORMA_PAGO_LABEL[f]}</option>)}
+                              </select>
+                            </label>
+                          )}
+                        </div>
                       ) : (
-                        <button onClick={() => { setFacturandoId(c.entrega_id); setNroFactura('') }} className="text-accent-400 hover:text-accent-300">
+                        <button onClick={() => { setFacturandoId(c.entrega_id); setNroFactura(''); setFactPagar(true); setFactForma('efectivo') }} className="text-accent-400 hover:text-accent-300">
                           Facturar →
                         </button>
                       )}

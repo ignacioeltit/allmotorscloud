@@ -216,6 +216,7 @@ export interface PorFacturar {
   numero_ot: string | null
   cliente_nombre: string | null
   monto: number
+  estado_pago: string
   creado_en: string
 }
 
@@ -225,7 +226,7 @@ export async function listPorFacturar(supabase: DbClient): Promise<PorFacturar[]
 
   const { data, error } = await supabase
     .from('entregas')
-    .select('id, orden_trabajo_id, monto_pagado, creado_en, ordenes_trabajo(numero_ot, vehiculo_id)')
+    .select('id, orden_trabajo_id, monto_pagado, estado_pago, creado_en, ordenes_trabajo(numero_ot, vehiculo_id)')
     .eq('org_id', orgId)
     .eq('estado_factura', 'por_facturar')
     .order('creado_en', { ascending: true })
@@ -236,6 +237,7 @@ export async function listPorFacturar(supabase: DbClient): Promise<PorFacturar[]
     id: string
     orden_trabajo_id: string
     monto_pagado: number | null
+    estado_pago: string
     creado_en: string
     ordenes_trabajo: { numero_ot: string | null; vehiculo_id: string } | null
   }
@@ -263,6 +265,7 @@ export async function listPorFacturar(supabase: DbClient): Promise<PorFacturar[]
     numero_ot: r.ordenes_trabajo?.numero_ot ?? null,
     cliente_nombre: r.ordenes_trabajo?.vehiculo_id ? nombrePorVehiculo[r.ordenes_trabajo.vehiculo_id] ?? null : null,
     monto: r.monto_pagado ?? 0,
+    estado_pago: r.estado_pago,
     creado_en: r.creado_en,
   }))
 }
