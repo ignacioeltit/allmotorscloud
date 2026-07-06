@@ -51,7 +51,8 @@ export default async function CustomersPage({ searchParams }: Props) {
         initialSearch={search}
         placeholder="Buscar por nombre, RUT o teléfono…"
       >
-        <div className={`${card} overflow-x-auto p-0`}>
+        {/* Escritorio: tabla */}
+        <div className={`${card} hidden overflow-x-auto p-0 md:block`}>
           <table className="w-full text-sm">
             <thead className="border-b border-black/[0.06] bg-black/[0.02] text-left text-[11px] uppercase tracking-wider text-neutral-500">
               <tr>
@@ -79,6 +80,20 @@ export default async function CustomersPage({ searchParams }: Props) {
               ))}
             </tbody>
           </table>
+        </div>
+
+        {/* Móvil: cards */}
+        <div className="space-y-2 md:hidden">
+          {clientes.map((c) => (
+            <Link key={c.id} href={`/customers/${c.id}`} className={`${card} block active:bg-black/[0.04]`}>
+              <p className="font-medium text-neutral-100">{c.nombre}</p>
+              <div className="mt-1 flex flex-wrap gap-x-3 gap-y-0.5 text-xs text-neutral-500">
+                <span>{TIPO_CLIENTE_LABEL[c.tipo]}</span>
+                {c.rut && <span>· {c.rut}</span>}
+                {c.telefono && <span>· {c.telefono}</span>}
+              </div>
+            </Link>
+          ))}
         </div>
       </BusquedaPaginada>
     </div>

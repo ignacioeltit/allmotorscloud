@@ -50,7 +50,8 @@ export default async function VehiclesPage({ searchParams }: Props) {
         initialSearch={search}
         placeholder="Buscar por patente, VIN, marca o modelo…"
       >
-        <div className={`${card} overflow-x-auto p-0`}>
+        {/* Escritorio: tabla */}
+        <div className={`${card} hidden overflow-x-auto p-0 md:block`}>
           <table className="w-full text-sm">
             <thead className="border-b border-black/[0.06] bg-black/[0.02] text-left text-[11px] uppercase tracking-wider text-neutral-500">
               <tr>
@@ -77,6 +78,18 @@ export default async function VehiclesPage({ searchParams }: Props) {
               ))}
             </tbody>
           </table>
+        </div>
+
+        {/* Móvil: cards */}
+        <div className="space-y-2 md:hidden">
+          {vehiculos.map((v) => (
+            <Link key={v.id} href={`/vehicles/${v.id}`} className={`${card} block active:bg-black/[0.04]`}>
+              <p className="font-semibold tracking-wide text-neutral-50">{v.patente}</p>
+              <p className="mt-0.5 text-sm text-neutral-400">
+                {[v.marca, v.modelo, v.anio].filter(Boolean).join(' · ')}
+              </p>
+            </Link>
+          ))}
         </div>
       </BusquedaPaginada>
     </div>

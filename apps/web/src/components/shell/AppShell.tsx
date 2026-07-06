@@ -2,6 +2,7 @@
 // Oscuro, sobrio, premium. Sin guard real aquí — el middleware protege las rutas.
 import Link from 'next/link'
 import { SidebarNav } from './SidebarNav'
+import { MobileNav } from './MobileNav'
 import { LogoutButton } from '@/components/auth/LogoutButton'
 
 interface AppShellProps {
@@ -31,19 +32,22 @@ export function AppShell({ children, pendientesCatalogo = 0, rolUsuario }: AppSh
       </aside>
 
       <div className="flex min-w-0 flex-1 flex-col">
-        <header className="flex items-center justify-between border-b border-black/[0.06] px-4 py-3 md:hidden">
-          <Link href="/dashboard" className="text-sm font-semibold text-neutral-100">
-            All Motors <span className="text-neutral-500">Cloud</span>
-          </Link>
+        <header className="sticky top-0 z-30 flex items-center justify-between gap-2 border-b border-black/[0.06] bg-neutral-950/80 px-3 py-2.5 backdrop-blur md:hidden">
+          <div className="flex items-center gap-1">
+            <MobileNav pendientesCatalogo={pendientesCatalogo} rolUsuario={rolUsuario} />
+            <Link href="/dashboard" className="text-sm font-semibold text-neutral-100">
+              All Motors <span className="text-neutral-500">Cloud</span>
+            </Link>
+          </div>
           <Link
             href="/recepcion"
-            className="rounded-lg bg-accent-600 px-3 py-1.5 text-xs font-semibold text-white"
+            className="shrink-0 rounded-lg bg-accent-600 px-3 py-2 text-xs font-semibold text-white"
           >
             + Recepción
           </Link>
         </header>
 
-        <main className="mx-auto w-full max-w-6xl flex-1 px-5 py-7 md:px-8">{children}</main>
+        <main className="mx-auto w-full max-w-6xl flex-1 px-4 py-5 sm:px-5 sm:py-7 md:px-8">{children}</main>
       </div>
     </div>
   )
