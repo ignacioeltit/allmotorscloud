@@ -43,6 +43,7 @@ export async function subirFotoOT(
   supabase: DbClient,
   ordenTrabajoId: string,
   file: File,
+  descripcion?: string | null,
 ): Promise<FotoOT> {
   const { orgId, userId } = await getAuthContext(supabase)
   const ext = (file.name.split('.').pop() || 'jpg').toLowerCase().replace(/[^a-z0-9]/g, '') || 'jpg'
@@ -64,10 +65,27 @@ export async function subirFotoOT(
       mime_type: file.type || 'image/jpeg',
       tamano_bytes: file.size,
       visible_cliente: true, // por defecto el cliente la ve (ese es el fin)
+      ...(descripcion?.trim() ? { descripcion: descripcion.trim() } : {}),
       creado_por: userId,
     })
     .select(COLS)
   return unwrapWritten<FotoOT>(data, error)
+}
+
+/** Edita el detalle/descripción de una foto. */
+export async function actualizarDescripcionFoto(
+  supabase: DbClient,
+  fotoId: string,
+  descripcion: string,
+): Promise<void> {
+  const { orgId } = await getAuthContext(supabase)
+  const { data, error } = await supabase
+    .from('evidencias')
+    .update({ descripcion: descripcion.trim() || null })
+    .eq('org_id', orgId)
+    .eq('id', fotoId)
+    .select('id')
+  unwrapWritten<{ id: string }>(data, error)
 }
 
 /** Marca/desmarca una foto como visible para el cliente. */

@@ -9,10 +9,10 @@ import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import {
   subirFotoOT, toggleVisibleCliente, eliminarFotoOT, generarTokenAvance, urlFoto,
-  type FotoOT,
+  actualizarDescripcionFoto, type FotoOT,
 } from '@/modules/evidencias'
 import { toErrorMessage } from '@/lib/ui/error-message'
-import { card, sectionLabel, btnSecondary } from '@/components/ui/styles'
+import { card, sectionLabel, inputClass, btnSecondary } from '@/components/ui/styles'
 
 export function FotosSection({
   ordenTrabajoId,
@@ -31,6 +31,7 @@ export function FotosSection({
   const [error, setError] = useState<string | null>(null)
   const [token, setToken] = useState<string | null>(tokenInicial)
   const [copiado, setCopiado] = useState(false)
+  const [detalle, setDetalle] = useState('')
   const fileRef = useRef<HTMLInputElement | null>(null)
 
   const linkAvance = token && typeof window !== 'undefined' ? `${window.location.origin}/avance/${token}` : null
@@ -46,9 +47,10 @@ export function FotosSection({
       const nuevas: FotoOT[] = []
       for (const file of files) {
         if (file.size > 10_485_760) { setError(`"${file.name}" supera 10 MB.`); continue }
-        nuevas.push(await subirFotoOT(supabase, ordenTrabajoId, file))
+        nuevas.push(await subirFotoOT(supabase, ordenTrabajoId, file, detalle))
       }
       setFotos((prev) => [...nuevas, ...prev])
+      setDetalle('')
     } catch (err) {
       setError(toErrorMessage(err))
     } finally {
@@ -105,6 +107,14 @@ export function FotosSection({
         </div>
       </div>
 
+      {/* Detalle opcional para las próximas fotos que subas */}
+      <input
+        className={inputClass}
+        placeholder="Detalle para las fotos que vas a subir (opcional): ej. 'antes de desarmar', 'pastillas gastadas'…"
+        value={detalle}
+        onChange={(e) => setDetalle(e.target.value)}
+      />
+
       {error && <p className="text-sm text-red-700">{error}</p>}
 
       {fotos.length === 0 ? (
@@ -112,23 +122,14 @@ export function FotosSection({
       ) : (
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4">
           {fotos.map((f) => (
-            <div key={f.id} className="group relative overflow-hidden rounded-lg border border-black/[0.06] bg-black/[0.02]">
-              <a href={urlFoto(f.bucket_path)} target="_blank" rel="noopener noreferrer" className="block aspect-square">
-                <Image src={urlFoto(f.bucket_path)} alt={f.descripcion ?? 'Foto'} width={300} height={300} unoptimized className="h-full w-full object-cover" />
-              </a>
-              <div className="absolute inset-x-0 bottom-0 flex items-center justify-between gap-1 bg-black/55 px-2 py-1 text-[11px] text-white">
-                {puedeGestionar ? (
-                  <button type="button" onClick={() => void toggle(f)} className="hover:underline">
-                    {f.visible_cliente ? '👁 Cliente ve' : '🔒 Interna'}
-                  </button>
-                ) : (
-                  <span>{f.visible_cliente ? '👁 Cliente ve' : '🔒 Interna'}</span>
-                )}
-                {puedeGestionar && (
-                  <button type="button" onClick={() => void borrar(f)} className="text-red-300 hover:text-red-200" title="Eliminar">✕</button>
-                )}
-              </div>
-            </div>
+            <FotoCard
+              key={f.id}
+              foto={f}
+              puedeGestionar={puedeGestionar}
+              onToggle={() => void toggle(f)}
+              onBorrar={() => void borrar(f)}
+              onDetalle={(txt) => setFotos((prev) => prev.map((x) => (x.id === f.id ? { ...x, descripcion: txt } : x)))}
+            />
           ))}
         </div>
       )}
@@ -155,5 +156,85 @@ export function FotosSection({
         )}
       </div>
     </section>
+  )
+}
+
+// ── Tarjeta de una foto: imagen + estado visible + detalle editable ──────
+function FotoCard({
+  foto,
+  puedeGestionar,
+  onToggle,
+  onBorrar,
+  onDetalle,
+}: {
+  foto: FotoOT
+  puedeGestionar: boolean
+  onToggle: () => void
+  onBorrar: () => void
+  onDetalle: (txt: string) => void
+}) {
+  const [editando, setEditando] = useState(false)
+  const [txt, setTxt] = useState(foto.descripcion ?? '')
+  const [guardando, setGuardando] = useState(false)
+
+  async function guardar() {
+    setGuardando(true)
+    try {
+      await actualizarDescripcionFoto(createClient(), foto.id, txt)
+      onDetalle(txt.trim() || '')
+      setEditando(false)
+    } catch {
+      /* silencioso: se reintenta */
+    } finally {
+      setGuardando(false)
+    }
+  }
+
+  return (
+    <div className="overflow-hidden rounded-lg border border-black/[0.06] bg-black/[0.02]">
+      <div className="relative">
+        <a href={urlFoto(foto.bucket_path)} target="_blank" rel="noopener noreferrer" className="block aspect-square">
+          <Image src={urlFoto(foto.bucket_path)} alt={foto.descripcion ?? 'Foto'} width={300} height={300} unoptimized className="h-full w-full object-cover" />
+        </a>
+        <div className="absolute inset-x-0 bottom-0 flex items-center justify-between gap-1 bg-black/55 px-2 py-1 text-[11px] text-white">
+          {puedeGestionar ? (
+            <button type="button" onClick={onToggle} className="hover:underline">
+              {foto.visible_cliente ? '👁 Cliente ve' : '🔒 Interna'}
+            </button>
+          ) : (
+            <span>{foto.visible_cliente ? '👁 Cliente ve' : '🔒 Interna'}</span>
+          )}
+          {puedeGestionar && (
+            <button type="button" onClick={onBorrar} className="text-red-300 hover:text-red-200" title="Eliminar">✕</button>
+          )}
+        </div>
+      </div>
+
+      {/* Detalle de la foto */}
+      <div className="px-2 py-1.5">
+        {editando ? (
+          <div className="flex items-center gap-1">
+            <input
+              autoFocus
+              className="min-w-0 flex-1 rounded border border-black/10 bg-white px-1.5 py-1 text-[11px] text-neutral-700 outline-none focus:border-accent-500"
+              placeholder="Detalle…"
+              value={txt}
+              onChange={(e) => setTxt(e.target.value)}
+              onKeyDown={(e) => { if (e.key === 'Enter') void guardar(); if (e.key === 'Escape') setEditando(false) }}
+              disabled={guardando}
+            />
+            <button type="button" onClick={() => void guardar()} disabled={guardando} className="rounded bg-accent-600 px-2 py-1 text-[11px] font-semibold text-white disabled:opacity-50">
+              {guardando ? '…' : 'OK'}
+            </button>
+          </div>
+        ) : puedeGestionar ? (
+          <button type="button" onClick={() => { setTxt(foto.descripcion ?? ''); setEditando(true) }} className="w-full text-left text-[11px] text-neutral-500 hover:text-neutral-300">
+            {foto.descripcion ? foto.descripcion : '+ Agregar detalle'}
+          </button>
+        ) : (
+          foto.descripcion && <p className="text-[11px] text-neutral-400">{foto.descripcion}</p>
+        )}
+      </div>
+    </div>
   )
 }

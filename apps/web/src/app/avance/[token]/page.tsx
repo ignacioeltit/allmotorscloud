@@ -93,10 +93,15 @@ export default async function AvancePage({ params }: { params: Promise<{ token: 
         ) : (
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
             {a.fotos.map((f, i) => (
-              <a key={i} href={urlFoto(f.path)} target="_blank" rel="noopener noreferrer" className="block overflow-hidden rounded-lg border border-[#e5e7eb]">
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src={urlFoto(f.path)} alt={f.descripcion ?? 'Foto del trabajo'} className="aspect-square w-full object-cover" loading="lazy" />
-              </a>
+              <div key={i} className="overflow-hidden rounded-lg border border-[#e5e7eb]">
+                <a href={urlFoto(f.path)} target="_blank" rel="noopener noreferrer" className="block">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img src={urlFoto(f.path)} alt={f.descripcion ?? 'Foto del trabajo'} className="aspect-square w-full object-cover" loading="lazy" />
+                </a>
+                {f.descripcion && (
+                  <p className="px-2 py-1.5 text-xs text-[#374151]">{f.descripcion}</p>
+                )}
+              </div>
             ))}
           </div>
         )}
