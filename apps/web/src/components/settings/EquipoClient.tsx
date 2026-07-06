@@ -55,7 +55,8 @@ export function EquipoClient({ equipo }: { equipo: MiembroEquipo[] }) {
 
   return (
     <div className="space-y-5">
-      <section className={`${card} p-0`}>
+      {/* Escritorio: tabla */}
+      <section className={`${card} hidden overflow-x-auto p-0 md:block`}>
         <table className="w-full text-sm">
           <thead className="border-b border-black/[0.06] bg-black/[0.02] text-left text-[11px] uppercase tracking-wider text-neutral-500">
             <tr>
@@ -83,6 +84,24 @@ export function EquipoClient({ equipo }: { equipo: MiembroEquipo[] }) {
           </tbody>
         </table>
       </section>
+
+      {/* Móvil: cards */}
+      <div className="space-y-2 md:hidden">
+        {equipo.map((m) => (
+          <div key={m.id} className={card}>
+            <div className="flex items-center justify-between gap-2">
+              <p className="font-medium text-neutral-100">{m.nombre}</p>
+              <span className="shrink-0 rounded-full border border-black/[0.08] bg-black/[0.03] px-2.5 py-0.5 text-xs text-neutral-500">
+                {ROL_LABEL[m.rol] ?? m.rol}
+              </span>
+            </div>
+            <div className="mt-1 flex flex-wrap gap-x-3 text-xs text-neutral-500">
+              {m.telefono && <span>{m.telefono}</span>}
+              {!m.email.endsWith('@equipo.allmotors.local') && <span>{m.email}</span>}
+            </div>
+          </div>
+        ))}
+      </div>
 
       {showForm ? (
         <section className={card}>

@@ -46,7 +46,8 @@ export function PaquetesClient({ paquetes }: { paquetes: PlantillaAdmin[] }) {
 
   return (
     <div className="space-y-5">
-      <section className={`${card} p-0`}>
+      {/* Escritorio: tabla */}
+      <section className={`${card} hidden overflow-x-auto p-0 md:block`}>
         <table className="w-full text-sm">
           <thead className="border-b border-black/[0.06] bg-black/[0.02] text-left text-[11px] uppercase tracking-wider text-neutral-500">
             <tr>
@@ -105,6 +106,33 @@ export function PaquetesClient({ paquetes }: { paquetes: PlantillaAdmin[] }) {
           </tbody>
         </table>
       </section>
+
+      {/* Móvil: cards */}
+      <div className="space-y-2 md:hidden">
+        {paquetes.length === 0 ? (
+          <p className={`${card} text-sm text-neutral-500`}>Aún no hay paquetes. Crea el primero.</p>
+        ) : (
+          paquetes.map((p) => (
+            <Link key={p.id} href={`/catalogo/paquetes/${p.id}`} className={`${card} block active:bg-black/[0.04]`}>
+              <div className="flex items-center justify-between gap-2">
+                <p className="font-medium text-neutral-100">{p.nombre}</p>
+                <span
+                  className={`shrink-0 rounded-full border px-2 py-0.5 text-[11px] font-medium ${
+                    p.activo ? 'border-emerald-500/30 bg-emerald-500/10 text-emerald-800' : 'border-black/10 bg-black/[0.04] text-neutral-500'
+                  }`}
+                >
+                  {p.activo ? 'Activo' : 'Inactivo'}
+                </span>
+              </div>
+              <div className="mt-1 flex flex-wrap items-center gap-x-3 text-xs text-neutral-500">
+                {p.codigo && <span className="font-mono">{p.codigo}</span>}
+                <span>{p.tipo_precio === 'cabecera' ? `${fmtCLP(p.precio_cabecera ?? 0)} · precio único` : 'Suma de ítems'}</span>
+                <span>{p.n_items === 0 ? 'vacío' : `${p.n_items} ítems`}</span>
+              </div>
+            </Link>
+          ))
+        )}
+      </div>
 
       {showForm ? (
         <section className={card}>

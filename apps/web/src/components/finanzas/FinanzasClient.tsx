@@ -369,46 +369,71 @@ export function FinanzasClient({
         {movimientos.length === 0 ? (
           <p className="text-sm text-neutral-500">Sin movimientos en este período.</p>
         ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead className="text-left text-[11px] uppercase tracking-wider text-neutral-500">
-                <tr>
-                  <th className="py-2 font-medium">Fecha</th>
-                  <th className="py-2 font-medium">Detalle</th>
-                  <th className="py-2 text-right font-medium">Monto</th>
-                  <th className="py-2"></th>
-                </tr>
-              </thead>
-              <tbody>
-                {movimientos.map((m) => (
-                  <tr key={m.id} className="border-t border-black/[0.05]">
-                    <td className="py-2 text-neutral-500">{fmtFecha(m.fecha)}</td>
-                    <td className="py-2">
-                      <span className="text-neutral-200">
-                        {m.categoria ? CATEGORIA_GASTO_LABEL[m.categoria] ?? m.categoria : (m.tipo === 'ingreso' ? 'Ingreso' : 'Gasto')}
-                      </span>
-                      {m.numero_ot && <span className="ml-2 text-xs text-neutral-500">{m.numero_ot}</span>}
-                      {m.descripcion && <span className="ml-2 text-xs text-neutral-500">· {m.descripcion}</span>}
-                    </td>
-                    <td className={`py-2 text-right font-medium ${m.tipo === 'ingreso' ? 'text-emerald-700' : 'text-red-700'}`}>
-                      {m.tipo === 'ingreso' ? '+' : '−'}{fmtCLP(m.monto)}
-                    </td>
-                    <td className="py-2 text-right">
-                      {m.origen === 'manual' ? (
-                        <button onClick={() => void borrar(m.id)} disabled={borrando === m.id} className={`${btnGhost} px-2 py-0.5 text-xs text-red-700`}>
-                          {borrando === m.id ? '…' : '×'}
-                        </button>
-                      ) : (
-                        m.orden_trabajo_id === null && m.numero_ot ? (
-                          <span className="text-[10px] text-neutral-600">OT</span>
-                        ) : null
-                      )}
-                    </td>
+          <>
+            {/* Escritorio: tabla */}
+            <div className="hidden overflow-x-auto md:block">
+              <table className="w-full text-sm">
+                <thead className="text-left text-[11px] uppercase tracking-wider text-neutral-500">
+                  <tr>
+                    <th className="py-2 font-medium">Fecha</th>
+                    <th className="py-2 font-medium">Detalle</th>
+                    <th className="py-2 text-right font-medium">Monto</th>
+                    <th className="py-2"></th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+                </thead>
+                <tbody>
+                  {movimientos.map((m) => (
+                    <tr key={m.id} className="border-t border-black/[0.05]">
+                      <td className="py-2 text-neutral-500">{fmtFecha(m.fecha)}</td>
+                      <td className="py-2">
+                        <span className="text-neutral-200">
+                          {m.categoria ? CATEGORIA_GASTO_LABEL[m.categoria] ?? m.categoria : (m.tipo === 'ingreso' ? 'Ingreso' : 'Gasto')}
+                        </span>
+                        {m.numero_ot && <span className="ml-2 text-xs text-neutral-500">{m.numero_ot}</span>}
+                        {m.descripcion && <span className="ml-2 text-xs text-neutral-500">· {m.descripcion}</span>}
+                      </td>
+                      <td className={`py-2 text-right font-medium ${m.tipo === 'ingreso' ? 'text-emerald-700' : 'text-red-700'}`}>
+                        {m.tipo === 'ingreso' ? '+' : '−'}{fmtCLP(m.monto)}
+                      </td>
+                      <td className="py-2 text-right">
+                        {m.origen === 'manual' && (
+                          <button onClick={() => void borrar(m.id)} disabled={borrando === m.id} className={`${btnGhost} px-2 py-0.5 text-xs text-red-700`}>
+                            {borrando === m.id ? '…' : '×'}
+                          </button>
+                        )}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+
+            {/* Móvil: cards */}
+            <div className="space-y-2 md:hidden">
+              {movimientos.map((m) => (
+                <div key={m.id} className="flex items-start justify-between gap-3 rounded-lg border border-black/[0.05] bg-black/[0.02] px-3 py-2">
+                  <div className="min-w-0">
+                    <p className="text-sm text-neutral-200">
+                      {m.categoria ? CATEGORIA_GASTO_LABEL[m.categoria] ?? m.categoria : (m.tipo === 'ingreso' ? 'Ingreso' : 'Gasto')}
+                      {m.numero_ot && <span className="ml-1.5 text-xs text-neutral-500">{m.numero_ot}</span>}
+                    </p>
+                    {m.descripcion && <p className="truncate text-xs text-neutral-500">{m.descripcion}</p>}
+                    <p className="mt-0.5 text-[11px] text-neutral-600">{fmtFecha(m.fecha)}</p>
+                  </div>
+                  <div className="flex shrink-0 flex-col items-end gap-1">
+                    <span className={`text-sm font-semibold ${m.tipo === 'ingreso' ? 'text-emerald-700' : 'text-red-700'}`}>
+                      {m.tipo === 'ingreso' ? '+' : '−'}{fmtCLP(m.monto)}
+                    </span>
+                    {m.origen === 'manual' && (
+                      <button onClick={() => void borrar(m.id)} disabled={borrando === m.id} className="text-xs text-red-700">
+                        {borrando === m.id ? '…' : 'Eliminar'}
+                      </button>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </>
         )}
       </section>
     </div>
