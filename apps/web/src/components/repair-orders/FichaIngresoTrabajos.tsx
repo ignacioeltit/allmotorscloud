@@ -77,7 +77,9 @@ function totalLinea(l: LineaT): number {
 }
 
 function tieneContenido(l: LineaT): boolean {
-  return l.descripcion.trim().length > 0 && !isNaN(parseFloat(l.precio)) && parseFloat(l.precio) >= 0
+  // Basta la descripción: un material aún no comprado puede ir sin precio
+  // (se define después, al conocer el costo). Precio vacío = 0 provisorio.
+  return l.descripcion.trim().length > 0
 }
 
 function fmtCLP(n: number): string {
@@ -415,8 +417,10 @@ export function FichaIngresoTrabajos({
         let hasPendiente = false
 
         for (const { tipo, linea } of conDatos) {
-          const cantidad = parseFloat(linea.cantidad)
-          const costoUnitario = parseFloat(linea.precio)
+          const cantParsed = parseFloat(linea.cantidad)
+          const cantidad = !isNaN(cantParsed) && cantParsed > 0 ? cantParsed : 1
+          const precioParsed = parseFloat(linea.precio)
+          const costoUnitario = !isNaN(precioParsed) && precioParsed >= 0 ? precioParsed : 0 // sin precio → 0 provisorio
           const s = tipo === 'mano_obra' ? linea.servicio : null
           const r = tipo === 'repuesto' ? linea.repuesto : null
 

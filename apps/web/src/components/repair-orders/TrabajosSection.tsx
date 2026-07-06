@@ -987,6 +987,73 @@ function CostoCompraInline({ item, onSaved }: CostoCompraInlineProps) {
   )
 }
 
+// ── Inline: precio de venta del repuesto ────────────────────────────────
+// Para materiales cargados sin precio (aún no comprados): se define el precio
+// después. Actualiza costo_unitario y recalcula costo_total = precio × cantidad.
+
+function PrecioVentaInline({ item, onSaved }: { item: ItemReparacion; onSaved: () => void }) {
+  const [editing, setEditing] = useState(false)
+  const [value, setValue] = useState(item.costo_unitario > 0 ? String(item.costo_unitario) : '')
+  const [saving, setSaving] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const sinPrecio = !(item.costo_unitario > 0)
+
+  async function save() {
+    const num = parseFloat(value)
+    if (isNaN(num) || num < 0) { setError('Precio inválido.'); return }
+    setSaving(true)
+    setError(null)
+    try {
+      const total = Math.round(num * item.cantidad * 100) / 100
+      const { data } = await createClient()
+        .from('items_reparacion')
+        .update({ costo_unitario: num, costo_total: total })
+        .eq('id', item.id)
+        .select('id')
+      if (!data || data.length === 0) throw new Error('Sin permiso o sesión expirada.')
+      setEditing(false)
+      onSaved()
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Error al guardar.')
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  if (!editing) {
+    return (
+      <button
+        type="button"
+        onClick={() => setEditing(true)}
+        className={`mt-1 block text-left text-[11px] ${sinPrecio ? 'font-medium text-amber-700 hover:text-amber-600' : 'text-neutral-600 hover:text-neutral-400'}`}
+      >
+        {sinPrecio ? '⚠ Definir precio de venta' : `Precio venta: ${fmtCLPShort(item.costo_unitario)} · editar`}
+      </button>
+    )
+  }
+
+  return (
+    <div className="mt-1.5 flex flex-wrap items-center gap-2">
+      <input
+        type="number" min="0" step="1" autoFocus
+        className="w-36 rounded border border-black/[0.08] bg-neutral-900 px-2 py-1 text-xs text-neutral-200 focus:border-accent-500/50 focus:outline-none"
+        placeholder="Precio de venta…"
+        value={value}
+        onChange={(e) => setValue(e.target.value)}
+        disabled={saving}
+        onKeyDown={(e) => { if (e.key === 'Enter') void save(); if (e.key === 'Escape') setEditing(false) }}
+      />
+      <button type="button" className={`${btnPrimary} py-0.5 text-[11px]`} onClick={() => void save()} disabled={saving}>
+        {saving ? '…' : 'Guardar'}
+      </button>
+      <button type="button" className={`${btnSecondary} py-0.5 text-[11px]`} onClick={() => setEditing(false)} disabled={saving}>
+        Cancelar
+      </button>
+      {error && <p className="text-[11px] text-red-700">{error}</p>}
+    </div>
+  )
+}
+
 interface TrabajoCardProps {
   reparacion: ReparacionConItems
   mecanicos: MecanicoSimple[]
@@ -1098,7 +1165,11 @@ function TrabajoCard({ reparacion, mecanicos, configuracion, onChanged, initialS
                   )}
                 </div>
                 <div className="flex shrink-0 items-center gap-3">
-                  <span className="text-sm font-medium text-neutral-300">{fmtCLP(item.costo_total)}</span>
+                  {item.tipo === 'repuesto' && !(item.costo_unitario > 0) ? (
+                    <span className="text-xs font-medium text-amber-700">precio por definir</span>
+                  ) : (
+                    <span className="text-sm font-medium text-neutral-300">{fmtCLP(item.costo_total)}</span>
+                  )}
                   <button
                     onClick={() => void eliminarItem(item.id)}
                     disabled={deletingId === item.id}
@@ -1117,6 +1188,7 @@ function TrabajoCard({ reparacion, mecanicos, configuracion, onChanged, initialS
               {item.tipo === 'repuesto' && (
                 <>
                   <EstadoCompraInline item={item} onSaved={onChanged} />
+                  {puedeVerCostos && <PrecioVentaInline item={item} onSaved={onChanged} />}
                   {puedeVerCostos && <CostoCompraInline item={item} onSaved={onChanged} />}
                 </>
               )}

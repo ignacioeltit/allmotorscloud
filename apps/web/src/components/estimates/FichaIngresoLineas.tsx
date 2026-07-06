@@ -48,7 +48,9 @@ function totalLinea(l: Linea): number {
 }
 
 function tieneContenido(l: Linea): boolean {
-  return l.descripcion.trim().length > 0 && parseFloat(l.precio) >= 0 && !isNaN(parseFloat(l.precio))
+  // Basta la descripción: un material aún no comprado puede ir sin precio
+  // (se define después, al conocer el costo). Precio vacío = 0 provisorio.
+  return l.descripcion.trim().length > 0
 }
 
 function fmtCLP(n: number): string {
@@ -287,11 +289,13 @@ export function FichaIngresoLineas({
 }
 
 function aItem(l: Linea) {
+  const cant = parseFloat(l.cantidad)
+  const precio = parseFloat(l.precio)
   return {
     codigo: l.codigo.trim() || null,
     descripcion: l.descripcion.trim(),
-    cantidad: parseFloat(l.cantidad),
-    precioUnitario: parseFloat(l.precio),
+    cantidad: !isNaN(cant) && cant > 0 ? cant : 1,
+    precioUnitario: !isNaN(precio) && precio >= 0 ? precio : 0, // sin precio → 0 provisorio
     descuentoPorcentaje: parseFloat(l.descuento) || 0,
   }
 }
