@@ -4,6 +4,7 @@
 // → checklist → "Recibir vehículo" → crea cliente/vehículo/evento/OT y redirige a la OT.
 
 import { useEffect, useRef, useState, type FormEvent } from 'react'
+import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { listVehiculos, getVehiculoByPatente } from '@/modules/vehicles/queries'
@@ -696,6 +697,26 @@ export function ReceptionFlow({
             </div>
           )}
         </Section>
+
+        {/* Aviso: el vehículo ya tiene una OT abierta → la recepción se sumará a ella */}
+        {(() => {
+          const otActiva = ficha?.ordenes.find((o) => o.estado !== 'cerrada' && o.estado !== 'cancelada')
+          if (!otActiva) return null
+          return (
+            <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-amber-500/40 bg-amber-500/10 px-4 py-3">
+              <p className="text-sm text-amber-800">
+                ⚠ Este vehículo <strong>ya tiene una OT abierta</strong> ({otActiva.numero_ot}). Si continúas, la
+                recepción se suma a esa misma OT (no se crea una nueva).
+              </p>
+              <Link
+                href={`/repair-orders/${otActiva.id}`}
+                className="inline-flex shrink-0 items-center gap-2 rounded-lg border border-amber-500/50 bg-amber-500/20 px-3.5 py-2 text-sm font-semibold text-amber-900 hover:bg-amber-500/30"
+              >
+                Ver la OT abierta →
+              </Link>
+            </div>
+          )
+        })()}
 
         {ready && (
           <>
