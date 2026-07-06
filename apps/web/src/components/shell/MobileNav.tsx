@@ -5,6 +5,7 @@
 // Solo visible en móvil (el AppShell lo monta dentro del header `md:hidden`).
 
 import { useEffect, useState } from 'react'
+import { createPortal } from 'react-dom'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { SidebarNav } from './SidebarNav'
@@ -18,7 +19,10 @@ export function MobileNav({
   rolUsuario?: string
 }) {
   const [open, setOpen] = useState(false)
+  const [mounted, setMounted] = useState(false)
   const pathname = usePathname()
+
+  useEffect(() => { setMounted(true) }, [])
 
   // Cerrar al navegar (cambia la ruta).
   useEffect(() => {
@@ -52,7 +56,9 @@ export function MobileNav({
         </svg>
       </button>
 
-      {open && (
+      {open && mounted && createPortal(
+        // Portal a document.body: escapa el `backdrop-blur` del header, que de
+        // otro modo confina el `position: fixed` a la caja del header.
         <div className="fixed inset-0 z-50 md:hidden">
           {/* Fondo */}
           <button
@@ -90,7 +96,8 @@ export function MobileNav({
               <LogoutButton />
             </div>
           </div>
-        </div>
+        </div>,
+        document.body,
       )}
     </>
   )
