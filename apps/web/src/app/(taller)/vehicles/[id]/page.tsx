@@ -4,7 +4,9 @@ export const dynamic = 'force-dynamic'
 
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/server'
+import { getAuthContext } from '@/lib/auth/context'
 import { getVehiculoById } from '@/modules/vehicles/queries'
+import { getPropietarioActivoByVehiculo } from '@/modules/customers/queries'
 import { getHistoriaByVehiculoId } from '@/modules/technical-history/queries'
 import { listEventosByHistoria } from '@/modules/events/queries'
 import { listOrdenesTrabajoByVehiculo, getHistorialServiciosVehiculo } from '@/modules/repair-orders/queries'
@@ -12,6 +14,7 @@ import { load } from '@/lib/ui/load'
 import { PageHeader } from '@/components/ui/PageHeader'
 import { Notice } from '@/components/ui/Notice'
 import { HistorialServiciosVehiculo } from '@/components/vehicles/HistorialServiciosVehiculo'
+import { AsignarPropietario } from '@/components/vehicles/AsignarPropietario'
 import {
   card,
   badge,
@@ -44,14 +47,17 @@ export default async function VehiculoDetailPage({
 
   const result = await load(async () => {
     const supabase = await createClient()
+    const { rol } = await getAuthContext(supabase)
     const vehiculo = await getVehiculoById(supabase, id)
     const historia = await getHistoriaByVehiculoId(supabase, id)
-    const [eventos, ordenes, servicios] = await Promise.all([
+    const [eventos, ordenes, servicios, propietario] = await Promise.all([
       listEventosByHistoria(supabase, historia.id),
       listOrdenesTrabajoByVehiculo(supabase, id),
       getHistorialServiciosVehiculo(supabase, id),
+      getPropietarioActivoByVehiculo(supabase, id),
     ])
-    return { vehiculo, historia, eventos, ordenes, servicios }
+    const puedeGestionar = rol === 'admin' || rol === 'jefe_taller' || rol === 'recepcionista'
+    return { vehiculo, historia, eventos, ordenes, servicios, propietario, puedeGestionar }
   })
 
   if (!result.ok) {
@@ -72,7 +78,7 @@ export default async function VehiculoDetailPage({
     )
   }
 
-  const { vehiculo, historia, eventos, ordenes, servicios } = result.data
+  const { vehiculo, historia, eventos, ordenes, servicios, propietario, puedeGestionar } = result.data
 
   return (
     <div className="space-y-8">
@@ -97,6 +103,13 @@ export default async function VehiculoDetailPage({
           <Info label="Color" value={vehiculo.color ?? '—'} />
         </div>
       </div>
+
+      {/* Propietario: asignar / cambiar */}
+      <AsignarPropietario
+        vehiculoId={id}
+        propietarioActual={propietario ? { id: propietario.id, nombre: propietario.nombre } : null}
+        puedeGestionar={puedeGestionar}
+      />
 
       {/* Historial de servicios — lo primero: "¿cuándo se le cambió X?" */}
       <section id="historial-servicios">

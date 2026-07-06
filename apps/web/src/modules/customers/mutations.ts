@@ -83,6 +83,52 @@ export async function vincularPropietario(
   return unwrapWritten<PropietarioVehiculo>(data, error)
 }
 
+/**
+ * Asigna (o cambia) el propietario activo de un vehículo. Sirve tanto para un
+ * vehículo sin dueño como para un cambio de propietario: cierra al dueño actual
+ * (fecha_fin = hoy) antes de insertar el nuevo, respetando el índice único
+ * parcial (un solo propietario activo por vehículo). Idempotente si ya es dueño.
+ */
+export async function asignarPropietario(
+  supabase: DbClient,
+  params: { vehiculoId: string; clienteId: string },
+): Promise<void> {
+  const { userId, orgId } = await getAuthContext(supabase)
+
+  // Dueño activo actual (si hay).
+  const { data: actual } = await supabase
+    .from('propietarios_vehiculo')
+    .select('id, cliente_id')
+    .eq('org_id', orgId)
+    .eq('vehiculo_id', params.vehiculoId)
+    .is('fecha_fin', null)
+    .maybeSingle()
+
+  const rel = actual as { id: string; cliente_id: string } | null
+  if (rel?.cliente_id === params.clienteId) return // ya es el propietario
+
+  if (rel) {
+    const hoy = new Date().toISOString().slice(0, 10)
+    const { error: closeErr } = await supabase
+      .from('propietarios_vehiculo')
+      .update({ fecha_fin: hoy })
+      .eq('org_id', orgId)
+      .eq('id', rel.id)
+    if (closeErr) throw mapPostgrestError(closeErr)
+  }
+
+  const { data, error } = await supabase
+    .from('propietarios_vehiculo')
+    .insert({
+      vehiculo_id: params.vehiculoId,
+      cliente_id: params.clienteId,
+      org_id: orgId,
+      creado_por: userId,
+    })
+    .select('id')
+  unwrapWritten<{ id: string }>(data, error)
+}
+
 /** Soft-delete: marca el cliente como eliminado. No borra físicamente. */
 export async function softDeleteCliente(supabase: DbClient, id: string): Promise<void> {
   const { error } = await supabase.rpc('soft_delete', { p_table: 'clientes', p_id: id })
