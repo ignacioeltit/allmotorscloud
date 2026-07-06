@@ -42,7 +42,7 @@ BEGIN
   JOIN reparaciones r ON r.id = ir.reparacion_id
   WHERE r.orden_trabajo_id = v_ot.id AND ir.eliminado_en IS NULL;
 
-  SELECT total_con_iva INTO v_total FROM v_ot_totales WHERE orden_trabajo_id = v_ot.id;
+  SELECT total_con_iva INTO v_total FROM v_ot_totales WHERE id = v_ot.id;
 
   RETURN jsonb_build_object(
     'numero_ot', v_ot.numero_ot,
