@@ -116,6 +116,7 @@ export function OtDocumento({
             <p className="text-xs text-[#6b7280]">
               {[
                 vehiculo?.anio ? `Año ${vehiculo.anio}` : null,
+                vehiculo?.cilindrada ? `Cilindrada ${vehiculo.cilindrada}` : null,
                 vehiculo?.color,
                 orden.km_ingreso != null ? `${orden.km_ingreso.toLocaleString('es-CL')} km` : null,
                 vehiculo?.vin ? `VIN ${vehiculo.vin}` : null,

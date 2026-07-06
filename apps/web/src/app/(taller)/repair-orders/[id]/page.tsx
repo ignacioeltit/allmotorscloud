@@ -193,6 +193,7 @@ export default async function OrdenTrabajoDetailPage({
                   <Info label="Marca" value={vehiculo.marca} />
                   <Info label="Modelo" value={vehiculo.modelo} />
                   <Info label="Año" value={vehiculo.anio?.toString()} />
+                  <Info label="Cilindrada" value={vehiculo.cilindrada} />
                   <Info label="Color" value={vehiculo.color} />
                   <Info label="VIN" value={vehiculo.vin} />
                 </div>

@@ -7,7 +7,7 @@ import { VEHICULOS_PAGE_SIZE } from './constants'
 import type { Vehiculo, ListVehiculosParams } from './types'
 
 const COLUMNS =
-  'id, org_id, patente, vin, marca, modelo, anio, anio_por_confirmar, color, tipo, km_actual, notas, creado_en, actualizado_en, creado_por, eliminado_en, eliminado_por'
+  'id, org_id, patente, vin, marca, modelo, anio, anio_por_confirmar, color, cilindrada, tipo, km_actual, notas, creado_en, actualizado_en, creado_por, eliminado_en, eliminado_por'
 
 /** Lista los vehículos activos del tenant, ordenados por fecha de creación desc. */
 export async function listVehiculos(

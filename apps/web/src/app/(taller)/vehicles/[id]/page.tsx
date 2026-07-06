@@ -15,6 +15,7 @@ import { PageHeader } from '@/components/ui/PageHeader'
 import { Notice } from '@/components/ui/Notice'
 import { HistorialServiciosVehiculo } from '@/components/vehicles/HistorialServiciosVehiculo'
 import { AsignarPropietario } from '@/components/vehicles/AsignarPropietario'
+import { EditarVehiculo } from '@/components/vehicles/EditarVehiculo'
 import {
   card,
   badge,
@@ -99,8 +100,13 @@ export default async function VehiculoDetailPage({
                 : '—'
             }
           />
+          <Info label="Cilindrada" value={vehiculo.cilindrada ?? '—'} />
           <Info label="Kilometraje" value={vehiculo.km_actual?.toLocaleString('es-CL') ?? '—'} />
           <Info label="Color" value={vehiculo.color ?? '—'} />
+          <Info label="VIN" value={vehiculo.vin ?? '—'} />
+        </div>
+        <div className="mt-3">
+          <EditarVehiculo vehiculo={vehiculo} puedeGestionar={puedeGestionar} />
         </div>
       </div>
 

@@ -15,6 +15,8 @@ export interface Vehiculo {
   /** true cuando el año fue estimado del VIN al migrar y falta confirmarlo. */
   anio_por_confirmar: boolean
   color: string | null
+  /** Cilindrada / motor (texto libre: "2.0", "1600cc", "V8 5.3L"…). Decisivo para repuestos. */
+  cilindrada: string | null
   tipo: (typeof TIPOS_VEHICULO)[number]
   km_actual: number | null
   notas: string | null
@@ -57,6 +59,7 @@ export const vehiculoCreateSchema = z.object({
   vin: textoOpcional.max(20).optional(),
   anio: anioSchema.optional(),
   color: textoOpcional.max(50).optional(),
+  cilindrada: textoOpcional.max(30).optional(),
   km_actual: kmSchema.optional(),
   notas: z.string().trim().min(1).max(2000).optional(),
 })
@@ -70,6 +73,7 @@ export const vehiculoUpdateSchema = z.object({
   vin: textoOpcional.max(20).nullish(),
   anio: anioSchema.nullish(),
   color: textoOpcional.max(50).nullish(),
+  cilindrada: textoOpcional.max(30).nullish(),
   km_actual: kmSchema.nullish(),
   notas: z.string().trim().min(1).max(2000).nullish(),
 })
