@@ -426,7 +426,7 @@ export default async function OrdenTrabajoDetailPage({
               {orden.cerrado_en && <span>Cerrada: {fmt(orden.cerrado_en)}</span>}
             </div>
           </div>
-          <div className="flex shrink-0 items-center gap-3">
+          <div className="flex flex-wrap items-center gap-2">
             <Link
               href={`/repair-orders/${orden.id}/imprimir`}
               className="inline-flex items-center gap-2 rounded-lg border border-black/10 bg-black/[0.03] px-3.5 py-2 text-sm font-medium text-neutral-300 transition-colors hover:bg-black/[0.06]"
