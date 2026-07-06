@@ -19,8 +19,8 @@ interface CookieToSet {
 /** Rutas accesibles sin sesión. */
 const PUBLIC_PATHS = new Set<string>(['/login'])
 
-/** Prefijos públicos (ej. enlace de cotización para el cliente, sin login). */
-const PUBLIC_PREFIXES = ['/cotizacion/']
+/** Prefijos públicos (ej. enlace de cotización / avance para el cliente, sin login). */
+const PUBLIC_PREFIXES = ['/cotizacion/', '/avance/']
 
 function isPublic(pathname: string): boolean {
   return PUBLIC_PATHS.has(pathname) || PUBLIC_PREFIXES.some((p) => pathname.startsWith(p))

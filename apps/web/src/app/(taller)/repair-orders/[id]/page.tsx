@@ -18,6 +18,7 @@ import { listMecanicosByOrg } from '@/modules/users/queries'
 import { getConfiguracionManoObra } from '@/modules/taller/queries'
 import { getOrganizacion } from '@/modules/org/queries'
 import { getEntregaByOT, getTotalesOT } from '@/modules/entregas/queries'
+import { listFotosByOT } from '@/modules/evidencias'
 import { load } from '@/lib/ui/load'
 import { Notice } from '@/components/ui/Notice'
 import { StatusBadge } from '@/components/ui/StatusBadge'
@@ -27,6 +28,7 @@ import { DiagnosticoSection } from '@/components/repair-orders/DiagnosticoSectio
 import { EntregaSection } from '@/components/repair-orders/EntregaSection'
 import { TrabajosSection } from '@/components/repair-orders/TrabajosSection'
 import { PresupuestoSection } from '@/components/repair-orders/PresupuestoSection'
+import { FotosSection } from '@/components/repair-orders/FotosSection'
 import { OtTabs, type OtTab } from '@/components/repair-orders/OtTabs'
 import { card, sectionLabel, linkClass } from '@/components/ui/styles'
 
@@ -87,12 +89,15 @@ export default async function OrdenTrabajoDetailPage({
         getOrganizacion(supabase),
         getCitasActivasPorVehiculo(supabase, [orden.vehiculo_id]),
       ])
-    const [entrega, totales] = await Promise.all([
+    const [entrega, totales, fotos, tokenRow] = await Promise.all([
       getEntregaByOT(supabase, orden.id),
       getTotalesOT(supabase, orden.id),
+      listFotosByOT(supabase, orden.id),
+      supabase.from('ordenes_trabajo').select('token_avance').eq('id', orden.id).maybeSingle(),
     ])
+    const tokenAvance = (tokenRow.data as { token_avance: string | null } | null)?.token_avance ?? null
 
-    return { orden, vehiculo, cliente, eventos, historia, tipoEvento, tipoDiagnostico, reparaciones, presupuesto, mecanicos, configuracion, taller, citasActivas, entrega, totales, rol }
+    return { orden, vehiculo, cliente, eventos, historia, tipoEvento, tipoDiagnostico, reparaciones, presupuesto, mecanicos, configuracion, taller, citasActivas, entrega, totales, rol, fotos, tokenAvance }
   })
 
   if (!result.ok) {
@@ -112,7 +117,7 @@ export default async function OrdenTrabajoDetailPage({
     )
   }
 
-  const { orden, vehiculo, cliente, eventos, historia, tipoEvento, tipoDiagnostico, reparaciones, presupuesto, mecanicos, configuracion, taller, citasActivas, entrega, totales, rol } =
+  const { orden, vehiculo, cliente, eventos, historia, tipoEvento, tipoDiagnostico, reparaciones, presupuesto, mecanicos, configuracion, taller, citasActivas, entrega, totales, rol, fotos, tokenAvance } =
     result.data
 
   // Costos (compra, utilidad, margen) solo para admin, jefe de taller y asesor
@@ -274,6 +279,14 @@ export default async function OrdenTrabajoDetailPage({
               </div>
             </section>
           )}
+
+          {/* ── Fotos del trabajo + link de avance para el cliente ── */}
+          <FotosSection
+            ordenTrabajoId={orden.id}
+            initialFotos={fotos}
+            tokenInicial={tokenAvance}
+            puedeGestionar={puedeVerCostos}
+          />
         </div>
       ),
     },
