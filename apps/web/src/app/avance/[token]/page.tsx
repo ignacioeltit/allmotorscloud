@@ -5,6 +5,15 @@ export const dynamic = 'force-dynamic'
 
 import { createClient } from '@/lib/supabase/server'
 import { urlFoto } from '@/modules/evidencias'
+import { TIPOS_ITEM_LABEL, type TipoItemReparacion } from '@/modules/reparaciones/constants'
+import { ComentarWhatsapp } from './ComentarWhatsapp'
+
+interface Trabajo {
+  tipo: TipoItemReparacion
+  descripcion: string | null
+  cantidad: number
+  total: number
+}
 
 interface Avance {
   numero_ot: string
@@ -13,7 +22,16 @@ interface Avance {
   taller: { nombre: string | null; telefono: string | null; logo_url: string | null }
   vehiculo: { patente: string | null; marca: string | null; modelo: string | null; anio: number | null }
   fotos: { path: string; descripcion: string | null; creado_en: string }[]
+  trabajos: Trabajo[]
+  total_con_iva: number
 }
+
+function fmtCLP(n: number): string {
+  return n.toLocaleString('es-CL', { style: 'currency', currency: 'CLP', maximumFractionDigits: 0 })
+}
+
+// Orden de agrupación: repuestos, mano de obra, otros (igual que en la OT).
+const ORDEN_TIPO: TipoItemReparacion[] = ['repuesto', 'mano_obra', 'otros']
 
 const ESTADO_CLIENTE: Record<string, { label: string; color: string }> = {
   pendiente_diagnostico: { label: 'En diagnóstico', color: '#0369a1' },
@@ -81,6 +99,40 @@ export default async function AvancePage({ params }: { params: Promise<{ token: 
         <p className="mt-2 text-xs text-[#9ca3af]">Ingresado el {fmtFecha(a.creado_en)}</p>
       </div>
 
+      {/* Trabajos / detalle de la OT con precio */}
+      {a.trabajos.length > 0 && (
+        <div className="mt-8">
+          <p className="mb-3 text-[11px] font-semibold uppercase tracking-wide text-[#9ca3af]">
+            Detalle de los trabajos
+          </p>
+          <div className="overflow-hidden rounded-xl border border-[#e5e7eb]">
+            {ORDEN_TIPO.filter((t) => a!.trabajos.some((w) => w.tipo === t)).map((tipo) => (
+              <div key={tipo} className="border-b border-[#e5e7eb] last:border-b-0">
+                <p className="bg-[#f9fafb] px-4 py-1.5 text-[11px] font-semibold uppercase tracking-wide text-[#6b7280]">
+                  {TIPOS_ITEM_LABEL[tipo]}
+                </p>
+                {a!.trabajos
+                  .filter((w) => w.tipo === tipo)
+                  .map((w, i) => (
+                    <div key={i} className="flex items-start justify-between gap-3 px-4 py-2.5 text-sm">
+                      <span className="text-[#374151]">
+                        {w.descripcion || '—'}
+                        {w.cantidad > 1 && <span className="text-[#9ca3af]"> × {w.cantidad}</span>}
+                      </span>
+                      <span className="shrink-0 font-medium text-[#111827]">{fmtCLP(w.total)}</span>
+                    </div>
+                  ))}
+              </div>
+            ))}
+          </div>
+          <div className="mt-3 flex items-baseline justify-between border-t border-[#e5e7eb] pt-3">
+            <span className="text-sm font-semibold text-[#111827]">Total con IVA</span>
+            <span className="text-lg font-bold text-[#111827]">{fmtCLP(a.total_con_iva)}</span>
+          </div>
+          <p className="mt-1 text-[11px] text-[#9ca3af]">Valores referenciales de los trabajos a la fecha.</p>
+        </div>
+      )}
+
       {/* Fotos */}
       <div className="mt-8">
         <p className="mb-3 text-[11px] font-semibold uppercase tracking-wide text-[#9ca3af]">
@@ -107,7 +159,10 @@ export default async function AvancePage({ params }: { params: Promise<{ token: 
         )}
       </div>
 
-      <p className="mt-10 text-center text-xs text-[#9ca3af]">
+      {/* Comentario del cliente → WhatsApp del taller */}
+      <ComentarWhatsapp telefono={a.taller.telefono} numeroOt={a.numero_ot} vehiculoLabel={veh || null} />
+
+      <p className="mt-8 text-center text-xs text-[#9ca3af]">
         Este enlace muestra el avance de tu vehículo en tiempo real.
       </p>
     </div>

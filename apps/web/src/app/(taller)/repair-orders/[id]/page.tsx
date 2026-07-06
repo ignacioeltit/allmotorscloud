@@ -28,7 +28,7 @@ import { EntregaSection } from '@/components/repair-orders/EntregaSection'
 import { TrabajosSection } from '@/components/repair-orders/TrabajosSection'
 import { PresupuestoSection } from '@/components/repair-orders/PresupuestoSection'
 import { FotosSection } from '@/components/repair-orders/FotosSection'
-import { CompartirPrecioOT } from '@/components/repair-orders/CompartirPrecioOT'
+import { CompartirAvanceOT } from '@/components/repair-orders/CompartirAvanceOT'
 import { OtTabs, type OtTab } from '@/components/repair-orders/OtTabs'
 import { card, sectionLabel, linkClass } from '@/components/ui/styles'
 
@@ -279,17 +279,14 @@ export default async function OrdenTrabajoDetailPage({
                 </div>
               </div>
               {puedeVerCostos && (
-                <CompartirPrecioOT
+                <CompartirAvanceOT
                   ordenTrabajoId={orden.id}
                   numeroOt={orden.numero_ot}
                   tallerNombre={taller?.nombre ?? 'el taller'}
                   vehiculoLabel={vehiculoLabel}
                   clienteNombre={cliente?.nombre ?? null}
                   clienteTelefono={cliente?.telefono ?? null}
-                  totalMO={totalMO}
-                  totalRep={totalRep}
-                  totalOtros={totalOtros}
-                  totalConIva={totales.total_con_iva}
+                  tokenInicial={tokenAvance}
                 />
               )}
             </section>
