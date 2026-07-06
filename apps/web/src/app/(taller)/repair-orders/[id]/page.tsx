@@ -28,6 +28,7 @@ import { EntregaSection } from '@/components/repair-orders/EntregaSection'
 import { TrabajosSection } from '@/components/repair-orders/TrabajosSection'
 import { PresupuestoSection } from '@/components/repair-orders/PresupuestoSection'
 import { FotosSection } from '@/components/repair-orders/FotosSection'
+import { CompartirPrecioOT } from '@/components/repair-orders/CompartirPrecioOT'
 import { OtTabs, type OtTab } from '@/components/repair-orders/OtTabs'
 import { card, sectionLabel, linkClass } from '@/components/ui/styles'
 
@@ -257,7 +258,7 @@ export default async function OrdenTrabajoDetailPage({
           {totalOT > 0 && (
             <section className="rounded-xl border border-black/[0.06] bg-neutral-900/30 px-5 py-4">
               <p className={`${sectionLabel} mb-3`}>Totales de trabajos</p>
-              <div className={`grid gap-4 ${totalOtros > 0 ? 'grid-cols-4' : 'grid-cols-3'}`}>
+              <div className={`grid grid-cols-2 gap-4 ${totalOtros > 0 ? 'sm:grid-cols-4' : 'sm:grid-cols-3'}`}>
                 <div>
                   <p className="text-[11px] text-neutral-600 uppercase tracking-wider">Mano de obra</p>
                   <p className="mt-0.5 text-sm font-semibold text-neutral-200">{fmtCLP(totalMO)}</p>
@@ -273,10 +274,24 @@ export default async function OrdenTrabajoDetailPage({
                   </div>
                 )}
                 <div>
-                  <p className="text-[11px] text-neutral-600 uppercase tracking-wider">Total</p>
-                  <p className="mt-0.5 text-base font-bold text-accent-400">{fmtCLP(totalOT)}</p>
+                  <p className="text-[11px] text-neutral-600 uppercase tracking-wider">Total (con IVA)</p>
+                  <p className="mt-0.5 text-base font-bold text-accent-400">{fmtCLP(totales.total_con_iva)}</p>
                 </div>
               </div>
+              {puedeVerCostos && (
+                <CompartirPrecioOT
+                  ordenTrabajoId={orden.id}
+                  numeroOt={orden.numero_ot}
+                  tallerNombre={taller?.nombre ?? 'el taller'}
+                  vehiculoLabel={vehiculoLabel}
+                  clienteNombre={cliente?.nombre ?? null}
+                  clienteTelefono={cliente?.telefono ?? null}
+                  totalMO={totalMO}
+                  totalRep={totalRep}
+                  totalOtros={totalOtros}
+                  totalConIva={totales.total_con_iva}
+                />
+              )}
             </section>
           )}
 

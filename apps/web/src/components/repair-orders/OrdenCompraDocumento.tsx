@@ -62,6 +62,7 @@ export function OrdenCompraDocumento({
           <p className="text-xs text-[#6b7280]">
             {[
               vehiculo?.anio ? `Año ${vehiculo.anio}` : null,
+              vehiculo?.cilindrada ? `Cilindrada ${vehiculo.cilindrada}` : null,
               vehiculo?.vin ? `VIN ${vehiculo.vin}` : null,
               vehiculo?.color,
             ]
