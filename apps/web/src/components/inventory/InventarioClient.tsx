@@ -372,7 +372,8 @@ export function InventarioClient({
           </div>
         ) : (
           <>
-            <div className="overflow-x-auto">
+            {/* Escritorio: tabla */}
+            <div className="hidden overflow-x-auto md:block">
               <table className="w-full text-sm">
                 <thead>
                   <tr className="border-b border-black/[0.06]">
@@ -421,6 +422,38 @@ export function InventarioClient({
                   ))}
                 </tbody>
               </table>
+            </div>
+
+            {/* Móvil: cards */}
+            <div className="space-y-2 md:hidden">
+              {repuestos.map((r) => (
+                <div
+                  key={r.id}
+                  onClick={() => router.push(`/inventory/${r.id}`)}
+                  className="cursor-pointer rounded-xl border border-black/[0.06] bg-black/[0.02] p-3 active:bg-black/[0.04]"
+                >
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <p className="font-medium text-neutral-100">{r.nombre}</p>
+                      <div className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-xs text-neutral-500">
+                        <span className="font-mono">{r.codigo}</span>
+                        {r.marca && <span>· {r.marca}</span>}
+                      </div>
+                    </div>
+                    <StockBadge stock={r.stock_actual} minimo={r.stock_minimo} />
+                  </div>
+                  <div className="mt-2 flex items-center justify-between">
+                    <span className="text-sm font-semibold text-neutral-200">{fmtCLP(r.precio_venta)}</span>
+                    <button
+                      onClick={(e) => { e.stopPropagation(); void eliminar(r.id) }}
+                      disabled={deletingId === r.id}
+                      className={`${btnGhost} px-2 py-1 text-xs text-red-700 hover:text-red-800`}
+                    >
+                      {deletingId === r.id ? '…' : 'Eliminar'}
+                    </button>
+                  </div>
+                </div>
+              ))}
             </div>
 
             <Paginacion

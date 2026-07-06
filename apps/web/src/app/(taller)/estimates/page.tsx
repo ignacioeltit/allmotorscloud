@@ -69,7 +69,8 @@ export default async function EstimatesPage({ searchParams }: Props) {
         initialSearch={search}
         placeholder="Buscar por folio (PPT3500), N° de OT, patente o cliente…"
       >
-        <div className={`${card} overflow-x-auto p-0`}>
+        {/* Escritorio: tabla */}
+        <div className={`${card} hidden overflow-x-auto p-0 md:block`}>
           <table className="w-full text-sm">
             <thead className="border-b border-black/[0.06] bg-black/[0.02] text-left text-[11px] uppercase tracking-wider text-neutral-500">
               <tr>
@@ -120,6 +121,29 @@ export default async function EstimatesPage({ searchParams }: Props) {
               ))}
             </tbody>
           </table>
+        </div>
+
+        {/* Móvil: cards */}
+        <div className="space-y-2 md:hidden">
+          {presupuestos.map((p) => (
+            <Link
+              key={p.id}
+              href={p.orden_trabajo_id ? `/repair-orders/${p.orden_trabajo_id}` : `/estimates/${p.id}`}
+              className={`${card} block active:bg-black/[0.04]`}
+            >
+              <div className="flex items-center justify-between gap-2">
+                <span className="font-medium text-neutral-100">{p.numero_ot ?? p.folio ?? 'Cotización'}</span>
+                <span className={`shrink-0 rounded-full border px-2 py-0.5 text-[11px] font-medium ${ESTADO_BADGE[p.estado]}`}>
+                  {ESTADO_PRESUPUESTO_LABEL[p.estado]}
+                </span>
+              </div>
+              <p className="mt-1 truncate text-sm text-neutral-400">
+                {[p.patente, p.marca, p.modelo].filter(Boolean).join(' · ') || 'Sin vehículo'}
+                {p.cliente_nombre ? ` — ${p.cliente_nombre}` : ''}
+              </p>
+              <p className="mt-1 text-sm font-semibold text-neutral-200">{fmtCLP(p.total_neto)}</p>
+            </Link>
+          ))}
         </div>
       </BusquedaPaginada>
     </div>

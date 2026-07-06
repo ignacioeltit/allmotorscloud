@@ -8,7 +8,7 @@ import { listarServiciosCatalogo, contarServiciosPendientes } from '@/modules/ca
 import { load } from '@/lib/ui/load'
 import { Notice } from '@/components/ui/Notice'
 import { EmptyState } from '@/components/ui/EmptyState'
-import { sectionLabel } from '@/components/ui/styles'
+import { sectionLabel, card } from '@/components/ui/styles'
 import {
   CATEGORIA_LABEL,
   CATEGORIA_COLOR,
@@ -171,24 +171,44 @@ export default async function CatalogoPage({ searchParams }: Props) {
           description={search || categoria ? 'Ningún servicio coincide con los filtros aplicados.' : 'El catálogo está vacío.'}
         />
       ) : (
-        <div className="overflow-x-auto rounded-xl border border-black/[0.06]">
-          <table className="w-full text-left">
-            <thead>
-              <tr className="border-b border-black/[0.06] bg-black/[0.02]">
-                <th className="px-4 py-3"><span className={sectionLabel}>Código</span></th>
-                <th className="px-4 py-3"><span className={sectionLabel}>Nombre</span></th>
-                <th className="px-4 py-3"><span className={sectionLabel}>Categoría</span></th>
-                <th className="px-4 py-3 text-right"><span className={sectionLabel}>Horas</span></th>
-                <th className="px-4 py-3 text-right"><span className={sectionLabel}>Precio</span></th>
-              </tr>
-            </thead>
-            <tbody>
-              {servicios.map((s) => (
-                <ServicioRow key={s.id} s={s} />
-              ))}
-            </tbody>
-          </table>
-        </div>
+        <>
+          {/* Escritorio: tabla */}
+          <div className="hidden overflow-x-auto rounded-xl border border-black/[0.06] md:block">
+            <table className="w-full text-left">
+              <thead>
+                <tr className="border-b border-black/[0.06] bg-black/[0.02]">
+                  <th className="px-4 py-3"><span className={sectionLabel}>Código</span></th>
+                  <th className="px-4 py-3"><span className={sectionLabel}>Nombre</span></th>
+                  <th className="px-4 py-3"><span className={sectionLabel}>Categoría</span></th>
+                  <th className="px-4 py-3 text-right"><span className={sectionLabel}>Horas</span></th>
+                  <th className="px-4 py-3 text-right"><span className={sectionLabel}>Precio</span></th>
+                </tr>
+              </thead>
+              <tbody>
+                {servicios.map((s) => (
+                  <ServicioRow key={s.id} s={s} />
+                ))}
+              </tbody>
+            </table>
+          </div>
+
+          {/* Móvil: cards */}
+          <div className="space-y-2 md:hidden">
+            {servicios.map((s) => (
+              <div key={s.id} className={`${card} flex items-start justify-between gap-3`}>
+                <div className="min-w-0">
+                  <p className="text-sm font-medium text-neutral-100">{s.nombre}</p>
+                  <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-neutral-500">
+                    {s.codigo && <span className="font-mono">{s.codigo}</span>}
+                    <CategoriaBadge categoria={s.categoria} />
+                    {s.horas_estandar != null && <span>{s.horas_estandar}h</span>}
+                  </div>
+                </div>
+                <span className="shrink-0 text-sm font-semibold tabular-nums text-neutral-200">{fmtCLP(s.precio_unitario)}</span>
+              </div>
+            ))}
+          </div>
+        </>
       )}
 
       {/* Paginación */}
