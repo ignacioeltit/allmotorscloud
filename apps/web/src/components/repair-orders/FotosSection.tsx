@@ -227,12 +227,11 @@ function FotoCard({
               {guardando ? '…' : 'OK'}
             </button>
           </div>
-        ) : puedeGestionar ? (
+        ) : (
+          // El detalle lo edita cualquiera del taller (incluido el mecánico).
           <button type="button" onClick={() => { setTxt(foto.descripcion ?? ''); setEditando(true) }} className="w-full text-left text-[11px] text-neutral-500 hover:text-neutral-300">
             {foto.descripcion ? foto.descripcion : '+ Agregar detalle'}
           </button>
-        ) : (
-          foto.descripcion && <p className="text-[11px] text-neutral-400">{foto.descripcion}</p>
         )}
       </div>
     </div>

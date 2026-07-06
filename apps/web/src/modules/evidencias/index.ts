@@ -72,20 +72,21 @@ export async function subirFotoOT(
   return unwrapWritten<FotoOT>(data, error)
 }
 
-/** Edita el detalle/descripción de una foto. */
+/**
+ * Edita el detalle/descripción de una foto. Vía fn_editar_detalle_foto
+ * (SECURITY DEFINER) para que el mecánico también pueda, sin tocar la
+ * visibilidad al cliente (que sigue siendo de gestión).
+ */
 export async function actualizarDescripcionFoto(
   supabase: DbClient,
   fotoId: string,
   descripcion: string,
 ): Promise<void> {
-  const { orgId } = await getAuthContext(supabase)
-  const { data, error } = await supabase
-    .from('evidencias')
-    .update({ descripcion: descripcion.trim() || null })
-    .eq('org_id', orgId)
-    .eq('id', fotoId)
-    .select('id')
-  unwrapWritten<{ id: string }>(data, error)
+  const { error } = await supabase.rpc('fn_editar_detalle_foto', {
+    p_foto_id: fotoId,
+    p_descripcion: descripcion,
+  })
+  if (error) throw error
 }
 
 /** Marca/desmarca una foto como visible para el cliente. */
