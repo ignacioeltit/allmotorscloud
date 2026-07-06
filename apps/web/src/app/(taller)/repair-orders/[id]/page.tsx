@@ -232,8 +232,8 @@ export default async function OrdenTrabajoDetailPage({
     },
     {
       id: 'trabajos',
-      label: 'Trabajos',
-      badge: reparaciones.length || null,
+      label: 'Detalle',
+      badge: reparaciones.reduce((n, r) => n + r.items.length, 0) || null,
       content: (
         <div className="space-y-6">
           {/* ── Trabajos (Client Component con formularios) ──

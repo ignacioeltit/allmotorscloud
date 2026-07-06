@@ -714,109 +714,6 @@ function AgregarItemForm({ reparacionId, configuracion, onDone, onCancel }: Agre
   )
 }
 
-interface AgregarTrabajoFormProps {
-  ordenTrabajoId: string
-  historiaId: string
-  tipoEventoId: string
-  mecanicos: MecanicoSimple[]
-  onDone: () => void
-  onCancel: () => void
-}
-
-function AgregarTrabajoForm({
-  ordenTrabajoId,
-  historiaId,
-  tipoEventoId,
-  mecanicos,
-  onDone,
-  onCancel,
-}: AgregarTrabajoFormProps) {
-  const [descripcion, setDescripcion] = useState('')
-  const [observaciones, setObservaciones] = useState('')
-  const [mecanicoId, setMecanicoId] = useState('')
-  const [error, setError] = useState<string | null>(null)
-  const [pending, startTransition] = useTransition()
-
-  function submit(e: React.FormEvent) {
-    e.preventDefault()
-    setError(null)
-    startTransition(async () => {
-      try {
-        const supabase = createClient()
-        await crearReparacion(supabase, {
-          ordenTrabajoId,
-          historiaId,
-          tipoEventoId,
-          descripcion: descripcion.trim() || undefined,
-          observaciones: observaciones.trim() || undefined,
-          mecanicoId: mecanicoId || undefined,
-        })
-        onDone()
-      } catch (e) {
-        setError(e instanceof Error ? e.message : 'Error al crear el trabajo.')
-      }
-    })
-  }
-
-  return (
-    <form
-      onSubmit={submit}
-      className="rounded-xl border border-black/[0.06] bg-neutral-900/50 p-5"
-    >
-      <p className={`${sectionLabel} mb-4`}>Nuevo trabajo técnico</p>
-      <div className="space-y-3">
-        <div>
-          <label className={labelClass}>Descripción del trabajo</label>
-          <input
-            className={inputClass}
-            placeholder="ej: Revisión de frenos, Cambio de aceite…"
-            value={descripcion}
-            onChange={(e) => setDescripcion(e.target.value)}
-            disabled={pending}
-          />
-        </div>
-        <div>
-          <label className={labelClass}>Diagnóstico / observaciones internas</label>
-          <textarea
-            className={`${inputClass} min-h-[80px] resize-y`}
-            placeholder="Notas del mecánico, diagnóstico encontrado…"
-            value={observaciones}
-            onChange={(e) => setObservaciones(e.target.value)}
-            disabled={pending}
-          />
-        </div>
-        {mecanicos.length > 0 && (
-          <div>
-            <label className={labelClass}>Mecánico asignado</label>
-            <select
-              className={inputClass}
-              value={mecanicoId}
-              onChange={(e) => setMecanicoId(e.target.value)}
-              disabled={pending}
-            >
-              <option value="">Sin asignar</option>
-              {mecanicos.map((m) => (
-                <option key={m.id} value={m.id}>
-                  {m.nombre}
-                </option>
-              ))}
-            </select>
-          </div>
-        )}
-      </div>
-      {error && <p className="mt-2 text-xs text-red-700">{error}</p>}
-      <div className="mt-4 flex gap-2">
-        <button type="submit" className={btnPrimary} disabled={pending}>
-          {pending ? 'Creando…' : 'Crear trabajo'}
-        </button>
-        <button type="button" className={btnSecondary} onClick={onCancel} disabled={pending}>
-          Cancelar
-        </button>
-      </div>
-    </form>
-  )
-}
-
 // ── Inline: estado de compra del repuesto (En taller / Por comprar / … ) ──
 // Visible para todos (el mecánico necesita saber si el repuesto está en taller).
 // La nota indica dónde/cómo conseguirlo (Mercado Libre, importación, proveedor…).
@@ -1284,7 +1181,6 @@ export function TrabajosSection({
   vehiculoLabel,
 }: TrabajosSectionProps) {
   const router = useRouter()
-  const [showAddTrabajo, setShowAddTrabajo] = useState(false)
   const [pendientesCount, setPendientesCount] = useState(0)
   const [creandoDirecto, setCreandoDirecto] = useState(false)
   const [errorDirecto, setErrorDirecto] = useState<string | null>(null)
@@ -1333,56 +1229,35 @@ export function TrabajosSection({
 
   return (
     <section className="space-y-4">
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <p className={sectionLabel}>Trabajos realizados</p>
-          {pendientesCount > 0 && (
-            <span
-              className="rounded-full border border-amber-500/30 bg-amber-500/10 px-2 py-0.5 text-[10px] font-semibold text-amber-700"
-              title={`${pendientesCount} servicio${pendientesCount > 1 ? 's' : ''} del catálogo pendiente${pendientesCount > 1 ? 's' : ''} de revisión`}
-            >
-              {pendientesCount} pendiente{pendientesCount > 1 ? 's' : ''}
-            </span>
-          )}
-        </div>
-        {tipoEventoReparacionId && !showAddTrabajo && (
-          <button
-            onClick={() => setShowAddTrabajo(true)}
-            className={`${btnPrimary} py-1.5 text-xs`}
+      <div className="flex items-center gap-3">
+        <p className={sectionLabel}>Detalle de la OT</p>
+        {pendientesCount > 0 && (
+          <span
+            className="rounded-full border border-amber-500/30 bg-amber-500/10 px-2 py-0.5 text-[10px] font-semibold text-amber-700"
+            title={`${pendientesCount} servicio${pendientesCount > 1 ? 's' : ''} del catálogo pendiente${pendientesCount > 1 ? 's' : ''} de revisión`}
           >
-            + Agregar trabajo
-          </button>
+            {pendientesCount} pendiente{pendientesCount > 1 ? 's' : ''}
+          </span>
         )}
       </div>
 
       {!tipoEventoReparacionId && (
         <p className="text-sm text-neutral-500">
-          Configura los tipos de evento del taller para registrar trabajos.
+          Configura los tipos de evento del taller para registrar líneas.
         </p>
       )}
 
-      {showAddTrabajo && tipoEventoReparacionId && (
-        <AgregarTrabajoForm
-          ordenTrabajoId={ordenTrabajoId}
-          historiaId={historiaId}
-          tipoEventoId={tipoEventoReparacionId}
-          mecanicos={mecanicos}
-          onDone={() => { setShowAddTrabajo(false); refresh() }}
-          onCancel={() => setShowAddTrabajo(false)}
-        />
-      )}
-
-      {initialReparaciones.length === 0 && !showAddTrabajo && tipoEventoReparacionId && (
+      {initialReparaciones.length === 0 && tipoEventoReparacionId && (
         <div className="flex flex-wrap items-center gap-3 rounded-xl border border-accent-500/25 bg-accent-500/[0.06] px-4 py-3">
           <p className="text-sm text-neutral-400">
-            ¿El cliente ya sabe lo que quiere (sin diagnóstico ni presupuesto)?
+            Cargá las líneas de la OT: mano de obra, materiales y otros.
           </p>
           <button
             onClick={() => void crearTrabajoDirecto()}
             disabled={creandoDirecto}
             className="inline-flex items-center gap-2 rounded-lg bg-accent-600 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-accent-500 disabled:opacity-50"
           >
-            {creandoDirecto ? 'Creando…' : '⚡ Trabajo directo: cargar líneas'}
+            {creandoDirecto ? 'Creando…' : '⚡ Cargar líneas'}
           </button>
           {errorDirecto && <p className="text-xs text-red-800">{errorDirecto}</p>}
         </div>
