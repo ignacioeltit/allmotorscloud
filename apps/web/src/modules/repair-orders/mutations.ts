@@ -82,17 +82,8 @@ export async function cambiarEstadoOrdenTrabajo(
   const { orgId } = await getAuthContext(supabase)
 
   if (parsed.data.estado === 'cerrada' || parsed.data.estado === 'entregada') {
-    const { data: ot } = await supabase
-      .from('ordenes_trabajo')
-      .select('km_ingreso')
-      .eq('org_id', orgId)
-      .eq('id', id)
-      .maybeSingle()
-    if ((ot as { km_ingreso: number | null } | null)?.km_ingreso == null) {
-      throw new ValidationError(
-        'La OT no tiene kilometraje registrado. Ingrésalo (campo "Km ingreso" en la cabecera) antes de entregarla o cerrarla.',
-      )
-    }
+    // El kilometraje es un dato del vehículo (se registra en recepción y vive en
+    // su ficha/historial), no un requisito de cierre de la OT.
 
     // No se puede entregar/cerrar sin registrar la entrega: eso captura el cobro
     // (al contado ahora, o marcado para más tarde como crédito / por facturar).
