@@ -253,13 +253,36 @@ function GrillaTrabajos({
 
   const subtotal = lineas.reduce((acc, l) => acc + totalLinea(l), 0)
 
+  // Inputs reutilizados en tabla (escritorio) y cards (móvil).
+  const renderCodigo = (i: number, l: LineaT) =>
+    grupo === 'otros' ? (
+      <input className={inputCell} placeholder="Código" value={l.codigo} onChange={(e) => set(i, { codigo: e.target.value })} />
+    ) : (
+      <CeldaBuscador grupo={grupo} value={l.codigo} placeholder="Código"
+        onChangeText={(text) => set(i, { codigo: text })}
+        onPickRepuesto={(r) => pickRepuesto(i, r)} onPickServicio={(s) => pickServicio(i, s)} />
+    )
+  const renderDescripcion = (i: number, l: LineaT) =>
+    grupo === 'otros' ? (
+      <input className={inputCell} placeholder="Ej: Insumos, gestión, traslado…" value={l.descripcion} onChange={(e) => set(i, { descripcion: e.target.value })} />
+    ) : (
+      <CeldaBuscador grupo={grupo} value={l.descripcion}
+        placeholder={grupo === 'repuesto' ? 'Buscar en inventario o escribir…' : 'Buscar en catálogo o escribir…'}
+        onChangeText={(text) => set(i, { descripcion: text, repuesto: null, servicio: null })}
+        onPickRepuesto={(r) => pickRepuesto(i, r)} onPickServicio={(s) => pickServicio(i, s)} />
+    )
+  const quitar = (i: number) => setLineas((prev) => prev.filter((_, idx) => idx !== i))
+  const agregar = () => setLineas((prev) => [...prev, grupo === 'mano_obra' ? filaManoObra(configuracion.valor_hora_mecanica) : filaVacia()])
+
   return (
     <div>
       <div className="mb-2 flex items-center justify-between">
         <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-neutral-500">{titulo}</p>
         <p className="text-sm font-medium text-neutral-300">{fmtCLP(subtotal)}</p>
       </div>
-      <div className="overflow-x-auto rounded-lg border border-black/[0.06]">
+
+      {/* Escritorio: tabla */}
+      <div className="hidden overflow-x-auto rounded-lg border border-black/[0.06] md:block">
         <table className="w-full text-sm">
           <thead>
             <tr className="border-b border-black/[0.06] bg-black/[0.02] text-left text-[10px] uppercase tracking-wider text-neutral-500">
@@ -274,44 +297,8 @@ function GrillaTrabajos({
           <tbody>
             {lineas.map((l, i) => (
               <tr key={i} className="border-b border-black/[0.03] last:border-0">
-                <td className="px-2 py-1.5">
-                  {grupo === 'otros' ? (
-                    <input
-                      className={inputCell}
-                      placeholder={i === 0 ? 'Código' : ''}
-                      value={l.codigo}
-                      onChange={(e) => set(i, { codigo: e.target.value })}
-                    />
-                  ) : (
-                    <CeldaBuscador
-                      grupo={grupo}
-                      value={l.codigo}
-                      placeholder={i === 0 ? 'Código' : ''}
-                      onChangeText={(text) => set(i, { codigo: text })}
-                      onPickRepuesto={(r) => pickRepuesto(i, r)}
-                      onPickServicio={(s) => pickServicio(i, s)}
-                    />
-                  )}
-                </td>
-                <td className="px-2 py-1.5">
-                  {grupo === 'otros' ? (
-                    <input
-                      className={inputCell}
-                      placeholder={i === 0 ? 'Ej: Insumos, gestión, traslado…' : ''}
-                      value={l.descripcion}
-                      onChange={(e) => set(i, { descripcion: e.target.value })}
-                    />
-                  ) : (
-                    <CeldaBuscador
-                      grupo={grupo}
-                      value={l.descripcion}
-                      placeholder={i === 0 ? (grupo === 'repuesto' ? 'Buscar en inventario o escribir…' : 'Buscar en catálogo o escribir…') : ''}
-                      onChangeText={(text) => set(i, { descripcion: text, repuesto: null, servicio: null })}
-                      onPickRepuesto={(r) => pickRepuesto(i, r)}
-                      onPickServicio={(s) => pickServicio(i, s)}
-                    />
-                  )}
-                </td>
+                <td className="px-2 py-1.5">{renderCodigo(i, l)}</td>
+                <td className="px-2 py-1.5">{renderDescripcion(i, l)}</td>
                 <td className="px-2 py-1.5">
                   <input type="number" min="0" step="any" className={inputCell} value={l.cantidad} onChange={(e) => set(i, { cantidad: e.target.value })} />
                 </td>
@@ -323,15 +310,7 @@ function GrillaTrabajos({
                 </td>
                 <td className="px-2 py-1.5 text-center">
                   {lineas.length > 1 && (
-                    <button
-                      type="button"
-                      onClick={() => setLineas((prev) => prev.filter((_, idx) => idx !== i))}
-                      className="text-neutral-500 hover:text-red-700"
-                      aria-label="Quitar línea"
-                      title="Quitar línea"
-                    >
-                      ×
-                    </button>
+                    <button type="button" onClick={() => quitar(i)} className="text-neutral-500 hover:text-red-700" aria-label="Quitar línea" title="Quitar línea">×</button>
                   )}
                 </td>
               </tr>
@@ -339,16 +318,36 @@ function GrillaTrabajos({
           </tbody>
         </table>
       </div>
-      <button
-        type="button"
-        onClick={() =>
-          setLineas((prev) => [
-            ...prev,
-            grupo === 'mano_obra' ? filaManoObra(configuracion.valor_hora_mecanica) : filaVacia(),
-          ])
-        }
-        className={`${btnGhost} mt-2 text-xs`}
-      >
+
+      {/* Móvil: una línea = una tarjeta apilada */}
+      <div className="space-y-2 md:hidden">
+        {lineas.map((l, i) => (
+          <div key={i} className="space-y-2 rounded-lg border border-black/[0.06] bg-black/[0.02] p-2.5">
+            {renderCodigo(i, l)}
+            {renderDescripcion(i, l)}
+            <div className="grid grid-cols-2 gap-2">
+              <label className="text-[10px] uppercase tracking-wider text-neutral-500">
+                {labelCantidad}
+                <input type="number" min="0" step="any" className={`${inputCell} mt-0.5`} value={l.cantidad} onChange={(e) => set(i, { cantidad: e.target.value })} />
+              </label>
+              <label className="text-[10px] uppercase tracking-wider text-neutral-500">
+                Precio
+                <input type="number" min="0" step="1" placeholder="0" className={`${inputCell} mt-0.5`} value={l.precio} onChange={(e) => set(i, { precio: e.target.value })} />
+              </label>
+            </div>
+            <div className="flex items-center justify-between pt-0.5">
+              <span className="text-sm font-medium text-neutral-200">
+                {totalLinea(l) > 0 ? fmtCLP(totalLinea(l)) : <span className="text-neutral-600">Total —</span>}
+              </span>
+              {lineas.length > 1 && (
+                <button type="button" onClick={() => quitar(i)} className="text-xs text-red-700">Quitar</button>
+              )}
+            </div>
+          </div>
+        ))}
+      </div>
+
+      <button type="button" onClick={agregar} className={`${btnGhost} mt-2 text-xs`}>
         + Agregar línea
       </button>
     </div>
