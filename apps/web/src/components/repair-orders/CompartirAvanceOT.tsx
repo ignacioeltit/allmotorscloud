@@ -103,10 +103,10 @@ export function CompartirAvanceOT({
             Enviar por WhatsApp
           </a>
           <Link
-            href={`/repair-orders/${ordenTrabajoId}/imprimir`}
+            href={`/repair-orders/${ordenTrabajoId}/cuenta`}
             className="inline-flex items-center gap-2 rounded-lg border border-black/10 bg-black/[0.03] px-3.5 py-1.5 text-sm font-medium text-neutral-300 hover:bg-black/[0.06]"
           >
-            🖨 Imprimir / PDF
+            🖨 Imprimir / PDF (con valores)
           </Link>
         </div>
       ) : (
