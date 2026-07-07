@@ -231,23 +231,24 @@ export function OtDocumento({
           </div>
         )}
 
-        {/* Notas del mecánico */}
-        <div className="mt-4">
-          <p className="text-[10px] font-semibold uppercase tracking-wide text-[#9ca3af]">Notas del mecánico</p>
-          <div className="mt-1.5 space-y-4">
-            {Array.from({ length: 3 }).map((_, i) => (
-              <div key={i} className="border-b border-[#d1d5db]" />
-            ))}
+        {/* Notas del mecánico + Firmas — bloque que no se parte entre páginas */}
+        <div style={{ breakInside: 'avoid' }}>
+          <div className="mt-4">
+            <p className="text-[10px] font-semibold uppercase tracking-wide text-[#9ca3af]">Notas del mecánico</p>
+            <div className="mt-1.5 space-y-3.5">
+              {Array.from({ length: 3 }).map((_, i) => (
+                <div key={i} className="border-b border-[#d1d5db]" />
+              ))}
+            </div>
           </div>
-        </div>
 
-        {/* Firmas */}
-        <div className="mt-6 grid grid-cols-2 gap-10 text-center text-[11px] text-[#6b7280]">
-          <div>
-            <div className="border-t border-[#9ca3af] pt-1.5">Mecánico</div>
-          </div>
-          <div>
-            <div className="border-t border-[#9ca3af] pt-1.5">Jefe de taller</div>
+          <div className="mt-5 grid grid-cols-2 gap-10 text-center text-[11px] text-[#6b7280]">
+            <div>
+              <div className="border-t border-[#9ca3af] pt-1.5">Mecánico</div>
+            </div>
+            <div>
+              <div className="border-t border-[#9ca3af] pt-1.5">Jefe de taller</div>
+            </div>
           </div>
         </div>
       </div>

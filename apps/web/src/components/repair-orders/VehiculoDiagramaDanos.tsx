@@ -74,7 +74,7 @@ function PickupFrente() {
 function Vista({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <div className="flex flex-col items-center rounded border border-[#e5e7eb] p-1">
-      <div className="h-14 w-full">{children}</div>
+      <div className="h-12 w-full">{children}</div>
       <p className="mt-0.5 text-[9px] uppercase tracking-wide text-[#9ca3af]">{label}</p>
     </div>
   )
@@ -83,7 +83,7 @@ function Vista({ label, children }: { label: string; children: React.ReactNode }
 export function VehiculoDiagramaDanos({ tipo }: { tipo: string | null | undefined }) {
   const pickup = esPickup(tipo)
   return (
-    <div className="mt-4" style={{ breakInside: 'avoid' }}>
+    <div className="mt-3" style={{ breakInside: 'avoid' }}>
       <div className="flex items-center justify-between">
         <p className="text-[11px] font-semibold uppercase tracking-wide text-[#9ca3af]">
           Estado del vehículo — marcar daños
