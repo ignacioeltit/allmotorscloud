@@ -227,6 +227,7 @@ export default async function OrdenTrabajoDetailPage({
             estadoOT={orden.estado}
             diagnosticos={diagnosticos}
             mecanicos={mecanicos}
+            puedeGestionar={puedeVerCostos}
           />
         </div>
       ),

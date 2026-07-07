@@ -23,6 +23,7 @@ interface Avance {
   vehiculo: { patente: string | null; marca: string | null; modelo: string | null; anio: number | null }
   fotos: { path: string; descripcion: string | null; creado_en: string }[]
   trabajos: Trabajo[]
+  diagnosticos: { descripcion: string | null; creado_en: string }[]
   total_con_iva: number
 }
 
@@ -98,6 +99,23 @@ export default async function AvancePage({ params }: { params: Promise<{ token: 
         </div>
         <p className="mt-2 text-xs text-[#9ca3af]">Ingresado el {fmtFecha(a.creado_en)}</p>
       </div>
+
+      {/* Hallazgos del mecánico (diagnóstico visible al cliente) */}
+      {a.diagnosticos.length > 0 && (
+        <div className="mt-8">
+          <p className="mb-3 text-[11px] font-semibold uppercase tracking-wide text-[#9ca3af]">
+            Hallazgos del mecánico
+          </p>
+          <div className="space-y-2">
+            {a.diagnosticos.map((d, i) => (
+              <div key={i} className="rounded-lg border border-[#e5e7eb] bg-[#f9fafb] px-4 py-3">
+                <p className="whitespace-pre-wrap text-sm text-[#374151]">{d.descripcion}</p>
+                <p className="mt-1.5 text-[11px] text-[#9ca3af]">{fmtFecha(d.creado_en)}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Trabajos / detalle de la OT con precio */}
       {a.trabajos.length > 0 && (

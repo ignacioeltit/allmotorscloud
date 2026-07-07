@@ -9,7 +9,7 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
-import { createEvento } from '@/modules/events/mutations'
+import { createEvento, updateEvento } from '@/modules/events/mutations'
 import { cambiarEstadoOrdenTrabajo } from '@/modules/repair-orders/mutations'
 import type { Evento } from '@/modules/events/types'
 import type { MecanicoSimple } from '@/modules/users/types'
@@ -23,6 +23,7 @@ export function DiagnosticoSection({
   estadoOT,
   diagnosticos,
   mecanicos,
+  puedeGestionar,
 }: {
   ordenTrabajoId: string
   historiaId: string
@@ -30,12 +31,32 @@ export function DiagnosticoSection({
   estadoOT: string
   diagnosticos: Evento[]
   mecanicos: MecanicoSimple[]
+  puedeGestionar: boolean
 }) {
   const router = useRouter()
   const [texto, setTexto] = useState('')
   const [mecanicoId, setMecanicoId] = useState('')
   const [guardando, setGuardando] = useState(false)
+  const [visibles, setVisibles] = useState<Record<string, boolean>>(() =>
+    Object.fromEntries(diagnosticos.map((d) => [d.id, d.visible_cliente])),
+  )
+  const [alternando, setAlternando] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
+
+  async function toggleVisible(id: string) {
+    const nuevo = !visibles[id]
+    setAlternando(id)
+    setError(null)
+    try {
+      await updateEvento(createClient(), id, { visible_cliente: nuevo })
+      setVisibles((prev) => ({ ...prev, [id]: nuevo }))
+      router.refresh()
+    } catch (e) {
+      setError(toErrorMessage(e))
+    } finally {
+      setAlternando(null)
+    }
+  }
 
   const terminal = estadoOT === 'cerrada' || estadoOT === 'cancelada'
   const nombreMecanico = (id: string | null) =>
@@ -84,10 +105,29 @@ export function DiagnosticoSection({
           {diagnosticos.map((d) => (
             <div key={d.id} className="rounded-lg border border-black/[0.05] bg-black/[0.02] px-3 py-2.5">
               <p className="whitespace-pre-wrap text-sm text-neutral-200">{d.descripcion}</p>
-              <p className="mt-1.5 text-[11px] text-neutral-500">
-                {new Date(d.creado_en).toLocaleString('es-CL', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })}
-                {nombreMecanico(d.asignado_a) ? ` · 🔧 ${nombreMecanico(d.asignado_a)}` : ''}
-              </p>
+              <div className="mt-1.5 flex flex-wrap items-center justify-between gap-2">
+                <p className="text-[11px] text-neutral-500">
+                  {new Date(d.creado_en).toLocaleString('es-CL', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })}
+                  {nombreMecanico(d.asignado_a) ? ` · 🔧 ${nombreMecanico(d.asignado_a)}` : ''}
+                </p>
+                {puedeGestionar ? (
+                  <button
+                    type="button"
+                    onClick={() => void toggleVisible(d.id)}
+                    disabled={alternando === d.id}
+                    className={`rounded-md border px-2 py-0.5 text-[11px] font-medium transition-colors disabled:opacity-50 ${
+                      visibles[d.id]
+                        ? 'border-emerald-500/40 bg-emerald-500/10 text-emerald-700'
+                        : 'border-black/10 bg-black/[0.03] text-neutral-500'
+                    }`}
+                    title="Mostrar u ocultar este hallazgo en el link de avance del cliente"
+                  >
+                    {alternando === d.id ? '…' : visibles[d.id] ? '👁 El cliente lo ve' : '🔒 Interno'}
+                  </button>
+                ) : (
+                  visibles[d.id] && <span className="text-[11px] text-emerald-700">👁 Visible al cliente</span>
+                )}
+              </div>
             </div>
           ))}
         </div>
