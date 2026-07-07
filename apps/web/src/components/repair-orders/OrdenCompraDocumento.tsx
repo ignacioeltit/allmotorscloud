@@ -30,7 +30,7 @@ export function OrdenCompraDocumento({
     .filter((i) => i.tipo === 'repuesto' && ESTADOS_COMPRA_PENDIENTES.includes(i.estado_compra))
 
   return (
-    <div className="mx-auto max-w-2xl text-[#111827]">
+    <div className="doc-print mx-auto max-w-2xl text-[#111827]">
       <div className="no-print mb-5 flex justify-end">
         <button
           onClick={() => window.print()}

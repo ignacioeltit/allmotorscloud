@@ -43,7 +43,7 @@ export function ComprobanteEntrega({
   const items = reparaciones.flatMap((r) => r.items)
 
   return (
-    <div className="mx-auto max-w-2xl text-[#111827]">
+    <div className="doc-print mx-auto max-w-2xl text-[#111827]">
       <div className="no-print mb-5 flex justify-end">
         <button
           onClick={() => window.print()}
