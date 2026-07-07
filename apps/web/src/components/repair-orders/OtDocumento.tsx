@@ -16,6 +16,7 @@ import type { PresupuestoConItems } from '@/modules/estimates/types'
 import type { OrganizacionInfo } from '@/modules/org/queries'
 import type { MecanicoSimple } from '@/modules/users/types'
 import { ordenarItemsPorTipo } from '@/lib/ui/ordenar-items'
+import { VehiculoDiagramaDanos } from './VehiculoDiagramaDanos'
 
 const TIPO_LABEL: Record<string, string> = { mano_obra: 'Mano de obra', repuesto: 'Repuesto', otros: 'Otros' }
 
@@ -78,11 +79,11 @@ export function OtDocumento({
 
       <div className="rounded-2xl border border-[#e5e7eb] bg-white p-6 shadow-sm sm:p-8 print:rounded-none print:border-0 print:p-0 print:shadow-none">
         {/* Encabezado */}
-        <div className="flex items-start justify-between gap-4 border-b border-[#e5e7eb] pb-5">
+        <div className="flex items-start justify-between gap-4 border-b border-[#e5e7eb] pb-3">
           <div className="flex items-start gap-3">
             {taller?.logo_url && (
               /* eslint-disable-next-line @next/next/no-img-element */
-              <img src={taller.logo_url} alt="" className="h-12 w-auto max-w-[120px] object-contain" />
+              <img src={taller.logo_url} alt="" className="h-10 w-auto max-w-[110px] object-contain" />
             )}
             <div>
               <h1 className="text-lg font-semibold">{taller?.nombre ?? 'Taller'}</h1>
@@ -102,18 +103,18 @@ export function OtDocumento({
         </div>
 
         {/* Cliente + vehículo */}
-        <div className="mt-5 grid grid-cols-2 gap-4 text-sm">
+        <div className="mt-3 grid grid-cols-2 gap-4 text-[13px]">
           <div>
-            <p className="text-[11px] font-semibold uppercase tracking-wide text-[#9ca3af]">Cliente</p>
-            <p className="mt-1 font-medium">{cliente?.nombre ?? '—'}</p>
-            <p className="text-xs text-[#6b7280]">{[cliente?.rut, cliente?.telefono].filter(Boolean).join(' · ')}</p>
+            <p className="text-[10px] font-semibold uppercase tracking-wide text-[#9ca3af]">Cliente</p>
+            <p className="mt-0.5 font-medium">{cliente?.nombre ?? '—'}</p>
+            <p className="text-[11px] text-[#6b7280]">{[cliente?.rut, cliente?.telefono].filter(Boolean).join(' · ')}</p>
           </div>
           <div>
-            <p className="text-[11px] font-semibold uppercase tracking-wide text-[#9ca3af]">Vehículo</p>
-            <p className="mt-1 font-medium tracking-wide">
+            <p className="text-[10px] font-semibold uppercase tracking-wide text-[#9ca3af]">Vehículo</p>
+            <p className="mt-0.5 font-medium tracking-wide">
               {[vehiculo?.patente, vehiculo?.marca, vehiculo?.modelo].filter(Boolean).join(' · ') || '—'}
             </p>
-            <p className="text-xs text-[#6b7280]">
+            <p className="text-[11px] text-[#6b7280]">
               {[
                 vehiculo?.anio ? `Año ${vehiculo.anio}` : null,
                 vehiculo?.cilindrada ? `Cilindrada ${vehiculo.cilindrada}` : null,
@@ -132,11 +133,11 @@ export function OtDocumento({
           (() => {
             const { campos, checklist } = parseDescripcionRecepcion(eventoRecepcion.descripcion!)
             return (
-              <div className="mt-5 rounded-lg border border-[#e5e7eb] bg-[#f9fafb] px-4 py-3">
-                <p className="text-[11px] font-semibold uppercase tracking-wide text-[#9ca3af]">
+              <div className="mt-3 rounded-lg border border-[#e5e7eb] bg-[#f9fafb] px-3 py-2">
+                <p className="text-[10px] font-semibold uppercase tracking-wide text-[#9ca3af]">
                   Lo que indica el cliente
                 </p>
-                <div className="mt-2 space-y-1.5 text-sm">
+                <div className="mt-1 space-y-0.5 text-[11px] leading-snug">
                   {campos.map(([label, valor], i) => (
                     <p key={i}>
                       <span className="font-medium">{label}:</span> {valor}
@@ -144,11 +145,11 @@ export function OtDocumento({
                   ))}
                 </div>
                 {checklist.length > 0 && (
-                  <div className="mt-3 border-t border-[#e5e7eb] pt-2">
-                    <p className="text-[11px] font-semibold uppercase tracking-wide text-[#9ca3af]">
+                  <div className="mt-2 border-t border-[#e5e7eb] pt-1.5">
+                    <p className="text-[10px] font-semibold uppercase tracking-wide text-[#9ca3af]">
                       Checklist de recepción
                     </p>
-                    <div className="mt-1 grid grid-cols-2 gap-x-4 gap-y-0.5 text-xs sm:grid-cols-3">
+                    <div className="mt-0.5 grid grid-cols-2 gap-x-3 gap-y-0 text-[10px] leading-snug sm:grid-cols-4">
                       {checklist.map((linea, i) => (
                         <p key={i}>{linea}</p>
                       ))}
@@ -159,40 +160,43 @@ export function OtDocumento({
             )
           })()
         ) : orden.notas ? (
-          <div className="mt-5 rounded-lg border border-[#e5e7eb] bg-[#f9fafb] px-4 py-3">
-            <p className="text-[11px] font-semibold uppercase tracking-wide text-[#9ca3af]">Motivo de ingreso</p>
-            <p className="mt-1 text-sm">{orden.notas}</p>
+          <div className="mt-3 rounded-lg border border-[#e5e7eb] bg-[#f9fafb] px-3 py-2">
+            <p className="text-[10px] font-semibold uppercase tracking-wide text-[#9ca3af]">Motivo de ingreso</p>
+            <p className="mt-0.5 text-[11px] leading-snug">{orden.notas}</p>
           </div>
         ) : null}
 
+        {/* Diagrama para marcar daños del vehículo en la recepción */}
+        <VehiculoDiagramaDanos tipo={vehiculo?.tipo ?? null} />
+
         {/* Trabajos cargados */}
         {conTrabajos && (
-          <div className="mt-6">
-            <p className="text-[11px] font-semibold uppercase tracking-wide text-[#9ca3af]">Trabajos</p>
+          <div className="mt-4" style={{ breakInside: 'avoid' }}>
+            <p className="text-[10px] font-semibold uppercase tracking-wide text-[#9ca3af]">Trabajos</p>
             {reparaciones.map((r) => (
-              <div key={r.id} className="mt-2">
+              <div key={r.id} className="mt-1.5">
                 {(r.descripcion || nombreMecanico(r.mecanico_id)) && (
-                  <p className="text-sm font-medium">
+                  <p className="text-[13px] font-medium">
                     {r.descripcion ?? 'Trabajo'}
                     {nombreMecanico(r.mecanico_id) && (
-                      <span className="ml-2 text-xs font-normal text-[#6b7280]">
+                      <span className="ml-2 text-[11px] font-normal text-[#6b7280]">
                         Mecánico: {nombreMecanico(r.mecanico_id)}
                       </span>
                     )}
                   </p>
                 )}
                 {r.items.length > 0 && (
-                  <table className="mt-1 w-full text-sm">
+                  <table className="mt-0.5 w-full text-[12px]">
                     <tbody>
                       {ordenarItemsPorTipo(r.items).map((it) => (
                         <tr key={it.id} className="border-b border-[#f3f4f6]">
-                          <td className="w-6 py-1.5 align-top">☐</td>
-                          <td className="py-1.5">
-                            {it.codigo && <span className="mr-1.5 font-mono text-[11px] text-[#6b7280]">{it.codigo}</span>}
+                          <td className="w-5 py-0.5 align-top">☐</td>
+                          <td className="py-0.5">
+                            {it.codigo && <span className="mr-1.5 font-mono text-[10px] text-[#6b7280]">{it.codigo}</span>}
                             {it.descripcion}
-                            <span className="ml-2 text-[10px] uppercase text-[#9ca3af]">{TIPO_LABEL[it.tipo] ?? it.tipo}</span>
+                            <span className="ml-2 text-[9px] uppercase text-[#9ca3af]">{TIPO_LABEL[it.tipo] ?? it.tipo}</span>
                           </td>
-                          <td className="w-16 py-1.5 text-right text-[#4b5563]">× {it.cantidad}</td>
+                          <td className="w-14 py-0.5 text-right text-[#4b5563]">× {it.cantidad}</td>
                         </tr>
                       ))}
                     </tbody>
@@ -205,21 +209,21 @@ export function OtDocumento({
 
         {/* Trabajo autorizado por presupuesto (útil cuando la OT viene de una cotización) */}
         {!conTrabajos && presupuesto && presupuesto.items.length > 0 && (
-          <div className="mt-6">
-            <p className="text-[11px] font-semibold uppercase tracking-wide text-[#9ca3af]">
+          <div className="mt-4" style={{ breakInside: 'avoid' }}>
+            <p className="text-[10px] font-semibold uppercase tracking-wide text-[#9ca3af]">
               Trabajo autorizado (presupuesto {presupuesto.estado === 'autorizado' ? 'aprobado por el cliente' : presupuesto.estado})
             </p>
-            <table className="mt-1 w-full text-sm">
+            <table className="mt-0.5 w-full text-[12px]">
               <tbody>
                 {ordenarItemsPorTipo(presupuesto.items).map((it) => (
                   <tr key={it.id} className="border-b border-[#f3f4f6]">
-                    <td className="w-6 py-1.5 align-top">☐</td>
-                    <td className="py-1.5">
-                      {it.codigo && <span className="mr-1.5 font-mono text-[11px] text-[#6b7280]">{it.codigo}</span>}
+                    <td className="w-5 py-0.5 align-top">☐</td>
+                    <td className="py-0.5">
+                      {it.codigo && <span className="mr-1.5 font-mono text-[10px] text-[#6b7280]">{it.codigo}</span>}
                       {it.descripcion}
-                      <span className="ml-2 text-[10px] uppercase text-[#9ca3af]">{TIPO_LABEL[it.tipo] ?? it.tipo}</span>
+                      <span className="ml-2 text-[9px] uppercase text-[#9ca3af]">{TIPO_LABEL[it.tipo] ?? it.tipo}</span>
                     </td>
-                    <td className="w-16 py-1.5 text-right text-[#4b5563]">× {it.cantidad}</td>
+                    <td className="w-14 py-0.5 text-right text-[#4b5563]">× {it.cantidad}</td>
                   </tr>
                 ))}
               </tbody>
@@ -228,17 +232,17 @@ export function OtDocumento({
         )}
 
         {/* Notas del mecánico */}
-        <div className="mt-8">
-          <p className="text-[11px] font-semibold uppercase tracking-wide text-[#9ca3af]">Notas del mecánico</p>
-          <div className="mt-2 space-y-5">
-            {Array.from({ length: 4 }).map((_, i) => (
+        <div className="mt-4">
+          <p className="text-[10px] font-semibold uppercase tracking-wide text-[#9ca3af]">Notas del mecánico</p>
+          <div className="mt-1.5 space-y-4">
+            {Array.from({ length: 3 }).map((_, i) => (
               <div key={i} className="border-b border-[#d1d5db]" />
             ))}
           </div>
         </div>
 
         {/* Firmas */}
-        <div className="mt-10 grid grid-cols-2 gap-10 text-center text-xs text-[#6b7280]">
+        <div className="mt-6 grid grid-cols-2 gap-10 text-center text-[11px] text-[#6b7280]">
           <div>
             <div className="border-t border-[#9ca3af] pt-1.5">Mecánico</div>
           </div>
