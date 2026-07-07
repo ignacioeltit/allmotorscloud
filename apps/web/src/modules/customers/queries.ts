@@ -4,6 +4,7 @@
 
 import type { DbClient } from '@/lib/supabase/types'
 import { getAuthContext } from '@/lib/auth/context'
+import { normalizarRut } from '@/lib/identificadores'
 import { unwrapList, unwrapMaybe, unwrapRequired } from '@/lib/supabase/result'
 import { CLIENTES_PAGE_SIZE } from './constants'
 import type { Cliente, ListClientesParams } from './types'
@@ -33,7 +34,12 @@ export async function listClientes(
     .range(offset, offset + limit - 1)
 
   if (params.search && params.search.trim().length > 0) {
-    query = query.ilike('nombre', `%${params.search.trim()}%`)
+    const term = params.search.trim()
+    const escaped = term.replace(/%/g, '\\%').replace(/_/g, '\\_')
+    const conds = [`nombre.ilike.%${escaped}%`, `telefono.ilike.%${escaped}%`]
+    const rut = normalizarRut(term)
+    if (rut) conds.push(`rut_norm.ilike.%${rut}%`) // RUT sin puntos ni guion
+    query = query.or(conds.join(','))
   }
 
   const { data, error } = await query
@@ -62,7 +68,10 @@ export async function listClientesPaged(
   const term = params.query?.trim()
   if (term) {
     const escaped = term.replace(/%/g, '\\%').replace(/_/g, '\\_')
-    q = q.or(`nombre.ilike.%${escaped}%,rut.ilike.%${escaped}%,telefono.ilike.%${escaped}%`)
+    const conds = [`nombre.ilike.%${escaped}%`, `telefono.ilike.%${escaped}%`]
+    const rut = normalizarRut(term)
+    if (rut) conds.push(`rut_norm.ilike.%${rut}%`) // RUT sin puntos ni guion
+    q = q.or(conds.join(','))
   }
 
   const { data, error, count } = await q

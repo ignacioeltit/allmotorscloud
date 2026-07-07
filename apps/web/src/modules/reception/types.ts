@@ -38,7 +38,7 @@ export interface RecibirVehiculoInput {
   vehiculoNuevo: (VehiculoCreateInput & VehiculoSpecsExtra) | null
   /** Datos de la recepción. */
   motivo: string
-  sintomas?: string
+  /** Síntomas y observaciones del ingreso, unificados en un solo campo. */
   observaciones?: string
   prioridad?: string
   km?: number

@@ -1,5 +1,6 @@
 // Lecturas del módulo vehicles (SELECT sobre `vehiculos`).
 
+import { normalizarPatente } from '@/lib/identificadores'
 import type { DbClient } from '@/lib/supabase/types'
 import { getAuthContext } from '@/lib/auth/context'
 import { unwrapList, unwrapMaybe, unwrapRequired } from '@/lib/supabase/result'
@@ -28,9 +29,11 @@ export async function listVehiculos(
 
   const search = params.search?.trim()
   if (search) {
-    // Búsqueda en patente, marca o modelo.
+    // Patente normalizada (sin guion): "hdcx-10" encuentra "HDCX10".
+    const pat = normalizarPatente(search)
+    const raw = search.replace(/%/g, '\\%').replace(/_/g, '\\_')
     query = query.or(
-      `patente.ilike.%${search}%,marca.ilike.%${search}%,modelo.ilike.%${search}%`,
+      `patente.ilike.%${pat}%,marca.ilike.%${raw}%,modelo.ilike.%${raw}%`,
     )
   }
 
@@ -60,8 +63,9 @@ export async function listVehiculosPaged(
   const term = params.query?.trim()
   if (term) {
     const escaped = term.replace(/%/g, '\\%').replace(/_/g, '\\_')
+    const pat = normalizarPatente(term)
     q = q.or(
-      `patente.ilike.%${escaped}%,vin.ilike.%${escaped}%,marca.ilike.%${escaped}%,modelo.ilike.%${escaped}%`,
+      `patente.ilike.%${pat}%,vin.ilike.%${pat}%,marca.ilike.%${escaped}%,modelo.ilike.%${escaped}%`,
     )
   }
 

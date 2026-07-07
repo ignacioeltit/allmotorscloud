@@ -22,8 +22,7 @@ function construirDescripcion(input: RecibirVehiculoInput): string {
   lineas.push(`Motivo de ingreso: ${input.motivo}`)
   if (input.prioridad?.trim()) lineas.push(`Prioridad: ${input.prioridad.trim()}`)
   if (input.km != null) lineas.push(`Kilometraje: ${input.km.toLocaleString('es-CL')} km`)
-  if (input.sintomas?.trim()) lineas.push(`Síntomas: ${input.sintomas.trim()}`)
-  if (input.observaciones?.trim()) lineas.push(`Observaciones: ${input.observaciones.trim()}`)
+  if (input.observaciones?.trim()) lineas.push(`Síntomas y observaciones: ${input.observaciones.trim()}`)
 
   lineas.push('')
   lineas.push('Checklist de recepción:')

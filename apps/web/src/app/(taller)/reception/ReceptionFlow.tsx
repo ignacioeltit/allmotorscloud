@@ -161,7 +161,6 @@ export function ReceptionFlow({
   const [km, setKm] = useState('')
   const [motivo, setMotivo] = useState(prefill?.motivo ?? '')
   const [prioridad, setPrioridad] = useState<Prioridad>(PRIORIDAD_DEFAULT)
-  const [sintomas, setSintomas] = useState('')
   const [observaciones, setObservaciones] = useState('')
   const [checklist, setChecklist] = useState<Record<string, boolean>>({})
 
@@ -452,7 +451,6 @@ export function ReceptionFlow({
             : null,
         motivo: motivo.trim(),
         prioridad,
-        ...(sintomas.trim() && { sintomas: sintomas.trim() }),
         ...(observaciones.trim() && { observaciones: observaciones.trim() }),
         ...(kmNum != null ? { km: kmNum } : {}),
         checklist,
@@ -940,13 +938,8 @@ export function ReceptionFlow({
                   </Field>
                 </div>
                 <div className="sm:col-span-3">
-                  <Field label="Síntomas">
-                    <textarea rows={2} className={inputClass} value={sintomas} onChange={(e) => setSintomas(e.target.value)} />
-                  </Field>
-                </div>
-                <div className="sm:col-span-3">
-                  <Field label="Observaciones">
-                    <textarea rows={2} className={inputClass} value={observaciones} onChange={(e) => setObservaciones(e.target.value)} />
+                  <Field label="Síntomas y observaciones">
+                    <textarea rows={3} className={inputClass} value={observaciones} onChange={(e) => setObservaciones(e.target.value)} placeholder="Lo que reporta el cliente y notas del ingreso (ruidos, luces, fugas, estado…)" />
                   </Field>
                 </div>
               </div>
