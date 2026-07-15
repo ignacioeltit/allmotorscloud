@@ -18,8 +18,9 @@ import urllib.request
 
 BUDGETS_DIR = os.path.join(os.path.dirname(__file__), "..", "..", "exports", "backup", "budgets")
 ENV_PATH = os.path.join(os.path.dirname(__file__), "..", "..", "..", "apps", "web", ".env.local")
-HOY = datetime.date(2026, 7, 7)  # fecha de referencia del sistema
-TIPO = {"parts": "repuesto", "labors": "mano_obra", "others": "otros"}
+HOY = datetime.date(2026, 7, 15)  # fecha de referencia del sistema
+TIPO = {"parts": "repuesto", "labors": "mano_obra", "others": "otros",
+        "paints": "otros", "tyres": "repuesto"}
 
 
 def env(key):
@@ -155,7 +156,9 @@ def main():
     # Upsert por lotes (idempotente por la constraint org_id+tallergp_budget_id).
     for i in range(0, len(filas), 100):
         lote = filas[i:i + 100]
-        rest(url, key, "/rest/v1/presupuestos_tallergp", method="POST", body=lote,
+        rest(url, key,
+             "/rest/v1/presupuestos_tallergp?on_conflict=org_id,tallergp_budget_id",
+             method="POST", body=lote,
              extra_headers={"Prefer": "resolution=merge-duplicates,return=minimal"})
         print(f"  {min(i + 100, len(filas))}/{len(filas)}", flush=True)
     print("Listo.")
