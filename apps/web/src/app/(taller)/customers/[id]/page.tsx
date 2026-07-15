@@ -85,9 +85,17 @@ export default async function ClienteDetailPage({
 
       {/* Vehículos asociados */}
       <section>
-        <h2 className="mb-3 text-lg font-semibold text-neutral-100">
-          Vehículos {vehiculos.length > 0 ? `(${vehiculos.length})` : ''}
-        </h2>
+        <div className="mb-3 flex items-center justify-between gap-3">
+          <h2 className="text-lg font-semibold text-neutral-100">
+            Vehículos {vehiculos.length > 0 ? `(${vehiculos.length})` : ''}
+          </h2>
+          <Link
+            href={`/vehicles/new?cliente=${cliente.id}`}
+            className="inline-flex items-center gap-1.5 rounded-lg bg-accent-600 px-3 py-1.5 text-sm font-semibold text-white hover:bg-accent-500"
+          >
+            ➕ Agregar vehículo
+          </Link>
+        </div>
 
         {vehiculos.length === 0 ? (
           <Notice tone="empty">Este cliente no tiene vehículos asociados.</Notice>
