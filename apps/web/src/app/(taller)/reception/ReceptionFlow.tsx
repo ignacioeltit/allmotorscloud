@@ -143,6 +143,32 @@ export function ReceptionFlow({
   const [cEmail, setCEmail] = useState('')
   const [cDireccion, setCDireccion] = useState('')
 
+  // Buscar un cliente EXISTENTE al crear un vehículo nuevo (para no forzar cliente nuevo)
+  const [exQuery, setExQuery] = useState('')
+  const [exRes, setExRes] = useState<Cliente[]>([])
+  const [exBuscando, setExBuscando] = useState(false)
+  const exTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  function onExQueryChange(value: string) {
+    setExQuery(value)
+    if (exTimer.current) clearTimeout(exTimer.current)
+    const q = value.trim()
+    if (q.length < 2) {
+      setExRes([])
+      return
+    }
+    exTimer.current = setTimeout(async () => {
+      setExBuscando(true)
+      try {
+        setExRes(await listClientes(createClient(), { search: q, limit: 8 }))
+      } catch {
+        /* búsqueda silenciosa */
+      } finally {
+        setExBuscando(false)
+      }
+    }, 300)
+  }
+
   // Vehículo nuevo
   const [vMarca, setVMarca] = useState('')
   const [vModelo, setVModelo] = useState('')
@@ -721,17 +747,65 @@ export function ReceptionFlow({
             {/* Sección 2 — Cliente */}
             <Section step="2" title="Cliente">
               {(mode === 'existing' && ficha?.cliente) || (mode === 'new' && clientePreseleccionado) ? (
-                <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
-                  <Info label="Nombre" value={(ficha?.cliente ?? clientePreseleccionado)?.nombre ?? null} />
-                  <Info label="RUT" value={(ficha?.cliente ?? clientePreseleccionado)?.rut ?? null} />
-                  <Info label="Teléfono" value={(ficha?.cliente ?? clientePreseleccionado)?.telefono ?? null} />
-                  <Info label="Email" value={(ficha?.cliente ?? clientePreseleccionado)?.email ?? null} />
+                <div>
+                  <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
+                    <Info label="Nombre" value={(ficha?.cliente ?? clientePreseleccionado)?.nombre ?? null} />
+                    <Info label="RUT" value={(ficha?.cliente ?? clientePreseleccionado)?.rut ?? null} />
+                    <Info label="Teléfono" value={(ficha?.cliente ?? clientePreseleccionado)?.telefono ?? null} />
+                    <Info label="Email" value={(ficha?.cliente ?? clientePreseleccionado)?.email ?? null} />
+                  </div>
+                  {mode === 'new' && clientePreseleccionado && (
+                    <button
+                      type="button"
+                      onClick={() => setClientePreseleccionado(null)}
+                      className="mt-2 text-xs text-neutral-500 hover:text-neutral-300"
+                    >
+                      Cambiar cliente
+                    </button>
+                  )}
                 </div>
               ) : (
-                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                  <Field label="Nombre *">
-                    <input className={inputClass} value={cNombre} onChange={(e) => setCNombre(e.target.value)} />
-                  </Field>
+                <>
+                  {/* ¿Cliente existente? Buscarlo para asignar este vehículo nuevo */}
+                  <div className="mb-4 rounded-lg border border-black/[0.06] bg-black/[0.02] p-3">
+                    <p className="mb-2 text-xs text-neutral-400">
+                      ¿El cliente ya existe? Búscalo para asignarle este vehículo. Si es nuevo, llena los datos de abajo.
+                    </p>
+                    <div className="relative">
+                      <input
+                        className={inputClass}
+                        placeholder="Buscar cliente por nombre, RUT o teléfono…"
+                        value={exQuery}
+                        onChange={(e) => onExQueryChange(e.target.value)}
+                      />
+                      {(exBuscando || exRes.length > 0) && (
+                        <div className="absolute z-20 mt-1 w-full overflow-hidden rounded-lg border border-black/10 bg-neutral-900 shadow-lg">
+                          {exBuscando && <p className="px-3 py-2 text-xs text-neutral-500">Buscando…</p>}
+                          {exRes.map((c) => (
+                            <button
+                              key={c.id}
+                              type="button"
+                              onClick={() => {
+                                setClientePreseleccionado(c)
+                                setExQuery('')
+                                setExRes([])
+                              }}
+                              className="block w-full px-3 py-2 text-left text-sm text-neutral-200 hover:bg-black/20"
+                            >
+                              {c.nombre}
+                              {c.rut ? <span className="ml-2 text-xs text-neutral-500">{c.rut}</span> : null}
+                              {c.telefono ? <span className="ml-2 text-xs text-neutral-600">{c.telefono}</span> : null}
+                            </button>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                    <Field label="Nombre *">
+                      <input className={inputClass} value={cNombre} onChange={(e) => setCNombre(e.target.value)} />
+                    </Field>
                   <Field label="Tipo de cliente">
                     <select className={inputClass} value={cTipo} onChange={(e) => setCTipo(e.target.value as TipoCliente)}>
                       {TIPOS_CLIENTE.map((t) => (
@@ -748,12 +822,13 @@ export function ReceptionFlow({
                   <Field label="Email">
                     <input type="email" className={inputClass} value={cEmail} onChange={(e) => setCEmail(e.target.value)} />
                   </Field>
-                  <div className="sm:col-span-2">
-                    <Field label="Dirección">
-                      <input className={inputClass} value={cDireccion} onChange={(e) => setCDireccion(e.target.value)} />
-                    </Field>
+                    <div className="sm:col-span-2">
+                      <Field label="Dirección">
+                        <input className={inputClass} value={cDireccion} onChange={(e) => setCDireccion(e.target.value)} />
+                      </Field>
+                    </div>
                   </div>
-                </div>
+                </>
               )}
             </Section>
 
