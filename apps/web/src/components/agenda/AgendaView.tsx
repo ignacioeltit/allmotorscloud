@@ -62,6 +62,7 @@ export function AgendaView() {
   const [cargando, setCargando] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [accion, setAccion] = useState<string | null>(null)
+  const [verCanceladas, setVerCanceladas] = useState(false)
 
   const weekStart = useMemo(() => startOfWeek(anchor), [anchor])
   const weekDays = useMemo(() => Array.from({ length: 7 }, (_, i) => addDays(weekStart, i)), [weekStart])
@@ -73,14 +74,14 @@ export function AgendaView() {
     try {
       const desde = weekStart.toISOString()
       const hasta = addDays(weekStart, 7).toISOString()
-      const data = await listCitasRango(createClient(), desde, hasta)
+      const data = await listCitasRango(createClient(), desde, hasta, { incluirCanceladas: verCanceladas })
       setCitas(data)
     } catch (e) {
       setError(toErrorMessage(e))
     } finally {
       setCargando(false)
     }
-  }, [weekStart])
+  }, [weekStart, verCanceladas])
 
   useEffect(() => {
     void cargar()
@@ -163,9 +164,20 @@ export function AgendaView() {
         </Link>
       </div>
 
-      <div className="flex items-center justify-between">
+      <div className="flex flex-wrap items-center justify-between gap-2">
         <h2 className="text-sm font-semibold capitalize text-neutral-200">{tituloRango}</h2>
-        {cargando && <span className="text-xs text-neutral-500">Cargando…</span>}
+        <div className="flex items-center gap-3">
+          <label className="flex cursor-pointer items-center gap-1.5 text-xs text-neutral-400">
+            <input
+              type="checkbox"
+              checked={verCanceladas}
+              onChange={(e) => setVerCanceladas(e.target.checked)}
+              className="h-3.5 w-3.5 rounded border-black/20 accent-accent-600"
+            />
+            Ver canceladas
+          </label>
+          {cargando && <span className="text-xs text-neutral-500">Cargando…</span>}
+        </div>
       </div>
 
       {error && (
