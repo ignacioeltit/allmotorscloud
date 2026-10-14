@@ -26,6 +26,8 @@ import { OrdenTrabajoActions } from '@/components/repair-orders/OrdenTrabajoActi
 import { DiagnosticoSection } from '@/components/repair-orders/DiagnosticoSection'
 import { PresupuestosTallerGpSection } from '@/components/repair-orders/PresupuestosTallerGpSection'
 import { listPresupuestosTallerGpByVehiculo } from '@/modules/presupuestos-tgp/queries'
+import { RecomendacionesSection } from '@/components/repair-orders/RecomendacionesSection'
+import { listRecomendacionesPendientesByVehiculo } from '@/modules/recomendaciones/queries'
 import { EntregaSection } from '@/components/repair-orders/EntregaSection'
 import { TrabajosSection } from '@/components/repair-orders/TrabajosSection'
 import { PresupuestoSection } from '@/components/repair-orders/PresupuestoSection'
@@ -91,16 +93,17 @@ export default async function OrdenTrabajoDetailPage({
         getOrganizacion(supabase),
         getCitasActivasPorVehiculo(supabase, [orden.vehiculo_id]),
       ])
-    const [entrega, totales, fotos, tokenRow, presupuestosTgp] = await Promise.all([
+    const [entrega, totales, fotos, tokenRow, presupuestosTgp, recomendaciones] = await Promise.all([
       getEntregaByOT(supabase, orden.id),
       getTotalesOT(supabase, orden.id),
       listFotosByOT(supabase, orden.id),
       supabase.from('ordenes_trabajo').select('token_avance').eq('id', orden.id).maybeSingle(),
       listPresupuestosTallerGpByVehiculo(supabase, orden.vehiculo_id),
+      listRecomendacionesPendientesByVehiculo(supabase, orden.vehiculo_id),
     ])
     const tokenAvance = (tokenRow.data as { token_avance: string | null } | null)?.token_avance ?? null
 
-    return { orden, vehiculo, cliente, eventos, historia, tipoEvento, tipoDiagnostico, reparaciones, presupuesto, mecanicos, configuracion, taller, citasActivas, entrega, totales, rol, fotos, tokenAvance, presupuestosTgp }
+    return { orden, vehiculo, cliente, eventos, historia, tipoEvento, tipoDiagnostico, reparaciones, presupuesto, mecanicos, configuracion, taller, citasActivas, entrega, totales, rol, fotos, tokenAvance, presupuestosTgp, recomendaciones }
   })
 
   if (!result.ok) {
@@ -120,7 +123,7 @@ export default async function OrdenTrabajoDetailPage({
     )
   }
 
-  const { orden, vehiculo, cliente, eventos, historia, tipoEvento, tipoDiagnostico, reparaciones, presupuesto, mecanicos, configuracion, taller, citasActivas, entrega, totales, rol, fotos, tokenAvance, presupuestosTgp } =
+  const { orden, vehiculo, cliente, eventos, historia, tipoEvento, tipoDiagnostico, reparaciones, presupuesto, mecanicos, configuracion, taller, citasActivas, entrega, totales, rol, fotos, tokenAvance, presupuestosTgp, recomendaciones } =
     result.data
 
   // Costos (compra, utilidad, margen) solo para admin, jefe de taller y asesor
@@ -230,6 +233,14 @@ export default async function OrdenTrabajoDetailPage({
             estadoOT={orden.estado}
             diagnosticos={diagnosticos}
             mecanicos={mecanicos}
+            puedeGestionar={puedeVerCostos}
+          />
+
+          {/* ── Recomendaciones para la próxima visita ── */}
+          <RecomendacionesSection
+            vehiculoId={orden.vehiculo_id}
+            ordenTrabajoId={orden.id}
+            initial={recomendaciones}
             puedeGestionar={puedeVerCostos}
           />
         </div>

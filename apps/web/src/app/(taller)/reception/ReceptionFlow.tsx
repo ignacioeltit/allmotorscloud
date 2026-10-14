@@ -11,6 +11,8 @@ import { listVehiculos, getVehiculoByPatente } from '@/modules/vehicles/queries'
 import { confirmarAnioVehiculo } from '@/modules/vehicles/mutations'
 import { listClientes, listVehiculosByCliente } from '@/modules/customers/queries'
 import { cargarFichaVehiculo } from '@/modules/reception/queries'
+import { listRecomendacionesPendientesByVehiculo } from '@/modules/recomendaciones/queries'
+import type { Recomendacion } from '@/modules/recomendaciones/types'
 import { recibirVehiculo } from '@/modules/reception/mutations'
 import { vincularCotizacionAOT } from '@/modules/estimates/mutations'
 import {
@@ -124,6 +126,7 @@ export function ReceptionFlow({
   const [suggestions, setSuggestions] = useState<Vehiculo[]>([])
   const [searching, setSearching] = useState(false)
   const [ficha, setFicha] = useState<FichaVehiculo | null>(null)
+  const [recomendaciones, setRecomendaciones] = useState<Recomendacion[]>([])
   const searchTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   // Búsqueda: por patente (default) o por cliente
@@ -262,6 +265,11 @@ export function ReceptionFlow({
       setPatente(f.vehiculo.patente)
       if (f.vehiculo.km_actual != null) setKm(String(f.vehiculo.km_actual))
       setAnioConf(f.vehiculo.anio != null ? String(f.vehiculo.anio) : '')
+      try {
+        setRecomendaciones(await listRecomendacionesPendientesByVehiculo(supabase, id))
+      } catch {
+        setRecomendaciones([])
+      }
     } catch (err) {
       setError(toErrorMessage(err))
     } finally {
@@ -332,6 +340,7 @@ export function ReceptionFlow({
   function startNew() {
     setMode('new')
     setFicha(null)
+    setRecomendaciones([])
     setSuggestions([])
     const plate = patente.trim().toUpperCase()
     setPatente(plate)
@@ -405,6 +414,7 @@ export function ReceptionFlow({
   function resetSearch() {
     setMode('search')
     setFicha(null)
+    setRecomendaciones([])
     setSuggestions([])
     setError(null)
     setEnrichSuggestion(null)
@@ -741,6 +751,25 @@ export function ReceptionFlow({
             </div>
           )
         })()}
+
+        {/* Recomendaciones pendientes de visitas anteriores → saltan al reingresar */}
+        {recomendaciones.length > 0 && (
+          <div className="rounded-xl border border-sky-500/40 bg-sky-500/10 px-4 py-3">
+            <p className="text-sm font-semibold text-sky-900">
+              📌 Este vehículo tiene {recomendaciones.length} recomendación{recomendaciones.length === 1 ? '' : 'es'} de visitas anteriores:
+            </p>
+            <ul className="mt-1.5 space-y-1">
+              {recomendaciones.map((r) => (
+                <li key={r.id} className="text-sm text-sky-900">
+                  {r.prioridad === 'alta' && (
+                    <span className="mr-1.5 rounded bg-red-500/20 px-1.5 py-0.5 text-[10px] font-semibold uppercase text-red-800">Alta</span>
+                  )}
+                  {r.descripcion}
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
 
         {ready && (
           <>
