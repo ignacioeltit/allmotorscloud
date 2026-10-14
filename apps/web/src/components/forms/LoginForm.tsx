@@ -9,7 +9,7 @@ import { useState, type FormEvent } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { toErrorMessage } from '@/lib/ui/error-message'
-import { inputClass, labelClass, btnPrimary, card } from '@/components/ui/styles'
+import { inputClass, labelClass, btnPrimary } from '@/components/ui/styles'
 
 export function LoginForm() {
   const router = useRouter()
@@ -42,10 +42,12 @@ export function LoginForm() {
   }
 
   return (
-    <form onSubmit={onSubmit} className={`${card} w-full max-w-sm space-y-4`}>
+    <form onSubmit={onSubmit} className="w-full max-w-sm space-y-5">
       <div>
-        <h1 className="text-lg font-semibold text-neutral-50">Iniciar sesión</h1>
-        <p className="mt-1 text-sm text-neutral-500">All Motors Cloud — ERP del taller</p>
+        <h1 className="text-2xl font-bold tracking-tight text-neutral-50">Inicia sesión</h1>
+        <p className="mt-1.5 text-sm text-neutral-500">
+          Bienvenido a <span className="font-medium text-neutral-300">All Motors Cloud</span> — tu ERP de taller.
+        </p>
       </div>
 
       <div>
