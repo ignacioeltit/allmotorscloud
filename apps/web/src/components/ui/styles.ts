@@ -3,14 +3,16 @@
 // Se conservan los nombres previos (card, inputClass, etc.) para no romper pantallas existentes.
 
 // ── Superficies ─────────────────────────────────────────────────────────────
+// Tarjetas sólidas con sombra sutil → profundidad "profesional" (se propaga a
+// toda la app). Tema claro invertido: bg-neutral-900 ≈ blanco sobre el gris del body.
 export const card =
-  'rounded-xl border border-black/[0.06] bg-neutral-900/50 p-5'
+  'rounded-xl border border-black/[0.07] bg-neutral-900 p-5 shadow-sm shadow-black/[0.04]'
 
 export const cardElevated =
-  'rounded-2xl border border-black/[0.08] bg-neutral-900 p-6 shadow-xl shadow-black/30'
+  'rounded-2xl border border-black/[0.08] bg-neutral-900 p-6 shadow-lg shadow-black/[0.08]'
 
 export const cardInteractive =
-  'rounded-xl border border-black/[0.06] bg-neutral-900/50 p-5 transition-colors hover:border-black/[0.14] hover:bg-neutral-900'
+  'rounded-xl border border-black/[0.07] bg-neutral-900 p-5 shadow-sm shadow-black/[0.04] transition-all hover:-translate-y-0.5 hover:border-black/[0.12] hover:shadow-md hover:shadow-black/[0.08]'
 
 // ── Formularios ─────────────────────────────────────────────────────────────
 export const inputClass =

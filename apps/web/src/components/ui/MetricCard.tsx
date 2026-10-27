@@ -1,25 +1,34 @@
-// Tarjeta de métrica del dashboard.
+// Tarjeta de métrica (KPI) del dashboard — sólida, con sombra sutil e ícono opcional.
 export function MetricCard({
   label,
   value,
   accent = false,
   hint,
+  icon,
 }: {
   label: string
   value: React.ReactNode
   accent?: boolean
   hint?: string
+  icon?: React.ReactNode
 }) {
   return (
     <div
-      className={`rounded-xl border p-5 ${
-        accent ? 'border-accent-500/20 bg-accent-500/[0.04]' : 'border-black/[0.06] bg-neutral-900/50'
+      className={`rounded-xl border p-5 shadow-sm shadow-black/[0.04] ${
+        accent ? 'border-accent-500/25 bg-accent-500/[0.06]' : 'border-black/[0.07] bg-neutral-900'
       }`}
     >
-      <p className="text-[13px] text-neutral-400">{label}</p>
+      <div className="flex items-start justify-between gap-2">
+        <p className="text-[13px] font-medium text-neutral-400">{label}</p>
+        {icon ? (
+          <span className={`text-base ${accent ? 'text-accent-400' : 'text-neutral-500'}`} aria-hidden>
+            {icon}
+          </span>
+        ) : null}
+      </div>
       <p
-        className={`mt-2 text-3xl font-semibold tabular-nums ${
-          accent ? 'text-accent-300' : 'text-neutral-50'
+        className={`mt-2 text-3xl font-bold tabular-nums tracking-tight ${
+          accent ? 'text-accent-400' : 'text-neutral-50'
         }`}
       >
         {value}
