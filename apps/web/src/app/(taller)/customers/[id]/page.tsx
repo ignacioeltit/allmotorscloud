@@ -5,7 +5,7 @@ export const dynamic = 'force-dynamic'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/server'
 import { getClienteById, listVehiculosByCliente } from '@/modules/customers/queries'
-import { TIPO_CLIENTE_LABEL } from '@/modules/customers/constants'
+import { TIPO_CLIENTE_LABEL, CANAL_ADQUISICION_LABEL, type CanalAdquisicion } from '@/modules/customers/constants'
 import { load } from '@/lib/ui/load'
 import { PageHeader } from '@/components/ui/PageHeader'
 import { Notice } from '@/components/ui/Notice'
@@ -74,6 +74,14 @@ export default async function ClienteDetailPage({
           <Info label="Teléfono" value={cliente.telefono ?? '—'} />
           <Info label="Email" value={cliente.email ?? '—'} />
           <Info label="Dirección" value={cliente.direccion ?? '—'} />
+          <Info
+            label="Nos conoció por"
+            value={
+              cliente.canal_adquisicion
+                ? CANAL_ADQUISICION_LABEL[cliente.canal_adquisicion as CanalAdquisicion] ?? cliente.canal_adquisicion
+                : '—'
+            }
+          />
         </div>
         {cliente.notas ? (
           <div className={`${card} mt-3`}>

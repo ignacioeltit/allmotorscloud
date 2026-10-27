@@ -24,7 +24,7 @@ import {
   type Prioridad,
 } from '@/modules/reception/constants'
 import { TIPOS_VEHICULO } from '@/modules/vehicles/constants'
-import { TIPOS_CLIENTE, TIPO_CLIENTE_LABEL, TIPO_CLIENTE_DEFAULT, type TipoCliente } from '@/modules/customers/constants'
+import { TIPOS_CLIENTE, TIPO_CLIENTE_LABEL, TIPO_CLIENTE_DEFAULT, type TipoCliente, CANALES_ADQUISICION, CANAL_ADQUISICION_LABEL, type CanalAdquisicion } from '@/modules/customers/constants'
 import type { Vehiculo } from '@/modules/vehicles/types'
 import type { Cliente } from '@/modules/customers/types'
 import type { FichaVehiculo, RecibirVehiculoInput } from '@/modules/reception/types'
@@ -145,6 +145,7 @@ export function ReceptionFlow({
   const [cTelefono, setCTelefono] = useState('')
   const [cEmail, setCEmail] = useState('')
   const [cDireccion, setCDireccion] = useState('')
+  const [cCanal, setCCanal] = useState<CanalAdquisicion | ''>('')
 
   // Buscar un cliente EXISTENTE al crear un vehículo nuevo (para no forzar cliente nuevo)
   const [exQuery, setExQuery] = useState('')
@@ -466,6 +467,7 @@ export function ReceptionFlow({
               ...(cTelefono.trim() && { telefono: cTelefono.trim() }),
               ...(cEmail.trim() && { email: cEmail.trim() }),
               ...(cDireccion.trim() && { direccion: cDireccion.trim() }),
+              ...(cCanal && { canal_adquisicion: cCanal }),
             }
           : null,
         vehiculoId: mode === 'existing' && ficha ? ficha.vehiculo.id : null,
@@ -856,6 +858,14 @@ export function ReceptionFlow({
                         <input className={inputClass} value={cDireccion} onChange={(e) => setCDireccion(e.target.value)} />
                       </Field>
                     </div>
+                    <Field label="¿Cómo nos conoció?">
+                      <select className={inputClass} value={cCanal} onChange={(e) => setCCanal(e.target.value as CanalAdquisicion | '')}>
+                        <option value="">— Sin especificar —</option>
+                        {CANALES_ADQUISICION.map((c) => (
+                          <option key={c} value={c}>{CANAL_ADQUISICION_LABEL[c]}</option>
+                        ))}
+                      </select>
+                    </Field>
                   </div>
                 </>
               )}

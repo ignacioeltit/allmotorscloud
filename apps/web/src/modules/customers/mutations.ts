@@ -16,7 +16,7 @@ import {
 } from './types'
 
 const COLUMNS =
-  'id, org_id, tipo, nombre, rut, telefono, email, direccion, notas, creado_en, actualizado_en, creado_por, eliminado_en, eliminado_por'
+  'id, org_id, tipo, nombre, rut, telefono, email, direccion, canal_adquisicion, notas, creado_en, actualizado_en, creado_por, eliminado_en, eliminado_por'
 
 /** Crea un cliente en el tenant del usuario autenticado. */
 export async function createCliente(

@@ -7,7 +7,7 @@ import { useState, type FormEvent } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { createCliente } from '@/modules/customers/mutations'
-import { TIPOS_CLIENTE, TIPO_CLIENTE_DEFAULT, type TipoCliente } from '@/modules/customers/constants'
+import { TIPOS_CLIENTE, TIPO_CLIENTE_DEFAULT, type TipoCliente, CANALES_ADQUISICION, CANAL_ADQUISICION_LABEL, type CanalAdquisicion } from '@/modules/customers/constants'
 import type { ClienteCreateInput } from '@/modules/customers/types'
 import { toErrorMessage } from '@/lib/ui/error-message'
 import { inputClass, labelClass, btnPrimary, btnSecondary, card } from '@/components/ui/styles'
@@ -20,6 +20,7 @@ export function ClienteForm() {
   const [telefono, setTelefono] = useState('')
   const [email, setEmail] = useState('')
   const [direccion, setDireccion] = useState('')
+  const [canal, setCanal] = useState<CanalAdquisicion | ''>('')
   const [notas, setNotas] = useState('')
   const [error, setError] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
@@ -36,6 +37,7 @@ export function ClienteForm() {
         ...(telefono.trim() && { telefono: telefono.trim() }),
         ...(email.trim() && { email: email.trim() }),
         ...(direccion.trim() && { direccion: direccion.trim() }),
+        ...(canal && { canal_adquisicion: canal }),
         ...(notas.trim() && { notas: notas.trim() }),
       }
       const supabase = createClient()
@@ -124,6 +126,25 @@ export function ClienteForm() {
           value={direccion}
           onChange={(e) => setDireccion(e.target.value)}
         />
+      </div>
+
+      <div>
+        <label className={labelClass} htmlFor="canal">
+          ¿Cómo nos conoció?
+        </label>
+        <select
+          id="canal"
+          className={inputClass}
+          value={canal}
+          onChange={(e) => setCanal(e.target.value as CanalAdquisicion | '')}
+        >
+          <option value="">— Sin especificar —</option>
+          {CANALES_ADQUISICION.map((c) => (
+            <option key={c} value={c}>
+              {CANAL_ADQUISICION_LABEL[c]}
+            </option>
+          ))}
+        </select>
       </div>
 
       <div>

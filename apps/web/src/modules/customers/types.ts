@@ -2,7 +2,7 @@
 // La row type se escribe a mano (los tipos generados aún no existen).
 
 import { z } from 'zod'
-import { TIPOS_CLIENTE, TIPO_CLIENTE_DEFAULT } from './constants'
+import { TIPOS_CLIENTE, TIPO_CLIENTE_DEFAULT, CANALES_ADQUISICION } from './constants'
 
 /** Fila de la tabla `clientes` tal como la devuelve Supabase. */
 export interface Cliente {
@@ -14,6 +14,7 @@ export interface Cliente {
   telefono: string | null
   email: string | null
   direccion: string | null
+  canal_adquisicion: string | null
   notas: string | null
   creado_en: string
   actualizado_en: string
@@ -35,6 +36,7 @@ export const clienteCreateSchema = z.object({
   telefono: textoOpcional.max(50).optional(),
   email: emailOpcional.optional(),
   direccion: textoOpcional.optional(),
+  canal_adquisicion: z.enum(CANALES_ADQUISICION).optional(),
   notas: textoOpcional.max(2000).optional(),
 })
 
@@ -46,6 +48,7 @@ export const clienteUpdateSchema = z.object({
   telefono: textoOpcional.max(50).nullish(),
   email: emailOpcional.nullish(),
   direccion: textoOpcional.nullish(),
+  canal_adquisicion: z.enum(CANALES_ADQUISICION).nullish(),
   notas: textoOpcional.max(2000).nullish(),
 })
 
