@@ -1,4 +1,5 @@
 import type { DbClient } from '@/lib/supabase/types'
+import { getAuthContext } from '@/lib/auth/context'
 import { normalizarBusqueda } from '@/lib/search/normalize'
 import type {
   Repuesto,
@@ -192,3 +193,37 @@ export async function getUsoEnOts(
 }
 
 export { calcularEstadoStock }
+
+/** Resumen del inventario completo: ítems, críticos, valor y costo de stock. */
+export interface ResumenInventario {
+  items: number
+  criticos: number
+  valorStock: number
+  costoStock: number
+}
+
+export async function getResumenInventario(supabase: DbClient): Promise<ResumenInventario> {
+  const { orgId } = await getAuthContext(supabase)
+  const { data, error } = await supabase
+    .from('repuestos')
+    .select('stock_actual, stock_minimo, precio_costo, precio_venta')
+    .eq('org_id', orgId)
+    .eq('activo', true)
+    .is('eliminado_en', null)
+  if (error) throw new Error(error.message)
+  const rows = (data ?? []) as {
+    stock_actual: number
+    stock_minimo: number
+    precio_costo: number | null
+    precio_venta: number | null
+  }[]
+  let valorStock = 0
+  let costoStock = 0
+  let criticos = 0
+  for (const r of rows) {
+    valorStock += r.stock_actual * (r.precio_venta ?? 0)
+    costoStock += r.stock_actual * (r.precio_costo ?? 0)
+    if (r.stock_actual < r.stock_minimo) criticos++
+  }
+  return { items: rows.length, criticos, valorStock, costoStock }
+}

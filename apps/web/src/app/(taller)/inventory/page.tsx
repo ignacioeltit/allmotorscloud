@@ -2,7 +2,7 @@
 export const dynamic = 'force-dynamic'
 
 import { createClient } from '@/lib/supabase/server'
-import { listRepuestos } from '@/modules/inventory/queries'
+import { listRepuestos, getResumenInventario } from '@/modules/inventory/queries'
 import { load } from '@/lib/ui/load'
 import { Notice } from '@/components/ui/Notice'
 import { InventarioClient } from '@/components/inventory/InventarioClient'
@@ -19,12 +19,11 @@ export default async function InventarioPage({ searchParams }: Props) {
 
   const result = await load(async () => {
     const supabase = await createClient()
-    const { data: repuestos, total } = await listRepuestos(supabase, {
-      query: search,
-      page: currentPage,
-      pageSize: PAGE_SIZE,
-    })
-    return { repuestos, total }
+    const [{ data: repuestos, total }, resumen] = await Promise.all([
+      listRepuestos(supabase, { query: search, page: currentPage, pageSize: PAGE_SIZE }),
+      getResumenInventario(supabase),
+    ])
+    return { repuestos, total, resumen }
   })
 
   if (!result.ok) {
@@ -35,13 +34,14 @@ export default async function InventarioPage({ searchParams }: Props) {
     )
   }
 
-  const { repuestos, total } = result.data
+  const { repuestos, total, resumen } = result.data
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE))
 
   return (
     <InventarioClient
       repuestos={repuestos}
       total={total}
+      resumen={resumen}
       currentPage={currentPage}
       pageSize={PAGE_SIZE}
       totalPages={totalPages}

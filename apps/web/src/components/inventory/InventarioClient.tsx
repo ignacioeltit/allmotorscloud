@@ -216,6 +216,7 @@ function Paginacion({ currentPage, totalPages, total, pageSize, onPage, loading 
 interface InventarioClientProps {
   repuestos: Repuesto[]
   total: number
+  resumen?: { items: number; criticos: number; valorStock: number; costoStock: number }
   currentPage: number
   pageSize: number
   totalPages: number
@@ -225,6 +226,7 @@ interface InventarioClientProps {
 export function InventarioClient({
   repuestos,
   total,
+  resumen,
   currentPage,
   pageSize,
   totalPages,
@@ -310,6 +312,34 @@ export function InventarioClient({
           </button>
         )}
       </div>
+
+      {/* KPIs del inventario completo */}
+      {resumen && (
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 lg:grid-cols-5">
+          {[
+            { label: 'Valor stock (venta)', value: `$${Math.round(resumen.valorStock).toLocaleString('es-CL')}` },
+            { label: 'Costo stock', value: `$${Math.round(resumen.costoStock).toLocaleString('es-CL')}` },
+            {
+              label: 'Margen potencial',
+              value: `${resumen.valorStock > 0 ? Math.round(((resumen.valorStock - resumen.costoStock) / resumen.valorStock) * 100) : 0}%`,
+            },
+            { label: 'Ítems', value: resumen.items.toLocaleString('es-CL') },
+            { label: 'Críticos', value: resumen.criticos.toLocaleString('es-CL'), alerta: resumen.criticos > 0 },
+          ].map((k) => (
+            <div
+              key={k.label}
+              className={`rounded-xl border p-4 shadow-sm shadow-black/[0.04] ${
+                k.alerta ? 'border-red-500/25 bg-red-500/[0.06]' : 'border-black/[0.07] bg-neutral-900'
+              }`}
+            >
+              <p className="text-[11px] text-neutral-500">{k.label}</p>
+              <p className={`mt-1 text-lg font-bold tabular-nums ${k.alerta ? 'text-red-700' : 'text-neutral-100'}`}>
+                {k.value}
+              </p>
+            </div>
+          ))}
+        </div>
+      )}
 
       {/* Form creación */}
       {showForm && (

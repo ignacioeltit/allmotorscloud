@@ -8,6 +8,7 @@ import { useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
+import { getAuthContext } from '@/lib/auth/context'
 import { listVehiculos } from '@/modules/vehicles/queries'
 import { listClientes } from '@/modules/customers/queries'
 
@@ -96,12 +97,14 @@ export function CommandPalette() {
       setCargando(true)
       try {
         const sb = createClient()
+        const { orgId } = await getAuthContext(sb)
         const [vehs, clis, otRes] = await Promise.all([
           listVehiculos(sb, { search: term, limit: 5 }),
           listClientes(sb, { search: term, limit: 5 }),
           sb
             .from('ordenes_trabajo')
             .select('id, numero_ot, vehiculos(patente)')
+            .eq('org_id', orgId)
             .ilike('numero_ot', `%${term}%`)
             .is('eliminado_en', null)
             .limit(5),
