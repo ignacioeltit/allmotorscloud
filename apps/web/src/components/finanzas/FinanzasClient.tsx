@@ -144,6 +144,16 @@ export function FinanzasClient({
     }
   }
 
+  const gastosPorCat = Object.entries(
+    movimientos
+      .filter((m) => m.tipo === 'gasto')
+      .reduce<Record<string, number>>((acc, m) => {
+        const k = m.categoria ?? 'otro'
+        acc[k] = (acc[k] ?? 0) + m.monto
+        return acc
+      }, {}),
+  ).sort((a, b) => b[1] - a[1])
+
   return (
     <div className="space-y-6">
       {/* Resumen del período */}
@@ -157,12 +167,30 @@ export function FinanzasClient({
           <p className="mt-1 text-xl font-bold text-red-700">{fmtCLP(resumen.gastos)}</p>
         </div>
         <div className={card}>
-          <p className="text-[11px] uppercase tracking-wider text-neutral-600">Balance</p>
-          <p className={`mt-1 text-xl font-bold ${resumen.balance >= 0 ? 'text-neutral-100' : 'text-red-700'}`}>
+          <p className="text-[11px] uppercase tracking-wider text-neutral-600">Utilidad</p>
+          <p className={`mt-1 text-xl font-bold ${resumen.balance >= 0 ? 'text-emerald-700' : 'text-red-700'}`}>
             {fmtCLP(resumen.balance)}
           </p>
+          <p className="mt-0.5 text-[11px] text-neutral-600">Ingresos − gastos del período</p>
         </div>
       </div>
+
+      {/* Desglose de gastos por categoría */}
+      {gastosPorCat.length > 0 && (
+        <div>
+          <p className="mb-2 text-[11px] font-semibold uppercase tracking-[0.16em] text-neutral-500">
+            Gastos por categoría
+          </p>
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
+            {gastosPorCat.map(([cat, monto]) => (
+              <div key={cat} className={card}>
+                <p className="text-[11px] text-neutral-500">{CATEGORIA_GASTO_LABEL[cat] ?? cat}</p>
+                <p className="mt-1 text-base font-bold text-neutral-100">{fmtCLP(monto)}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Período */}
       <div className="flex flex-wrap items-end gap-3">
