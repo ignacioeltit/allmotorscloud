@@ -28,6 +28,7 @@ export const CATEGORIA_GASTO_LABEL: Record<string, string> = {
   otro: 'Otro',
   // categorías de ingreso
   pago_ot: 'Pago de OT',
+  pago_mostrador: 'Venta mostrador',
   ingreso_otro: 'Otro ingreso',
 }
 

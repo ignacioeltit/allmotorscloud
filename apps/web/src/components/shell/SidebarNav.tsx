@@ -121,6 +121,14 @@ function Icon({ name }: { name: string }) {
         <path d="M14.7 6.3a4 4 0 0 1-5.4 5.4L4 17l3 3 5.3-5.3a4 4 0 0 1 5.4-5.4l-2.6 2.6-2-.4-.4-2 2.6-2.6z" />
       </svg>
     )
+  if (name === 'cart')
+    return (
+      <svg {...common}>
+        <circle cx="8" cy="21" r="1" />
+        <circle cx="19" cy="21" r="1" />
+        <path d="M2.05 2.05h2l2.66 12.42a2 2 0 0 0 2 1.58h9.78a2 2 0 0 0 1.95-1.57l1.65-7.43H5.12" />
+      </svg>
+    )
   if (name === 'building')
     return (
       <svg {...common}>
@@ -200,6 +208,23 @@ export function SidebarNav({ pendientesCatalogo = 0, rolUsuario }: SidebarNavPro
           </Link>
         )
       })}
+
+      {canFinanzas && (() => {
+        const active = isActive('/pos')
+        return (
+          <Link
+            href="/pos"
+            className={`flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors ${
+              active ? 'bg-black/[0.07] text-neutral-50' : 'text-neutral-400 hover:bg-black/[0.04] hover:text-neutral-200'
+            }`}
+          >
+            <span className={active ? 'text-accent-400' : 'text-neutral-500'}>
+              <Icon name="cart" />
+            </span>
+            Mostrador
+          </Link>
+        )
+      })()}
 
       {canFinanzas && (() => {
         const active = isActive('/finanzas')
