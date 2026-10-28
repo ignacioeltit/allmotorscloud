@@ -15,6 +15,10 @@ import { listRecomendacionesPendientesByVehiculo } from '@/modules/recomendacion
 import type { Recomendacion } from '@/modules/recomendaciones/types'
 import { recibirVehiculo } from '@/modules/reception/mutations'
 import { vincularCotizacionAOT } from '@/modules/estimates/mutations'
+import { listPresupuestosPendientesByVehiculo, getCotizacionById, type PresupuestoPendiente } from '@/modules/estimates/queries'
+import { pasarPresupuestoATrabajos } from '@/modules/reparaciones/mutations'
+import { getHistoriaByVehiculoId } from '@/modules/technical-history/queries'
+import { getTipoEventoBySlug } from '@/modules/events/queries'
 import {
   CHECKLIST_RECEPCION,
   COMBUSTIBLES,
@@ -128,6 +132,10 @@ export function ReceptionFlow({
   const [ficha, setFicha] = useState<FichaVehiculo | null>(null)
   const [recomendaciones, setRecomendaciones] = useState<Recomendacion[]>([])
   const searchTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  // Presupuestos (cotizaciones sueltas) pendientes del vehículo, para cargar en la OT.
+  const [presupuestosPend, setPresupuestosPend] = useState<PresupuestoPendiente[]>([])
+  const [presupuestoElegido, setPresupuestoElegido] = useState<string | null>(prefill?.presupuestoId ?? null)
 
   // Búsqueda: por patente (default) o por cliente
   const [searchMode, setSearchMode] = useState<'patente' | 'cliente'>('patente')
@@ -271,6 +279,16 @@ export function ReceptionFlow({
       } catch {
         setRecomendaciones([])
       }
+      try {
+        const pend = await listPresupuestosPendientesByVehiculo(supabase, id)
+        setPresupuestosPend(pend)
+        // Al convertir desde un presupuesto, dejarlo preseleccionado.
+        if (prefill?.presupuestoId && pend.some((p) => p.id === prefill.presupuestoId)) {
+          setPresupuestoElegido(prefill.presupuestoId)
+        }
+      } catch {
+        setPresupuestosPend([])
+      }
     } catch (err) {
       setError(toErrorMessage(err))
     } finally {
@@ -342,6 +360,8 @@ export function ReceptionFlow({
     setMode('new')
     setFicha(null)
     setRecomendaciones([])
+    setPresupuestosPend([])
+    setPresupuestoElegido(null)
     setSuggestions([])
     const plate = patente.trim().toUpperCase()
     setPatente(plate)
@@ -416,6 +436,8 @@ export function ReceptionFlow({
     setMode('search')
     setFicha(null)
     setRecomendaciones([])
+    setPresupuestosPend([])
+    setPresupuestoElegido(null)
     setSuggestions([])
     setError(null)
     setEnrichSuggestion(null)
@@ -497,12 +519,38 @@ export function ReceptionFlow({
       const supabase = createClient()
       const result = await recibirVehiculo(supabase, input)
 
-      // Conversión de cotización (Fase C): enlazar la cotización autorizada a la
-      // OT recién creada. Si falla, no bloquea la recepción — la OT ya existe y
-      // el enlace puede repetirse volviendo a entrar con ?presupuesto_id.
-      if (prefill?.presupuestoId) {
+      // Cargar el presupuesto elegido en la OT recién creada: enlazarlo y pasar
+      // sus líneas a los trabajos. Best-effort — si falla, la OT ya existe y el
+      // presupuesto queda disponible para cargarlo manualmente desde la OT.
+      const vehiculoIdFinal = mode === 'existing' && ficha ? ficha.vehiculo.id : null
+      if (presupuestoElegido) {
         try {
-          await vincularCotizacionAOT(supabase, prefill.presupuestoId, result.ordenTrabajoId)
+          await vincularCotizacionAOT(supabase, presupuestoElegido, result.ordenTrabajoId)
+          if (vehiculoIdFinal) {
+            const [cot, historia, tipoRep] = await Promise.all([
+              getCotizacionById(supabase, presupuestoElegido),
+              getHistoriaByVehiculoId(supabase, vehiculoIdFinal),
+              getTipoEventoBySlug(supabase, 'reparacion'),
+            ])
+            const items = (cot?.items ?? []).filter((i) => i.precio_total > 0 || i.cantidad > 0)
+            if (items.length > 0 && historia && tipoRep) {
+              await pasarPresupuestoATrabajos(supabase, {
+                ordenTrabajoId: result.ordenTrabajoId,
+                historiaId: historia.id,
+                tipoEventoReparacionId: tipoRep.id,
+                folio: cot?.folio ?? null,
+                items: items.map((i) => ({
+                  id: i.id,
+                  tipo: i.tipo,
+                  codigo: i.codigo,
+                  descripcion: i.descripcion,
+                  cantidad: i.cantidad,
+                  precio_unitario: i.precio_unitario,
+                  descuento_porcentaje: i.descuento_porcentaje,
+                })),
+              })
+            }
+          }
         } catch {
           /* no bloquear la recepción */
         }
@@ -770,6 +818,49 @@ export function ReceptionFlow({
                 </li>
               ))}
             </ul>
+          </div>
+        )}
+
+        {/* Presupuestos pendientes del vehículo → elegir cuál cargar en la OT */}
+        {presupuestosPend.length > 0 && (
+          <div className="rounded-xl border border-accent-500/40 bg-accent-500/10 px-4 py-3">
+            <p className="text-sm font-semibold text-accent-500">
+              💲 Este vehículo tiene {presupuestosPend.length} presupuesto{presupuestosPend.length === 1 ? '' : 's'} pendiente{presupuestosPend.length === 1 ? '' : 's'}. Elige cuál cargar en la OT:
+            </p>
+            <div className="mt-2 space-y-1.5">
+              {presupuestosPend.map((p) => {
+                const elegido = presupuestoElegido === p.id
+                const totalConIva = Math.round(p.total_neto * 1.19)
+                return (
+                  <button
+                    key={p.id}
+                    type="button"
+                    onClick={() => setPresupuestoElegido(elegido ? null : p.id)}
+                    className={`flex w-full items-center justify-between gap-3 rounded-lg border px-3 py-2 text-left transition-colors ${
+                      elegido ? 'border-accent-500 bg-accent-500/20' : 'border-black/10 bg-neutral-900/40 hover:bg-black/[0.04]'
+                    }`}
+                  >
+                    <span className="min-w-0">
+                      <span className="block text-sm font-medium text-neutral-100">
+                        {elegido ? '✓ ' : ''}{p.folio ?? 'Presupuesto'}
+                        <span className="ml-2 text-xs font-normal text-neutral-500">
+                          {p.items} línea{p.items === 1 ? '' : 's'} · {new Date(p.creado_en).toLocaleDateString('es-CL')}
+                        </span>
+                      </span>
+                    </span>
+                    <span className="shrink-0 text-sm font-semibold text-neutral-100">
+                      {totalConIva.toLocaleString('es-CL', { style: 'currency', currency: 'CLP', maximumFractionDigits: 0 })}
+                      <span className="ml-1 text-[10px] font-normal text-neutral-500">c/IVA</span>
+                    </span>
+                  </button>
+                )
+              })}
+            </div>
+            <p className="mt-2 text-xs text-accent-500/90">
+              {presupuestoElegido
+                ? 'Al recibir, se cargarán sus líneas en los trabajos de la OT.'
+                : 'Opcional. Si no eliges ninguno, la OT se crea sin líneas.'}
+            </p>
           </div>
         )}
 

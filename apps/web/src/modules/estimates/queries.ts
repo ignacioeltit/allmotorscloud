@@ -117,6 +117,50 @@ export async function getCotizacionById(
   return { ...pres, items, cliente, vehiculo }
 }
 
+/** Cotización pendiente (suelta, sin OT) de un vehículo — para elegir en recepción. */
+export interface PresupuestoPendiente {
+  id: string
+  folio: string | null
+  estado: EstadoPresupuesto
+  total_neto: number
+  creado_en: string
+  items: number
+}
+
+/**
+ * Cotizaciones pendientes de un vehículo: sueltas (sin OT), en borrador o
+ * enviadas, no eliminadas. Se usan en recepción para cargar el presupuesto que
+ * el cliente aprobó en la OT que se está creando.
+ */
+export async function listPresupuestosPendientesByVehiculo(
+  supabase: DbClient,
+  vehiculoId: string,
+): Promise<PresupuestoPendiente[]> {
+  const { orgId } = await getAuthContext(supabase)
+
+  const { data, error } = await supabase
+    .from('presupuestos')
+    .select('id, folio, estado, total_neto, creado_en, items_presupuesto(count)')
+    .eq('org_id', orgId)
+    .eq('vehiculo_id', vehiculoId)
+    .is('orden_trabajo_id', null)
+    .is('eliminado_en', null)
+    .in('estado', ['borrador', 'enviado'])
+    .order('creado_en', { ascending: false })
+
+  if (error) throw new Error(error.message)
+  type Row = {
+    id: string; folio: string | null; estado: EstadoPresupuesto
+    total_neto: number; creado_en: string
+    items_presupuesto: { count: number }[]
+  }
+  return ((data ?? []) as unknown as Row[]).map((r) => ({
+    id: r.id, folio: r.folio, estado: r.estado,
+    total_neto: r.total_neto, creado_en: r.creado_en,
+    items: r.items_presupuesto?.[0]?.count ?? 0,
+  }))
+}
+
 /**
  * Lista presupuestos del tenant (incluye cotizaciones sueltas sin OT) con
  * búsqueda server-side por N° de OT, patente o cliente, paginación y conteo.
