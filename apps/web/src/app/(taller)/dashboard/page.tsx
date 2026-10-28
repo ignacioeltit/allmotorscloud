@@ -8,6 +8,7 @@ import { getResumenFinanzas } from '@/modules/finanzas/queries'
 import { getTipoEventoRecepcionId } from '@/modules/reception/queries'
 import { listCotizacionesRespondidas } from '@/modules/estimates/queries'
 import { getCitasActivasPorVehiculo } from '@/modules/agenda/queries'
+import { listVehiculosConVencimiento } from '@/modules/vehicles/queries'
 import { load } from '@/lib/ui/load'
 import { Notice } from '@/components/ui/Notice'
 import { MetricCard } from '@/components/ui/MetricCard'
@@ -35,6 +36,15 @@ function startOfTodayISO(): string {
   const d = new Date()
   d.setHours(0, 0, 0, 0)
   return d.toISOString()
+}
+
+/** Días desde hoy hasta una DATE 'YYYY-MM-DD' (negativo = ya venció). */
+function diasHasta(dateStr: string): number {
+  const [y, m, d] = dateStr.split('-').map(Number)
+  const objetivo = new Date(y!, m! - 1, d!)
+  const hoy = new Date()
+  hoy.setHours(0, 0, 0, 0)
+  return Math.round((objetivo.getTime() - hoy.getTime()) / 86_400_000)
 }
 
 export default async function DashboardPage() {
@@ -69,6 +79,9 @@ export default async function DashboardPage() {
     }
 
     const cotizacionesRespondidas = await listCotizacionesRespondidas(supabase)
+
+    // Vehículos con RT o mantención (por fecha) vencida o próxima a vencer (≤30 d).
+    const vencimientos = await listVehiculosConVencimiento(supabase, 30)
 
     // Si el vehículo ya tiene una cita activa, la alerta "quiere agendar" se apaga.
     const vehiculosConAgendar = cotizacionesRespondidas
@@ -105,6 +118,7 @@ export default async function DashboardPage() {
       mecanicosPorOt,
       cotizacionesRespondidas,
       citasActivas,
+      vencimientos,
       facturacionHoy,
       metrics: {
         enTaller: enTaller.length,
@@ -129,7 +143,22 @@ export default async function DashboardPage() {
     )
   }
 
-  const { metrics, enTaller, mecanicosPorOt, cotizacionesRespondidas, citasActivas, facturacionHoy } = result.data
+  const { metrics, enTaller, mecanicosPorOt, cotizacionesRespondidas, citasActivas, vencimientos, facturacionHoy } = result.data
+
+  // Enriquecemos cada vehículo con el aviso más urgente (RT o mantención por fecha).
+  type Aviso = { id: string; patente: string; marca: string; modelo: string; tipo: 'RT' | 'Mantención'; dias: number }
+  const avisos: Aviso[] = []
+  for (const v of vencimientos) {
+    if (v.fecha_revision_tecnica) {
+      const dias = diasHasta(v.fecha_revision_tecnica)
+      if (dias <= 30) avisos.push({ id: v.id, patente: v.patente, marca: v.marca, modelo: v.modelo, tipo: 'RT', dias })
+    }
+    if (v.proxima_mantencion_fecha) {
+      const dias = diasHasta(v.proxima_mantencion_fecha)
+      if (dias <= 30) avisos.push({ id: v.id, patente: v.patente, marca: v.marca, modelo: v.modelo, tipo: 'Mantención', dias })
+    }
+  }
+  avisos.sort((a, b) => a.dias - b.dias)
   const citaDe = (c: (typeof cotizacionesRespondidas)[number]) =>
     c.vehiculo_id ? citasActivas[c.vehiculo_id] ?? null : null
   const pidenAgendar = cotizacionesRespondidas.filter(
@@ -170,6 +199,42 @@ export default async function DashboardPage() {
           accent={facturacionHoy != null && facturacionHoy > 0}
         />
       </div>
+
+      {avisos.length > 0 && (
+        <section>
+          <div className="mb-3 flex items-center justify-between">
+            <h2 className="text-sm font-semibold text-neutral-200">Revisión técnica y mantenciones por vencer</h2>
+            <span className="text-xs text-neutral-600">{avisos.length} aviso{avisos.length === 1 ? '' : 's'}</span>
+          </div>
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+            {avisos.map((a) => {
+              const vencida = a.dias < 0
+              const etiqueta = vencida
+                ? `vencida hace ${Math.abs(a.dias)} d`
+                : a.dias === 0
+                  ? 'vence hoy'
+                  : `en ${a.dias} d`
+              return (
+                <Link key={`${a.id}-${a.tipo}`} href={`/vehicles/${a.id}`} className={cardInteractive}>
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="text-base font-semibold tracking-wide text-neutral-50">{a.patente}</span>
+                    <span
+                      className={`inline-flex items-center rounded-full border px-2.5 py-1 text-xs font-medium ${
+                        vencida
+                          ? 'border-red-500/30 bg-red-500/10 text-red-800'
+                          : 'border-amber-500/30 bg-amber-500/10 text-amber-800'
+                      }`}
+                    >
+                      {a.tipo} · {etiqueta}
+                    </span>
+                  </div>
+                  <p className="mt-1 text-sm text-neutral-400">{a.marca} {a.modelo}</p>
+                </Link>
+              )
+            })}
+          </div>
+        </section>
+      )}
 
       {cotizacionesRespondidas.length > 0 && (
         <section>

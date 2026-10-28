@@ -17,7 +17,7 @@ import {
 } from './types'
 
 const COLUMNS =
-  'id, org_id, patente, vin, marca, modelo, anio, anio_por_confirmar, color, cilindrada, tipo, km_actual, notas, creado_en, actualizado_en, creado_por, eliminado_en, eliminado_por'
+  'id, org_id, patente, vin, marca, modelo, anio, anio_por_confirmar, color, cilindrada, tipo, km_actual, notas, fecha_revision_tecnica, proxima_mantencion_fecha, proxima_mantencion_km, creado_en, actualizado_en, creado_por, eliminado_en, eliminado_por'
 
 /** Crea un vehículo (y dispara la creación automática de su historia técnica). */
 export async function createVehiculo(

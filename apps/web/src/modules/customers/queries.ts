@@ -14,7 +14,7 @@ const COLUMNS =
   'id, org_id, tipo, nombre, rut, telefono, email, direccion, canal_adquisicion, notas, creado_en, actualizado_en, creado_por, eliminado_en, eliminado_por'
 
 const VEHICULO_COLUMNS =
-  'id, org_id, patente, vin, marca, modelo, anio, anio_por_confirmar, color, cilindrada, tipo, km_actual, notas, creado_en, actualizado_en, creado_por, eliminado_en, eliminado_por'
+  'id, org_id, patente, vin, marca, modelo, anio, anio_por_confirmar, color, cilindrada, tipo, km_actual, notas, fecha_revision_tecnica, proxima_mantencion_fecha, proxima_mantencion_km, creado_en, actualizado_en, creado_por, eliminado_en, eliminado_por'
 
 /** Lista los clientes activos (no eliminados) del tenant, ordenados por nombre. */
 export async function listClientes(

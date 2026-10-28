@@ -20,6 +20,11 @@ export interface Vehiculo {
   tipo: (typeof TIPOS_VEHICULO)[number]
   km_actual: number | null
   notas: string | null
+  /** Vencimiento de la revisión técnica (RT). */
+  fecha_revision_tecnica: string | null
+  /** Próxima mantención programada: por fecha y/o por kilometraje. */
+  proxima_mantencion_fecha: string | null
+  proxima_mantencion_km: number | null
   creado_en: string
   actualizado_en: string
   creado_por: string | null
@@ -76,6 +81,10 @@ export const vehiculoUpdateSchema = z.object({
   cilindrada: textoOpcional.max(30).nullish(),
   km_actual: kmSchema.nullish(),
   notas: z.string().trim().min(1).max(2000).nullish(),
+  // Fechas como YYYY-MM-DD (o null para limpiar); km como entero no negativo.
+  fecha_revision_tecnica: z.string().trim().min(1).nullish(),
+  proxima_mantencion_fecha: z.string().trim().min(1).nullish(),
+  proxima_mantencion_km: kmSchema.nullish(),
 })
 
 export type VehiculoCreateInput = z.infer<typeof vehiculoCreateSchema>

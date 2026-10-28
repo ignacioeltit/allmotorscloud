@@ -30,6 +30,9 @@ export function EditarVehiculo({ vehiculo, puedeGestionar }: { vehiculo: Vehicul
     vin: vehiculo.vin ?? '',
     km_actual: vehiculo.km_actual != null ? String(vehiculo.km_actual) : '',
     notas: vehiculo.notas ?? '',
+    fecha_revision_tecnica: vehiculo.fecha_revision_tecnica ?? '',
+    proxima_mantencion_fecha: vehiculo.proxima_mantencion_fecha ?? '',
+    proxima_mantencion_km: vehiculo.proxima_mantencion_km != null ? String(vehiculo.proxima_mantencion_km) : '',
   })
   const [guardando, setGuardando] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -46,6 +49,7 @@ export function EditarVehiculo({ vehiculo, puedeGestionar }: { vehiculo: Vehicul
     try {
       const anioNum = f.anio.trim() ? parseInt(f.anio, 10) : null
       const kmNum = f.km_actual.trim() ? parseInt(f.km_actual, 10) : null
+      const mantKmNum = f.proxima_mantencion_km.trim() ? parseInt(f.proxima_mantencion_km, 10) : null
       await updateVehiculo(createClient(), vehiculo.id, {
         patente: f.patente.trim(),
         marca: f.marca.trim(),
@@ -57,6 +61,9 @@ export function EditarVehiculo({ vehiculo, puedeGestionar }: { vehiculo: Vehicul
         vin: f.vin.trim() || null,
         km_actual: kmNum,
         notas: f.notas.trim() || null,
+        fecha_revision_tecnica: f.fecha_revision_tecnica.trim() || null,
+        proxima_mantencion_fecha: f.proxima_mantencion_fecha.trim() || null,
+        proxima_mantencion_km: mantKmNum,
       })
       setEditando(false)
       router.refresh()
@@ -95,6 +102,11 @@ export function EditarVehiculo({ vehiculo, puedeGestionar }: { vehiculo: Vehicul
         <div><label className={labelClass}>Color</label><input className={inputClass} value={f.color} onChange={(e) => set('color', e.target.value)} disabled={guardando} /></div>
         <div><label className={labelClass}>Kilometraje</label><input type="number" className={inputClass} value={f.km_actual} onChange={(e) => set('km_actual', e.target.value)} disabled={guardando} /></div>
         <div><label className={labelClass}>VIN</label><input className={inputClass} value={f.vin} onChange={(e) => set('vin', e.target.value)} disabled={guardando} /></div>
+        <div><label className={labelClass}>Revisión técnica (vence)</label><input type="date" className={inputClass} value={f.fecha_revision_tecnica} onChange={(e) => set('fecha_revision_tecnica', e.target.value)} disabled={guardando} /></div>
+        <div className="grid grid-cols-2 gap-2">
+          <div><label className={labelClass}>Próx. mantención (fecha)</label><input type="date" className={inputClass} value={f.proxima_mantencion_fecha} onChange={(e) => set('proxima_mantencion_fecha', e.target.value)} disabled={guardando} /></div>
+          <div><label className={labelClass}>Próx. mantención (km)</label><input type="number" className={inputClass} placeholder="ej: 90000" value={f.proxima_mantencion_km} onChange={(e) => set('proxima_mantencion_km', e.target.value)} disabled={guardando} /></div>
+        </div>
         <div className="sm:col-span-2"><label className={labelClass}>Notas</label><input className={inputClass} value={f.notas} onChange={(e) => set('notas', e.target.value)} disabled={guardando} /></div>
       </div>
 

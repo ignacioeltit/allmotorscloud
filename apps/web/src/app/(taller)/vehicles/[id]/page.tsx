@@ -30,6 +30,35 @@ function fmt(dateStr: string): string {
   return new Date(dateStr).toLocaleString('es-CL')
 }
 
+function fmtFecha(dateStr: string): string {
+  // DATE 'YYYY-MM-DD' → fecha local sin desfase de zona horaria.
+  const [y, m, d] = dateStr.split('-').map(Number)
+  return new Date(y!, m! - 1, d!).toLocaleDateString('es-CL', { day: '2-digit', month: 'short', year: 'numeric' })
+}
+
+/** Días desde hoy hasta la fecha (negativo = ya venció). */
+function diasHasta(dateStr: string): number {
+  const [y, m, d] = dateStr.split('-').map(Number)
+  const objetivo = new Date(y!, m! - 1, d!)
+  const hoy = new Date()
+  hoy.setHours(0, 0, 0, 0)
+  return Math.round((objetivo.getTime() - hoy.getTime()) / 86_400_000)
+}
+
+/** Clase de color según urgencia (vencida roja, próxima ámbar, ok neutra). */
+function claseVencimiento(dias: number): string {
+  if (dias < 0) return 'text-red-700 font-semibold'
+  if (dias <= 30) return 'text-amber-700 font-semibold'
+  return 'text-neutral-200'
+}
+
+function etiquetaVencimiento(dias: number): string {
+  if (dias < 0) return `vencida hace ${Math.abs(dias)} d`
+  if (dias === 0) return 'vence hoy'
+  if (dias <= 30) return `en ${dias} d`
+  return ''
+}
+
 function Info({ label, value }: { label: string; value: string }) {
   return (
     <div>
@@ -105,6 +134,65 @@ export default async function VehiculoDetailPage({
           <Info label="Color" value={vehiculo.color ?? '—'} />
           <Info label="VIN" value={vehiculo.vin ?? '—'} />
         </div>
+        {(vehiculo.fecha_revision_tecnica || vehiculo.proxima_mantencion_fecha || vehiculo.proxima_mantencion_km != null) && (
+          <div className={`${card} mt-3 grid grid-cols-1 gap-4 text-sm sm:grid-cols-3`}>
+            <div>
+              <p className="text-[11px] uppercase tracking-wider text-neutral-600">Revisión técnica</p>
+              {vehiculo.fecha_revision_tecnica ? (
+                (() => {
+                  const dias = diasHasta(vehiculo.fecha_revision_tecnica)
+                  const et = etiquetaVencimiento(dias)
+                  return (
+                    <p className={`mt-0.5 ${claseVencimiento(dias)}`}>
+                      {fmtFecha(vehiculo.fecha_revision_tecnica)}
+                      {et && <span className="ml-1 text-xs font-normal">· {et}</span>}
+                    </p>
+                  )
+                })()
+              ) : (
+                <p className="mt-0.5 text-neutral-500">—</p>
+              )}
+            </div>
+            <div>
+              <p className="text-[11px] uppercase tracking-wider text-neutral-600">Próx. mantención (fecha)</p>
+              {vehiculo.proxima_mantencion_fecha ? (
+                (() => {
+                  const dias = diasHasta(vehiculo.proxima_mantencion_fecha)
+                  const et = etiquetaVencimiento(dias)
+                  return (
+                    <p className={`mt-0.5 ${claseVencimiento(dias)}`}>
+                      {fmtFecha(vehiculo.proxima_mantencion_fecha)}
+                      {et && <span className="ml-1 text-xs font-normal">· {et}</span>}
+                    </p>
+                  )
+                })()
+              ) : (
+                <p className="mt-0.5 text-neutral-500">—</p>
+              )}
+            </div>
+            <div>
+              <p className="text-[11px] uppercase tracking-wider text-neutral-600">Próx. mantención (km)</p>
+              {vehiculo.proxima_mantencion_km != null ? (
+                (() => {
+                  const faltan = vehiculo.km_actual != null ? vehiculo.proxima_mantencion_km! - vehiculo.km_actual : null
+                  const urgente = faltan != null && faltan <= 1000
+                  return (
+                    <p className={`mt-0.5 ${urgente ? (faltan! < 0 ? 'text-red-700 font-semibold' : 'text-amber-700 font-semibold') : 'text-neutral-200'}`}>
+                      {vehiculo.proxima_mantencion_km.toLocaleString('es-CL')} km
+                      {faltan != null && (
+                        <span className="ml-1 text-xs font-normal">
+                          · {faltan < 0 ? `pasada por ${Math.abs(faltan).toLocaleString('es-CL')} km` : `faltan ${faltan.toLocaleString('es-CL')} km`}
+                        </span>
+                      )}
+                    </p>
+                  )
+                })()
+              ) : (
+                <p className="mt-0.5 text-neutral-500">—</p>
+              )}
+            </div>
+          </div>
+        )}
         <div className="mt-3">
           <EditarVehiculo vehiculo={vehiculo} puedeGestionar={puedeGestionar} />
         </div>

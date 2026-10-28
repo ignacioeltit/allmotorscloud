@@ -8,7 +8,7 @@ import { VEHICULOS_PAGE_SIZE } from './constants'
 import type { Vehiculo, ListVehiculosParams } from './types'
 
 const COLUMNS =
-  'id, org_id, patente, vin, marca, modelo, anio, anio_por_confirmar, color, cilindrada, tipo, km_actual, notas, creado_en, actualizado_en, creado_por, eliminado_en, eliminado_por'
+  'id, org_id, patente, vin, marca, modelo, anio, anio_por_confirmar, color, cilindrada, tipo, km_actual, notas, fecha_revision_tecnica, proxima_mantencion_fecha, proxima_mantencion_km, creado_en, actualizado_en, creado_por, eliminado_en, eliminado_por'
 
 /** Lista los vehículos activos del tenant, ordenados por fecha de creación desc. */
 export async function listVehiculos(
@@ -90,6 +90,32 @@ export async function getVehiculoById(supabase: DbClient, id: string): Promise<V
     .maybeSingle()
 
   return unwrapRequired<Vehiculo>(data as Vehiculo | null, error)
+}
+
+/**
+ * Vehículos con revisión técnica o mantención (por fecha) que vence pronto o ya
+ * venció — para la alerta del dashboard. `diasHorizonte` = cuántos días hacia
+ * adelante se consideran "por vencer" (incluye siempre las ya vencidas).
+ */
+export async function listVehiculosConVencimiento(
+  supabase: DbClient,
+  diasHorizonte = 30,
+): Promise<Vehiculo[]> {
+  const { orgId } = await getAuthContext(supabase)
+  const limite = new Date()
+  limite.setDate(limite.getDate() + diasHorizonte)
+  const horizonte = limite.toISOString().slice(0, 10)
+
+  const { data, error } = await supabase
+    .from('vehiculos')
+    .select(COLUMNS)
+    .eq('org_id', orgId)
+    .is('eliminado_en', null)
+    .or(`fecha_revision_tecnica.lte.${horizonte},proxima_mantencion_fecha.lte.${horizonte}`)
+    .order('fecha_revision_tecnica', { ascending: true, nullsFirst: false })
+    .limit(50)
+
+  return unwrapList<Vehiculo>(data, error)
 }
 
 /** Busca un vehículo por patente exacta (normalizada). Devuelve null si no existe. */

@@ -6,13 +6,18 @@ type Fila = { fecha: string; tipo: string; categoria: string; descripcion: strin
 
 export function ReportesExport({ filas }: { filas: Fila[] }) {
   function descargarCSV() {
+    // Escapado seguro por celda: comillas dobladas (RFC-4180) + guard contra
+    // formula injection (una celda que arranca con = + - @ tab/CR se ejecuta en Excel).
+    const celda = (v: unknown) => {
+      let s = String(v ?? '')
+      if (/^[=+\-@\t\r]/.test(s)) s = `'${s}`
+      return `"${s.replace(/"/g, '""')}"`
+    }
     const encabezado = ['Fecha', 'Tipo', 'Categoría', 'Descripción', 'Monto']
     const lineas = filas.map((f) =>
-      [f.fecha, f.tipo, f.categoria, (f.descripcion ?? '').replace(/"/g, "'"), f.monto]
-        .map((c) => `"${String(c)}"`)
-        .join(','),
+      [f.fecha, f.tipo, f.categoria, f.descripcion ?? '', f.monto].map(celda).join(','),
     )
-    const csv = '﻿' + [encabezado.join(','), ...lineas].join('\n')
+    const csv = '﻿' + [encabezado.map(celda).join(','), ...lineas].join('\n')
     const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' })
     const url = URL.createObjectURL(blob)
     const a = document.createElement('a')
