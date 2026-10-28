@@ -28,6 +28,8 @@ import { PresupuestosTallerGpSection } from '@/components/repair-orders/Presupue
 import { listPresupuestosTallerGpByVehiculo } from '@/modules/presupuestos-tgp/queries'
 import { RecomendacionesSection } from '@/components/repair-orders/RecomendacionesSection'
 import { listRecomendacionesPendientesByVehiculo } from '@/modules/recomendaciones/queries'
+import { InspeccionSection } from '@/components/repair-orders/InspeccionSection'
+import { getInspeccionByOT } from '@/modules/inspecciones/queries'
 import { EntregaSection } from '@/components/repair-orders/EntregaSection'
 import { TrabajosSection } from '@/components/repair-orders/TrabajosSection'
 import { PresupuestoSection } from '@/components/repair-orders/PresupuestoSection'
@@ -93,17 +95,18 @@ export default async function OrdenTrabajoDetailPage({
         getOrganizacion(supabase),
         getCitasActivasPorVehiculo(supabase, [orden.vehiculo_id]),
       ])
-    const [entrega, totales, fotos, tokenRow, presupuestosTgp, recomendaciones] = await Promise.all([
+    const [entrega, totales, fotos, tokenRow, presupuestosTgp, recomendaciones, inspeccion] = await Promise.all([
       getEntregaByOT(supabase, orden.id),
       getTotalesOT(supabase, orden.id),
       listFotosByOT(supabase, orden.id),
       supabase.from('ordenes_trabajo').select('token_avance').eq('id', orden.id).maybeSingle(),
       listPresupuestosTallerGpByVehiculo(supabase, orden.vehiculo_id),
       listRecomendacionesPendientesByVehiculo(supabase, orden.vehiculo_id),
+      getInspeccionByOT(supabase, orden.id),
     ])
     const tokenAvance = (tokenRow.data as { token_avance: string | null } | null)?.token_avance ?? null
 
-    return { orden, vehiculo, cliente, eventos, historia, tipoEvento, tipoDiagnostico, reparaciones, presupuesto, mecanicos, configuracion, taller, citasActivas, entrega, totales, rol, fotos, tokenAvance, presupuestosTgp, recomendaciones }
+    return { orden, vehiculo, cliente, eventos, historia, tipoEvento, tipoDiagnostico, reparaciones, presupuesto, mecanicos, configuracion, taller, citasActivas, entrega, totales, rol, fotos, tokenAvance, presupuestosTgp, recomendaciones, inspeccion }
   })
 
   if (!result.ok) {
@@ -123,8 +126,10 @@ export default async function OrdenTrabajoDetailPage({
     )
   }
 
-  const { orden, vehiculo, cliente, eventos, historia, tipoEvento, tipoDiagnostico, reparaciones, presupuesto, mecanicos, configuracion, taller, citasActivas, entrega, totales, rol, fotos, tokenAvance, presupuestosTgp, recomendaciones } =
+  const { orden, vehiculo, cliente, eventos, historia, tipoEvento, tipoDiagnostico, reparaciones, presupuesto, mecanicos, configuracion, taller, citasActivas, entrega, totales, rol, fotos, tokenAvance, presupuestosTgp, recomendaciones, inspeccion } =
     result.data
+
+  const inspeccionAtencion = (inspeccion?.puntos ?? []).filter((p) => p.estado === 'atencion').length
 
   // Costos (compra, utilidad, margen) solo para admin, jefe de taller y asesor
   // de servicio (recepción). Los mecánicos NO ven costos ni rentabilidad.
@@ -325,6 +330,18 @@ export default async function OrdenTrabajoDetailPage({
             puedeGestionar={puedeVerCostos}
           />
         </div>
+      ),
+    },
+    {
+      id: 'inspeccion',
+      label: 'Inspección',
+      badge: inspeccionAtencion || null,
+      content: (
+        <InspeccionSection
+          ordenTrabajoId={orden.id}
+          vehiculoId={orden.vehiculo_id}
+          initial={inspeccion}
+        />
       ),
     },
     {
