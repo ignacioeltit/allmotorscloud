@@ -37,6 +37,15 @@ function Icon({ name }: { name: string }) {
         <rect x="14" y="14" width="7" height="7" rx="1.5" />
       </svg>
     )
+  if (name === 'chart')
+    return (
+      <svg {...common}>
+        <path d="M3 3v18h18" />
+        <rect x="7" y="12" width="3" height="6" rx="0.5" />
+        <rect x="12" y="8" width="3" height="10" rx="0.5" />
+        <rect x="17" y="5" width="3" height="13" rx="0.5" />
+      </svg>
+    )
   if (name === 'wallet')
     return (
       <svg {...common}>
@@ -207,6 +216,23 @@ export function SidebarNav({ pendientesCatalogo = 0, rolUsuario }: SidebarNavPro
               <Icon name="wallet" />
             </span>
             Finanzas
+          </Link>
+        )
+      })()}
+
+      {canFinanzas && (() => {
+        const active = isActive('/reports')
+        return (
+          <Link
+            href="/reports"
+            className={`flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors ${
+              active ? 'bg-black/[0.07] text-neutral-50' : 'text-neutral-400 hover:bg-black/[0.04] hover:text-neutral-200'
+            }`}
+          >
+            <span className={active ? 'text-accent-400' : 'text-neutral-500'}>
+              <Icon name="chart" />
+            </span>
+            Reportes
           </Link>
         )
       })()}
