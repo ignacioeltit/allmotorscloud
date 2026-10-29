@@ -148,8 +148,8 @@ export function CargarCostosFactura({
         </div>
       </div>
 
-      <div className="overflow-hidden rounded-lg border border-black/[0.06]">
-        <table className="w-full text-sm">
+      <div className="overflow-x-auto rounded-lg border border-black/[0.06]">
+        <table className="w-full min-w-[32rem] text-sm">
           <thead className="bg-black/[0.03] text-left text-[11px] uppercase tracking-wider text-neutral-500">
             <tr>
               <th className="px-3 py-2">Repuesto</th>

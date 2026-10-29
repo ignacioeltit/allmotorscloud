@@ -39,7 +39,7 @@ export function OtTabs({ tabs, initial }: { tabs: OtTab[]; initial?: string }) {
 
   return (
     <div className="space-y-5">
-      <div role="tablist" className="flex flex-wrap gap-1 border-b border-black/[0.08]">
+      <div role="tablist" className="-mx-4 flex gap-1 overflow-x-auto border-b border-black/[0.08] px-4 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden sm:mx-0 sm:flex-wrap sm:px-0">
         {tabs.map((t) => {
           const on = t.id === active
           return (
@@ -49,7 +49,7 @@ export function OtTabs({ tabs, initial }: { tabs: OtTab[]; initial?: string }) {
               role="tab"
               aria-selected={on}
               onClick={() => select(t.id)}
-              className={`relative -mb-px flex items-center gap-2 border-b-2 px-4 py-2.5 text-sm font-medium transition-colors ${
+              className={`relative -mb-px flex shrink-0 items-center gap-2 border-b-2 px-4 py-2.5 text-sm font-medium transition-colors ${
                 on
                   ? 'border-accent-500 text-neutral-50'
                   : 'border-transparent text-neutral-500 hover:text-neutral-300'

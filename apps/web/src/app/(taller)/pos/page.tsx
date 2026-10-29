@@ -57,8 +57,8 @@ export default async function PosPage() {
         {ventas.length === 0 ? (
           <p className="text-sm text-neutral-500">Aún no hay ventas de mostrador.</p>
         ) : (
-          <div className="overflow-hidden rounded-xl border border-black/[0.06]">
-            <table className="w-full text-sm">
+          <div className="overflow-x-auto rounded-xl border border-black/[0.06]">
+            <table className="w-full min-w-[32rem] text-sm">
               <thead className="bg-black/[0.03] text-left text-xs uppercase tracking-wider text-neutral-500">
                 <tr>
                   <th className="px-4 py-2.5">Folio</th>
