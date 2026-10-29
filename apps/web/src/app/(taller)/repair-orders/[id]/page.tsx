@@ -25,7 +25,10 @@ import { StatusBadge } from '@/components/ui/StatusBadge'
 import { OrdenTrabajoActions } from '@/components/repair-orders/OrdenTrabajoActions'
 import { DiagnosticoSection } from '@/components/repair-orders/DiagnosticoSection'
 import { PresupuestosTallerGpSection } from '@/components/repair-orders/PresupuestosTallerGpSection'
+import { CargarCostosFactura } from '@/components/repair-orders/CargarCostosFactura'
 import { listPresupuestosTallerGpByVehiculo } from '@/modules/presupuestos-tgp/queries'
+import { CargarPresupuestoOTSection } from '@/components/repair-orders/CargarPresupuestoOTSection'
+import { listPresupuestosPendientesByVehiculo } from '@/modules/estimates/queries'
 import { RecomendacionesSection } from '@/components/repair-orders/RecomendacionesSection'
 import { listRecomendacionesPendientesByVehiculo } from '@/modules/recomendaciones/queries'
 import { InspeccionSection } from '@/components/repair-orders/InspeccionSection'
@@ -105,8 +108,9 @@ export default async function OrdenTrabajoDetailPage({
       getInspeccionByOT(supabase, orden.id),
     ])
     const tokenAvance = (tokenRow.data as { token_avance: string | null } | null)?.token_avance ?? null
+    const presupuestosPendientes = await listPresupuestosPendientesByVehiculo(supabase, orden.vehiculo_id)
 
-    return { orden, vehiculo, cliente, eventos, historia, tipoEvento, tipoDiagnostico, reparaciones, presupuesto, mecanicos, configuracion, taller, citasActivas, entrega, totales, rol, fotos, tokenAvance, presupuestosTgp, recomendaciones, inspeccion }
+    return { orden, vehiculo, cliente, eventos, historia, tipoEvento, tipoDiagnostico, reparaciones, presupuesto, mecanicos, configuracion, taller, citasActivas, entrega, totales, rol, fotos, tokenAvance, presupuestosTgp, recomendaciones, inspeccion, presupuestosPendientes }
   })
 
   if (!result.ok) {
@@ -126,7 +130,7 @@ export default async function OrdenTrabajoDetailPage({
     )
   }
 
-  const { orden, vehiculo, cliente, eventos, historia, tipoEvento, tipoDiagnostico, reparaciones, presupuesto, mecanicos, configuracion, taller, citasActivas, entrega, totales, rol, fotos, tokenAvance, presupuestosTgp, recomendaciones, inspeccion } =
+  const { orden, vehiculo, cliente, eventos, historia, tipoEvento, tipoDiagnostico, reparaciones, presupuesto, mecanicos, configuracion, taller, citasActivas, entrega, totales, rol, fotos, tokenAvance, presupuestosTgp, recomendaciones, inspeccion, presupuestosPendientes } =
     result.data
 
   const inspeccionAtencion = (inspeccion?.puntos ?? []).filter((p) => p.estado === 'atencion').length
@@ -257,6 +261,16 @@ export default async function OrdenTrabajoDetailPage({
       badge: reparaciones.reduce((n, r) => n + r.items.length, 0) || null,
       content: (
         <div className="space-y-6">
+          {/* ── Presupuestos pendientes (cotizaciones sin OT) del vehículo ── */}
+          {puedeVerCostos && (
+            <CargarPresupuestoOTSection
+              ordenTrabajoId={orden.id}
+              historiaId={historia.id}
+              tipoEventoReparacionId={tipoEvento?.id ?? null}
+              pendientes={presupuestosPendientes}
+            />
+          )}
+
           {/* ── Presupuestos históricos de TallerGP de este vehículo ── */}
           {puedeVerCostos && (
             <PresupuestosTallerGpSection
@@ -283,6 +297,23 @@ export default async function OrdenTrabajoDetailPage({
             numeroOt={orden.numero_ot}
             vehiculoLabel={vehiculoLabel}
           />
+
+          {/* ── Carga rápida de costos de factura (solo gestión) ── */}
+          {puedeVerCostos && (
+            <CargarCostosFactura
+              ordenTrabajoId={orden.id}
+              repuestos={reparaciones
+                .flatMap((r) => r.items)
+                .filter((i) => i.tipo === 'repuesto')
+                .map((i) => ({
+                  id: i.id,
+                  descripcion: i.descripcion,
+                  cantidad: i.cantidad,
+                  venta: i.costo_unitario,
+                  costo: i.costo_compra_unitario ?? null,
+                }))}
+            />
+          )}
 
           {/* ── Totales de trabajos registrados ── */}
           {totalOT > 0 && (
