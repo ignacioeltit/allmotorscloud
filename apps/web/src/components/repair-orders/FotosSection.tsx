@@ -33,6 +33,7 @@ export function FotosSection({
   const [copiado, setCopiado] = useState(false)
   const [detalle, setDetalle] = useState('')
   const fileRef = useRef<HTMLInputElement | null>(null)
+  const camRef = useRef<HTMLInputElement | null>(null)
 
   const linkAvance = token && typeof window !== 'undefined' ? `${window.location.origin}/avance/${token}` : null
   const visiblesCount = fotos.filter((f) => f.visible_cliente).length
@@ -56,6 +57,7 @@ export function FotosSection({
     } finally {
       setSubiendo(false)
       if (fileRef.current) fileRef.current.value = ''
+      if (camRef.current) camRef.current.value = ''
     }
   }
 
@@ -100,9 +102,15 @@ export function FotosSection({
       <div className="flex flex-wrap items-center justify-between gap-3">
         <p className={sectionLabel}>Fotos del trabajo</p>
         <div className="flex items-center gap-2">
-          <input ref={fileRef} type="file" accept="image/*" multiple capture="environment" onChange={onFiles} className="hidden" />
+          {/* Galería: varias fotos a la vez (sin `capture`, que en iPhone fuerza 1 sola). */}
+          <input ref={fileRef} type="file" accept="image/*" multiple onChange={onFiles} className="hidden" />
+          {/* Cámara: foto directa (una). */}
+          <input ref={camRef} type="file" accept="image/*" capture="environment" onChange={onFiles} className="hidden" />
+          <button type="button" className={btnSecondary} disabled={subiendo} onClick={() => camRef.current?.click()}>
+            📷 Cámara
+          </button>
           <button type="button" className={btnSecondary} disabled={subiendo} onClick={() => fileRef.current?.click()}>
-            {subiendo ? 'Subiendo…' : '📷 Subir fotos'}
+            {subiendo ? 'Subiendo…' : '🖼 Galería (varias)'}
           </button>
         </div>
       </div>
