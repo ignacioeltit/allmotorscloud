@@ -24,6 +24,7 @@ interface Avance {
   fotos: { path: string; descripcion: string | null; creado_en: string }[]
   trabajos: Trabajo[]
   diagnosticos: { descripcion: string | null; creado_en: string }[]
+  inspeccion: { punto: string; estado: string; nota: string | null; foto: string | null }[]
   total_con_iva: number
 }
 
@@ -59,7 +60,7 @@ export default async function AvancePage({ params }: { params: Promise<{ token: 
     const supabase = await createClient()
     const { data } = await supabase.rpc('fn_avance_ot', { p_token: token })
     const res = data as (Avance & { error?: string }) | null
-    if (res && !res.error) a = res
+    if (res && !res.error) a = { ...res, inspeccion: res.inspeccion ?? [] }
   } catch {
     a = null
   }
@@ -113,6 +114,47 @@ export default async function AvancePage({ params }: { params: Promise<{ token: 
                 <p className="mt-1.5 text-[11px] text-[#9ca3af]">{fmtFecha(d.creado_en)}</p>
               </div>
             ))}
+          </div>
+        </div>
+      )}
+
+      {/* Inspección: puntos que requieren atención u observación */}
+      {a.inspeccion.length > 0 && (
+        <div className="mt-8">
+          <p className="mb-3 text-[11px] font-semibold uppercase tracking-wide text-[#9ca3af]">
+            Inspección — puntos a considerar
+          </p>
+          <div className="space-y-2">
+            {a.inspeccion.map((p, i) => {
+              const atencion = p.estado === 'atencion'
+              return (
+                <div
+                  key={i}
+                  className="flex items-start gap-2 rounded-lg border px-4 py-3"
+                  style={{
+                    borderColor: atencion ? '#fecaca' : '#fde68a',
+                    backgroundColor: atencion ? '#fef2f2' : '#fffbeb',
+                  }}
+                >
+                  <span className="mt-0.5 text-sm">{atencion ? '🔴' : '🟡'}</span>
+                  <div className="min-w-0">
+                    <p className="text-sm font-medium text-[#374151]">
+                      {p.punto}
+                      <span className="ml-1.5 text-[11px] font-normal" style={{ color: atencion ? '#b91c1c' : '#b45309' }}>
+                        {atencion ? 'requiere atención' : 'observación'}
+                      </span>
+                    </p>
+                    {p.nota && <p className="mt-0.5 text-sm text-[#6b7280]">{p.nota}</p>}
+                    {p.foto && (
+                      <a href={urlFoto(p.foto)} target="_blank" rel="noopener noreferrer" className="mt-2 block">
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img src={urlFoto(p.foto)} alt={p.punto} className="h-24 w-24 rounded-md border border-[#e5e7eb] object-cover" loading="lazy" />
+                      </a>
+                    )}
+                  </div>
+                </div>
+              )
+            })}
           </div>
         </div>
       )}

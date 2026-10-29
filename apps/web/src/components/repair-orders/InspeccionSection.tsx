@@ -15,6 +15,7 @@ import {
   type EstadoPunto,
   type Inspeccion,
 } from '@/modules/inspecciones/types'
+import { subirFotoOT, urlFoto } from '@/modules/evidencias'
 import { toErrorMessage } from '@/lib/ui/error-message'
 import { card, sectionLabel, inputClass, btnPrimary } from '@/components/ui/styles'
 
@@ -39,19 +40,37 @@ export function InspeccionSection({
   const inicialMap = useMemo(() => {
     const est: Record<string, EstadoPunto> = {}
     const not: Record<string, string> = {}
+    const fot: Record<string, string> = {}
     for (const p of initial?.puntos ?? []) {
       est[p.codigo] = p.estado
       if (p.nota) not[p.codigo] = p.nota
+      if (p.foto) fot[p.codigo] = p.foto
     }
-    return { est, not }
+    return { est, not, fot }
   }, [initial])
 
   const [estados, setEstados] = useState<Record<string, EstadoPunto>>(inicialMap.est)
   const [notas, setNotas] = useState<Record<string, string>>(inicialMap.not)
+  const [fotos, setFotos] = useState<Record<string, string>>(inicialMap.fot)
+  const [subiendo, setSubiendo] = useState<string | null>(null)
   const [guardando, setGuardando] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [ok, setOk] = useState(false)
   const [recomCreada, setRecomCreada] = useState<Record<string, boolean>>({})
+
+  async function subirFoto(codigo: string, label: string, file: File) {
+    setSubiendo(codigo)
+    setError(null)
+    setOk(false)
+    try {
+      const foto = await subirFotoOT(createClient(), ordenTrabajoId, file, `Inspección: ${label}`)
+      setFotos((p) => ({ ...p, [codigo]: foto.bucket_path }))
+    } catch (e) {
+      setError(toErrorMessage(e))
+    } finally {
+      setSubiendo(null)
+    }
+  }
 
   const resumen = useMemo(() => {
     let okN = 0, obs = 0, att = 0
@@ -91,6 +110,7 @@ export function InspeccionSection({
         codigo: p.codigo,
         estado: estados[p.codigo]!,
         nota: (notas[p.codigo] ?? '').trim(),
+        foto: fotos[p.codigo] ?? null,
       }))
       await guardarInspeccion(createClient(), { ordenTrabajoId, vehiculoId, puntos })
       setOk(true)
@@ -170,23 +190,47 @@ export function InspeccionSection({
                 </div>
               </div>
               {mostrarNota && (
-                <div className="mt-2 flex flex-wrap items-center gap-2">
-                  <input
-                    className={`${inputClass} flex-1`}
-                    placeholder="Detalle (ej: discos con rebarba, pastillas al 20%)…"
-                    value={notas[p.codigo] ?? ''}
-                    onChange={(e) => setNota(p.codigo, e.target.value)}
-                  />
-                  {recomCreada[p.codigo] ? (
-                    <span className="text-xs font-medium text-emerald-700">✓ En recomendaciones</span>
-                  ) : (
-                    <button
-                      type="button"
-                      onClick={() => void aRecomendacion(p.codigo, p.label)}
-                      className="shrink-0 rounded-md border border-accent-500/40 bg-accent-500/10 px-2.5 py-1.5 text-xs font-medium text-accent-500 hover:bg-accent-500/20"
-                    >
-                      + recomendación
-                    </button>
+                <div className="mt-2 space-y-2">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <input
+                      className={`${inputClass} flex-1`}
+                      placeholder="Detalle (ej: discos con rebarba, pastillas al 20%)…"
+                      value={notas[p.codigo] ?? ''}
+                      onChange={(e) => setNota(p.codigo, e.target.value)}
+                    />
+                    <label className="shrink-0 cursor-pointer rounded-md border border-black/10 bg-black/[0.02] px-2.5 py-1.5 text-xs font-medium text-neutral-500 hover:bg-black/[0.05]">
+                      {subiendo === p.codigo ? 'Subiendo…' : fotos[p.codigo] ? '📷 Cambiar foto' : '📷 Foto'}
+                      <input
+                        type="file"
+                        accept="image/*"
+                        className="hidden"
+                        disabled={subiendo !== null}
+                        onChange={(e) => {
+                          const file = e.target.files?.[0]
+                          if (file) void subirFoto(p.codigo, p.label, file)
+                          e.target.value = ''
+                        }}
+                      />
+                    </label>
+                    {recomCreada[p.codigo] ? (
+                      <span className="text-xs font-medium text-emerald-700">✓ En recomendaciones</span>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() => void aRecomendacion(p.codigo, p.label)}
+                        className="shrink-0 rounded-md border border-accent-500/40 bg-accent-500/10 px-2.5 py-1.5 text-xs font-medium text-accent-500 hover:bg-accent-500/20"
+                      >
+                        + recomendación
+                      </button>
+                    )}
+                  </div>
+                  {fotos[p.codigo] && (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img
+                      src={urlFoto(fotos[p.codigo]!)}
+                      alt={`Foto ${p.label}`}
+                      className="h-20 w-20 rounded-md border border-black/10 object-cover"
+                    />
                   )}
                 </div>
               )}

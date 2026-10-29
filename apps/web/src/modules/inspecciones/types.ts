@@ -11,6 +11,8 @@ export interface PuntoInspeccion {
   codigo: string
   estado: EstadoPunto
   nota: string
+  /** bucket_path de una foto del punto (opcional), en el bucket `evidencias`. */
+  foto?: string | null
 }
 
 export interface Inspeccion {
@@ -56,6 +58,7 @@ const puntoSchema = z.object({
   codigo: z.string().trim().min(1).max(10),
   estado: z.enum(['ok', 'observacion', 'atencion', 'na']),
   nota: z.string().trim().max(500).default(''),
+  foto: z.string().trim().max(500).nullish(),
 })
 
 export const guardarInspeccionSchema = z.object({
