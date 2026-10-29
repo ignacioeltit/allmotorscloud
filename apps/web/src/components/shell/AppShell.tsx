@@ -37,21 +37,23 @@ export function AppShell({ children, pendientesCatalogo = 0, rolUsuario }: AppSh
 
       <div className="flex min-w-0 flex-1 flex-col">
         <header className="sticky top-0 z-30 flex items-center justify-between gap-2 border-b border-black/[0.06] bg-neutral-950/80 px-3 py-2.5 backdrop-blur md:hidden">
-          <div className="flex items-center gap-1">
+          <div className="flex min-w-0 items-center gap-1">
             <MobileNav pendientesCatalogo={pendientesCatalogo} rolUsuario={rolUsuario} />
-            <Link href="/dashboard" className="flex items-center gap-2 text-sm font-semibold text-neutral-100">
+            <Link href="/dashboard" className="flex min-w-0 items-center gap-2 text-sm font-semibold text-neutral-100">
               <span className="h-7 w-7 shrink-0 overflow-hidden rounded-md bg-[#111417] ring-1 ring-black/10">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img src="/logo-allmotors.jpg" alt="All Motors" className="h-full w-full object-contain" />
               </span>
-              All Motors <span className="text-neutral-500">Cloud</span>
+              <span className="truncate">
+                All Motors <span className="text-neutral-500">Cloud</span>
+              </span>
             </Link>
           </div>
           <div className="flex shrink-0 items-center gap-1">
             <CommandTrigger compact />
             <Link
               href="/recepcion"
-              className="rounded-lg bg-accent-600 px-3 py-2 text-xs font-semibold text-white"
+              className="whitespace-nowrap rounded-lg bg-accent-600 px-3 py-2 text-xs font-semibold text-white"
             >
               + Recepción
             </Link>
