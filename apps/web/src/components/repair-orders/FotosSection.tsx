@@ -12,6 +12,7 @@ import {
   actualizarDescripcionFoto, type FotoOT,
 } from '@/modules/evidencias'
 import { toErrorMessage } from '@/lib/ui/error-message'
+import { waLink } from '@/lib/whatsapp'
 import { card, sectionLabel, inputClass, btnSecondary } from '@/components/ui/styles'
 
 export function FotosSection({
@@ -19,11 +20,15 @@ export function FotosSection({
   initialFotos,
   tokenInicial,
   puedeGestionar,
+  clienteNombre = null,
+  clienteTelefono = null,
 }: {
   ordenTrabajoId: string
   initialFotos: FotoOT[]
   tokenInicial: string | null
   puedeGestionar: boolean
+  clienteNombre?: string | null
+  clienteTelefono?: string | null
 }) {
   const router = useRouter()
   const [fotos, setFotos] = useState<FotoOT[]>(initialFotos)
@@ -150,7 +155,10 @@ export function FotosSection({
             <input readOnly value={linkAvance} className="min-w-[12rem] flex-1 rounded-md border border-black/10 bg-white px-2 py-1 text-xs text-neutral-700" onFocus={(e) => e.target.select()} />
             <button type="button" onClick={copiar} className={btnSecondary}>{copiado ? '✓ Copiado' : 'Copiar'}</button>
             <a
-              href={`https://wa.me/?text=${encodeURIComponent('Seguimiento de tu vehículo en el taller: ' + linkAvance)}`}
+              href={waLink(
+                clienteTelefono,
+                `Hola${clienteNombre ? ' ' + clienteNombre.split(' ')[0] : ''}, aquí puedes seguir el avance de tu vehículo en el taller:\n${linkAvance}`,
+              )}
               target="_blank" rel="noopener noreferrer"
               className="inline-flex items-center gap-2 rounded-lg border border-emerald-500/40 bg-emerald-500/10 px-3 py-1.5 text-sm font-medium text-emerald-800 hover:bg-emerald-500/20"
             >

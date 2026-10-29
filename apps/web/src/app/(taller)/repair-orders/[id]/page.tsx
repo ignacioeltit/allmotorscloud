@@ -359,6 +359,8 @@ export default async function OrdenTrabajoDetailPage({
             initialFotos={fotos}
             tokenInicial={tokenAvance}
             puedeGestionar={puedeVerCostos}
+            clienteNombre={cliente?.nombre ?? null}
+            clienteTelefono={cliente?.telefono ?? null}
           />
         </div>
       ),

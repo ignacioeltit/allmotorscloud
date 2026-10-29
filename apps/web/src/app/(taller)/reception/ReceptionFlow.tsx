@@ -3,7 +3,7 @@
 // Flujo de recepción en una sola pantalla: buscar patente → cargar o crear cliente+vehículo
 // → checklist → "Recibir vehículo" → crea cliente/vehículo/evento/OT y redirige a la OT.
 
-import { useEffect, useRef, useState, type FormEvent } from 'react'
+import { useEffect, useRef, useState, type FormEvent, type ChangeEvent } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
@@ -19,6 +19,7 @@ import { listPresupuestosPendientesByVehiculo, getCotizacionById, type Presupues
 import { pasarPresupuestoATrabajos } from '@/modules/reparaciones/mutations'
 import { getHistoriaByVehiculoId } from '@/modules/technical-history/queries'
 import { getTipoEventoBySlug } from '@/modules/events/queries'
+import { subirFotoOT } from '@/modules/evidencias'
 import {
   CHECKLIST_RECEPCION,
   COMBUSTIBLES,
@@ -201,6 +202,26 @@ export function ReceptionFlow({
   const [prioridad, setPrioridad] = useState<Prioridad>(PRIORIDAD_DEFAULT)
   const [observaciones, setObservaciones] = useState('')
   const [checklist, setChecklist] = useState<Record<string, boolean>>({})
+
+  // Fotos del estado de recepción (se suben a la OT tras crearla).
+  const [fotosRec, setFotosRec] = useState<{ file: File; url: string }[]>([])
+  const fotoCamRef = useRef<HTMLInputElement | null>(null)
+  const fotoGalRef = useRef<HTMLInputElement | null>(null)
+
+  function agregarFotosRec(e: ChangeEvent<HTMLInputElement>) {
+    const files = Array.from(e.target.files ?? []).filter((f) => f.size <= 10_485_760)
+    if (files.length > 0) {
+      setFotosRec((prev) => [...prev, ...files.map((file) => ({ file, url: URL.createObjectURL(file) }))])
+    }
+    e.target.value = ''
+  }
+  function quitarFotoRec(i: number) {
+    setFotosRec((prev) => {
+      const quitada = prev[i]
+      if (quitada) URL.revokeObjectURL(quitada.url)
+      return prev.filter((_, idx) => idx !== i)
+    })
+  }
 
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -518,6 +539,17 @@ export function ReceptionFlow({
 
       const supabase = createClient()
       const result = await recibirVehiculo(supabase, input)
+
+      // Fotos del estado de recepción → a la OT recién creada (best-effort).
+      if (fotosRec.length > 0) {
+        for (const { file } of fotosRec) {
+          try {
+            await subirFotoOT(supabase, result.ordenTrabajoId, file, 'Estado de recepción')
+          } catch {
+            /* no bloquear la recepción si una foto falla */
+          }
+        }
+      }
 
       // Cargar el presupuesto elegido en la OT recién creada: enlazarlo y pasar
       // sus líneas a los trabajos. Best-effort — si falla, la OT ya existe y el
@@ -1181,6 +1213,38 @@ export function ReceptionFlow({
                     )
                   })}
                 </div>
+              </div>
+
+              {/* Fotos del estado de recepción */}
+              <div className="mt-5">
+                <p className={sectionLabel}>Fotos del estado de recepción</p>
+                <p className="mt-0.5 text-xs text-neutral-500">Deja registrado cómo llega el vehículo (rayones, golpes, tablero, nivel de bencina…). Se guardan en la OT.</p>
+                <div className="mt-2 flex items-center gap-2">
+                  <input ref={fotoCamRef} type="file" accept="image/*" capture="environment" onChange={agregarFotosRec} className="hidden" />
+                  <input ref={fotoGalRef} type="file" accept="image/*" multiple onChange={agregarFotosRec} className="hidden" />
+                  <button type="button" className={btnSecondary} onClick={() => fotoCamRef.current?.click()} disabled={submitting}>📷 Cámara</button>
+                  <button type="button" className={btnSecondary} onClick={() => fotoGalRef.current?.click()} disabled={submitting}>🖼 Galería (varias)</button>
+                  {fotosRec.length > 0 && <span className="text-xs text-neutral-500">{fotosRec.length} foto{fotosRec.length === 1 ? '' : 's'}</span>}
+                </div>
+                {fotosRec.length > 0 && (
+                  <div className="mt-3 flex flex-wrap gap-2">
+                    {fotosRec.map((f, i) => (
+                      <div key={f.url} className="relative h-20 w-20">
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img src={f.url} alt={`Foto recepción ${i + 1}`} className="h-full w-full rounded-md border border-black/10 object-cover" />
+                        <button
+                          type="button"
+                          onClick={() => quitarFotoRec(i)}
+                          disabled={submitting}
+                          aria-label="Quitar foto"
+                          className="absolute -right-1.5 -top-1.5 flex h-5 w-5 items-center justify-center rounded-full bg-neutral-900 text-xs text-white shadow"
+                        >
+                          ✕
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
             </Section>
 
