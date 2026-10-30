@@ -138,6 +138,8 @@ export default async function OrdenTrabajoDetailPage({
   // Costos (compra, utilidad, margen) solo para admin, jefe de taller y asesor
   // de servicio (recepción). Los mecánicos NO ven costos ni rentabilidad.
   const puedeVerCostos = rol === 'admin' || rol === 'jefe_taller' || rol === 'recepcionista'
+  // Aprobar fotos para el cliente: SOLO admin o asesor de servicio (recepcionista).
+  const puedeAprobarFotos = rol === 'admin' || rol === 'recepcionista'
 
   const diagnosticos = tipoDiagnostico
     ? eventos.filter((e) => e.tipo_evento_id === tipoDiagnostico.id).reverse()
@@ -358,7 +360,7 @@ export default async function OrdenTrabajoDetailPage({
             ordenTrabajoId={orden.id}
             initialFotos={fotos}
             tokenInicial={tokenAvance}
-            puedeGestionar={puedeVerCostos}
+            puedeGestionar={puedeAprobarFotos}
             clienteNombre={cliente?.nombre ?? null}
             clienteTelefono={cliente?.telefono ?? null}
           />

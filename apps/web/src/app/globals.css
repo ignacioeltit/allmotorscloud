@@ -85,12 +85,14 @@
     background: #ffffff !important;
     color: #111111 !important;
   }
-  /* El documento ocupa todo el ancho imprimible de la carta (sin exceder la
-     página) — evita que documentos anchos como la cotización se recorten. */
+  /* El documento se ancla al ancho REAL de impresión (carta 216mm − márgenes),
+     no al ancho de la pantalla. Con width:100% el navegador maquetaba al ancho
+     del viewport y el borde derecho se salía de la hoja; fijarlo en mm obliga a
+     maquetar al tamaño del papel y centra el documento dentro de los márgenes. */
   .doc-print {
     color: #111111;
-    width: 100% !important;
-    max-width: none !important;
-    margin: 0 !important;
+    width: 190mm !important;
+    max-width: 190mm !important;
+    margin: 0 auto !important;
   }
 }

@@ -51,6 +51,7 @@ export function OtDocumento({
   presupuesto,
   taller,
   mecanicos,
+  qrSvg = null,
 }: {
   orden: OrdenTrabajo
   vehiculo: Vehiculo | null
@@ -60,11 +61,18 @@ export function OtDocumento({
   presupuesto: PresupuestoConItems | null
   taller: OrganizacionInfo | null
   mecanicos: MecanicoSimple[]
+  // QR al link de avance del cliente (SVG ya renderizado en el server).
+  qrSvg?: string | null
 }) {
   const nombreMecanico = (id: string | null) =>
     id ? mecanicos.find((m) => m.id === id)?.nombre ?? null : null
 
   const conTrabajos = reparaciones.some((r) => r.items.length > 0 || r.descripcion)
+
+  // Mecánico(s) asignado(s) a la OT, derivados de los trabajos cargados.
+  const mecanicosAsignados = Array.from(
+    new Set(reparaciones.map((r) => nombreMecanico(r.mecanico_id)).filter((n): n is string => !!n)),
+  )
 
   return (
     <div className="doc-print mx-auto max-w-2xl text-[#111827]">
@@ -128,6 +136,26 @@ export function OtDocumento({
           </div>
         </div>
 
+        {/* Mecánico asignado + entrega estimada */}
+        <div className="mt-2 grid grid-cols-2 gap-4 text-[13px]">
+          <div>
+            <p className="text-[10px] font-semibold uppercase tracking-wide text-[#9ca3af]">Mecánico asignado</p>
+            {mecanicosAsignados.length > 0 ? (
+              <p className="mt-0.5 font-medium">{mecanicosAsignados.join(', ')}</p>
+            ) : (
+              <div className="mt-2 border-b border-[#9ca3af]" />
+            )}
+          </div>
+          <div>
+            <p className="text-[10px] font-semibold uppercase tracking-wide text-[#9ca3af]">Entrega estimada</p>
+            {orden.fecha_prometida_entrega ? (
+              <p className="mt-0.5 font-medium">{fmtFecha(orden.fecha_prometida_entrega)}</p>
+            ) : (
+              <div className="mt-2 border-b border-[#9ca3af]" />
+            )}
+          </div>
+        </div>
+
         {/* Lo que dice el cliente al ingresar (motivo, síntomas, checklist de recepción) */}
         {eventoRecepcion?.descripcion ? (
           (() => {
@@ -169,6 +197,28 @@ export function OtDocumento({
         {/* Diagrama para marcar daños del vehículo en la recepción */}
         <VehiculoDiagramaDanos tipo={vehiculo?.tipo ?? null} />
 
+        {/* Recepción: nivel de combustible + objetos de valor (se anota a mano) */}
+        <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2" style={{ breakInside: 'avoid' }}>
+          <div className="rounded-lg border border-[#e5e7eb] px-3 py-2">
+            <p className="text-[10px] font-semibold uppercase tracking-wide text-[#9ca3af]">Nivel de combustible</p>
+            <div className="mt-2 flex items-center gap-1 text-[10px] text-[#4b5563]">
+              {['E', '¼', '½', '¾', 'F'].map((m) => (
+                <div key={m} className="flex flex-1 flex-col items-center gap-1">
+                  <span style={{ display: 'inline-block', width: 13, height: 13, border: '1.5px solid #111827', borderRadius: '50%' }} />
+                  <span>{m}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+          <div className="rounded-lg border border-[#e5e7eb] px-3 py-2">
+            <p className="text-[10px] font-semibold uppercase tracking-wide text-[#9ca3af]">Objetos de valor declarados</p>
+            <div className="mt-3 space-y-3">
+              <div className="border-b border-[#d1d5db]" />
+              <div className="border-b border-[#d1d5db]" />
+            </div>
+          </div>
+        </div>
+
         {/* Trabajos cargados */}
         {conTrabajos && (
           <div className="mt-4" style={{ breakInside: 'avoid' }}>
@@ -190,13 +240,15 @@ export function OtDocumento({
                     <tbody>
                       {ordenarItemsPorTipo(r.items).map((it) => (
                         <tr key={it.id} className="border-b border-[#f3f4f6]">
-                          <td className="w-5 py-0.5 align-top">☐</td>
-                          <td className="py-0.5">
+                          <td className="w-8 py-1 align-top">
+                            <span style={{ display: 'inline-block', width: 16, height: 16, border: '1.5px solid #111827', borderRadius: 3 }} />
+                          </td>
+                          <td className="py-1">
                             {it.codigo && <span className="mr-1.5 font-mono text-[10px] text-[#6b7280]">{it.codigo}</span>}
                             {it.descripcion}
                             <span className="ml-2 text-[9px] uppercase text-[#9ca3af]">{TIPO_LABEL[it.tipo] ?? it.tipo}</span>
                           </td>
-                          <td className="w-14 py-0.5 text-right text-[#4b5563]">× {it.cantidad}</td>
+                          <td className="w-14 py-1 text-right text-[#4b5563]">× {it.cantidad}</td>
                         </tr>
                       ))}
                     </tbody>
@@ -217,13 +269,15 @@ export function OtDocumento({
               <tbody>
                 {ordenarItemsPorTipo(presupuesto.items).map((it) => (
                   <tr key={it.id} className="border-b border-[#f3f4f6]">
-                    <td className="w-5 py-0.5 align-top">☐</td>
-                    <td className="py-0.5">
+                    <td className="w-8 py-1 align-top">
+                      <span style={{ display: 'inline-block', width: 16, height: 16, border: '1.5px solid #111827', borderRadius: 3 }} />
+                    </td>
+                    <td className="py-1">
                       {it.codigo && <span className="mr-1.5 font-mono text-[10px] text-[#6b7280]">{it.codigo}</span>}
                       {it.descripcion}
                       <span className="ml-2 text-[9px] uppercase text-[#9ca3af]">{TIPO_LABEL[it.tipo] ?? it.tipo}</span>
                     </td>
-                    <td className="w-14 py-0.5 text-right text-[#4b5563]">× {it.cantidad}</td>
+                    <td className="w-14 py-1 text-right text-[#4b5563]">× {it.cantidad}</td>
                   </tr>
                 ))}
               </tbody>
@@ -250,6 +304,35 @@ export function OtDocumento({
               <div className="border-t border-[#9ca3af] pt-1.5">Jefe de taller</div>
             </div>
           </div>
+        </div>
+
+        {/* Pie: QR al avance del cliente + términos del taller */}
+        <div
+          className="mt-5 flex items-start justify-between gap-4 border-t border-[#e5e7eb] pt-3"
+          style={{ breakInside: 'avoid' }}
+        >
+          <div className="text-[9px] leading-snug text-[#9ca3af]">
+            <p className="mb-0.5 font-semibold uppercase tracking-wide">Condiciones</p>
+            <p>
+              El cliente autoriza los trabajos descritos y las pruebas de ruta necesarias. El taller no
+              responde por objetos de valor no declarados. Los repuestos reemplazados quedan a disposición
+              del cliente por 15 días. Vehículos no retirados dentro de 30 días desde el aviso de término
+              generan costo de bodegaje. El presupuesto puede variar si se detectan fallas ocultas, previa
+              aprobación del cliente.
+            </p>
+          </div>
+          {qrSvg && (
+            <div className="shrink-0 text-center">
+              <div
+                className="mx-auto h-[70px] w-[70px]"
+                aria-hidden
+                dangerouslySetInnerHTML={{ __html: qrSvg }}
+              />
+              <p className="mt-1 max-w-[90px] text-[8px] leading-tight text-[#6b7280]">
+                Escanea y sigue el avance
+              </p>
+            </div>
+          )}
         </div>
       </div>
     </div>

@@ -2,6 +2,8 @@
 export const dynamic = 'force-dynamic'
 
 import Link from 'next/link'
+import { headers } from 'next/headers'
+import QRCode from 'qrcode'
 import { createClient } from '@/lib/supabase/server'
 import { getOrdenTrabajoById } from '@/modules/repair-orders/queries'
 import { getVehiculoById } from '@/modules/vehicles/queries'
@@ -39,7 +41,14 @@ export default async function ImprimirOtPage({
     // haya trabajos cargados.
     const eventoRecepcion =
       eventos.find((e) => e.titulo?.toLowerCase().includes('recepci')) ?? null
-    return { orden, vehiculo, cliente, eventoRecepcion, reparaciones, presupuesto, taller, mecanicos }
+    // Token del link de avance (si existe) para el QR del documento.
+    const { data: tok } = await supabase
+      .from('ordenes_trabajo')
+      .select('token_avance')
+      .eq('id', orden.id)
+      .maybeSingle()
+    const tokenAvance = (tok as { token_avance: string | null } | null)?.token_avance ?? null
+    return { orden, vehiculo, cliente, eventoRecepcion, reparaciones, presupuesto, taller, mecanicos, tokenAvance }
   })
 
   if (!result.ok) {
@@ -51,6 +60,23 @@ export default async function ImprimirOtPage({
   }
 
   const d = result.data
+
+  // QR al link público de avance (solo si la OT ya tiene token generado).
+  let qrSvg: string | null = null
+  if (d.tokenAvance) {
+    const h = await headers()
+    const host = h.get('x-forwarded-host') ?? h.get('host')
+    const proto = h.get('x-forwarded-proto') ?? 'https'
+    if (host) {
+      const avanceUrl = `${proto}://${host}/avance/${d.tokenAvance}`
+      try {
+        qrSvg = await QRCode.toString(avanceUrl, { type: 'svg', margin: 0, width: 140 })
+      } catch {
+        qrSvg = null
+      }
+    }
+  }
+
   return (
     <div>
       <Link href={`/repair-orders/${id}`} className="no-print mb-4 inline-block text-sm text-accent-400 hover:text-accent-300">
@@ -65,6 +91,7 @@ export default async function ImprimirOtPage({
         presupuesto={d.presupuesto}
         taller={d.taller}
         mecanicos={d.mecanicos}
+        qrSvg={qrSvg}
       />
     </div>
   )
