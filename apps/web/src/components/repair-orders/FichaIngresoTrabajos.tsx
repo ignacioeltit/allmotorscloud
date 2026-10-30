@@ -372,18 +372,24 @@ export function FichaIngresoTrabajos({
   const [error, setError] = useState<string | null>(null)
   const [pending, startTransition] = useTransition()
 
-  // Paquetes: sus líneas se expanden en las grillas. Como el consumo de stock y
-  // los snapshots de catálogo requieren el vínculo (repuesto_id/servicio_id),
-  // las líneas de paquete entran como texto libre — nombre, cantidad y precio.
+  // Paquetes: sus líneas se expanden en las grillas. Las líneas de material con
+  // repuesto_id en el paquete llegan vinculadas al inventario (repuesto), para
+  // que al guardar se descuente stock igual que una línea agregada a mano. La
+  // mano de obra y los ítems ad-hoc entran como texto libre (sin servicio).
   async function agregarPaquete(pl: PlantillaResumen) {
     try {
       const lineas = await expandirPlantilla(createClient(), pl)
-      const aFila = (l: { descripcion: string; cantidad: number; precio: number; codigo?: string | null }): LineaT => ({
+      const aFila = (l: {
+        descripcion: string; cantidad: number; precio: number; codigo?: string | null
+        repuestoId?: string | null; stock?: number; costoCompra?: number | null
+      }): LineaT => ({
         codigo: l.codigo ?? '',
         descripcion: l.descripcion,
         cantidad: String(l.cantidad),
         precio: String(l.precio),
-        repuesto: null,
+        repuesto: l.repuestoId
+          ? { id: l.repuestoId, stock: l.stock ?? 0, costoCompra: l.costoCompra ?? null }
+          : null,
         servicio: null,
       })
       const mo = lineas.filter((l) => l.grupo === 'mano_obra').map(aFila)

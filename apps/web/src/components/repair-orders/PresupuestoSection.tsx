@@ -78,6 +78,7 @@ export function PresupuestoSection({
           cantidad: it.cantidad,
           precio_unitario: it.precio_unitario,
           descuento_porcentaje: it.descuento_porcentaje,
+          repuesto_id: it.repuesto_id,
         })),
       })
       router.refresh()

@@ -18,6 +18,11 @@ export interface LineaExpandida {
   descripcion: string
   cantidad: number
   precio: number
+  // Vínculo al inventario (solo líneas 'material' con repuesto_id en el paquete).
+  // Permite descontar stock al aplicar el paquete en la OT.
+  repuestoId?: string | null
+  stock?: number
+  costoCompra?: number | null
 }
 
 /** Fila de items_plantilla para la pantalla de administración. */
@@ -143,7 +148,7 @@ export async function expandirPlantilla(
 ): Promise<LineaExpandida[]> {
   const { data, error } = await supabase
     .from('items_plantilla')
-    .select('tipo, nombre, cantidad, precio_unitario, es_cabecera')
+    .select('tipo, nombre, cantidad, precio_unitario, es_cabecera, repuesto_id')
     .eq('plantilla_id', plantilla.id)
     .order('orden', { ascending: true })
 
@@ -153,21 +158,45 @@ export async function expandirPlantilla(
     cantidad: number | null
     precio_unitario: number | null
     es_cabecera: boolean
+    repuesto_id: string | null
   }>(data, error)
+
+  // Para las líneas de repuesto vinculadas al inventario, traemos el stock y
+  // costo actuales (así el paquete puede descontar stock al aplicarse en la OT).
+  const repuestoIds = Array.from(
+    new Set(items.filter((it) => !it.es_cabecera && it.repuesto_id).map((it) => it.repuesto_id as string)),
+  )
+  const stockPorRepuesto = new Map<string, { stock: number; costoCompra: number | null }>()
+  if (repuestoIds.length > 0) {
+    const { data: reps } = await supabase
+      .from('repuestos')
+      .select('id, stock_actual, precio_costo')
+      .in('id', repuestoIds)
+    for (const r of (reps ?? []) as { id: string; stock_actual: number; precio_costo: number | null }[]) {
+      stockPorRepuesto.set(r.id, { stock: r.stock_actual ?? 0, costoCompra: r.precio_costo })
+    }
+  }
 
   const detalle: LineaExpandida[] = items
     .filter((it) => !it.es_cabecera)
-    .map((it) => ({
-      grupo:
+    .map((it) => {
+      const grupo =
         it.tipo === 'labor' || it.tipo === 'mano_obra'
           ? ('mano_obra' as const)
           : it.tipo === 'other' || it.tipo === 'otros'
             ? ('otros' as const)
-            : ('repuesto' as const),
-      descripcion: it.nombre,
-      cantidad: it.cantidad ?? 1,
-      precio: it.precio_unitario ?? 0,
-    }))
+            : ('repuesto' as const)
+      const rep = it.repuesto_id ? stockPorRepuesto.get(it.repuesto_id) : undefined
+      return {
+        grupo,
+        descripcion: it.nombre,
+        cantidad: it.cantidad ?? 1,
+        precio: it.precio_unitario ?? 0,
+        repuestoId: it.repuesto_id,
+        stock: rep?.stock ?? 0,
+        costoCompra: rep?.costoCompra ?? null,
+      }
+    })
 
   if (plantilla.tipo_precio === 'cabecera') {
     const cabecera: LineaExpandida = {

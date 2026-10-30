@@ -12,6 +12,7 @@ import { getAuthContext } from '@/lib/auth/context'
 import { unwrapWritten } from '@/lib/supabase/result'
 import { validationErrorFromZod, mapPostgrestError, ValidationError } from '@/lib/errors'
 import { createEvento } from '@/modules/events/mutations'
+import { consumirStockParaOT } from '@/modules/inventory/mutations'
 import {
   crearReparacionSchema,
   addItemReparacionSchema,
@@ -137,6 +138,7 @@ export async function pasarPresupuestoATrabajos(
       cantidad: number
       precio_unitario: number
       descuento_porcentaje: number
+      repuesto_id?: string | null
     }>
     mecanicoId?: string | null
   },
@@ -153,10 +155,28 @@ export async function pasarPresupuestoATrabajos(
     ...(input.mecanicoId ? { mecanicoId: input.mecanicoId } : {}),
   })
 
+  // Stock actual de los repuestos vinculados (un solo query) para descontarlos
+  // al pasar el presupuesto a trabajos — incluye las líneas que vienen de un paquete.
+  const { orgId } = await getAuthContext(supabase)
+  const repuestoIds = Array.from(
+    new Set(input.items.filter((it) => it.repuesto_id).map((it) => it.repuesto_id as string)),
+  )
+  const stockPorRepuesto = new Map<string, number>()
+  if (repuestoIds.length > 0) {
+    const { data: reps } = await supabase
+      .from('repuestos')
+      .select('id, stock_actual')
+      .eq('org_id', orgId)
+      .in('id', repuestoIds)
+    for (const r of (reps ?? []) as { id: string; stock_actual: number }[]) {
+      stockPorRepuesto.set(r.id, r.stock_actual ?? 0)
+    }
+  }
+
   for (const it of input.items) {
     const costoUnitario =
       Math.round(it.precio_unitario * (1 - (it.descuento_porcentaje ?? 0) / 100) * 100) / 100
-    await addItemReparacion(supabase, {
+    const nuevo = await addItemReparacion(supabase, {
       reparacionId: reparacion.id,
       tipo: it.tipo,
       ...(it.codigo ? { codigo: it.codigo } : {}),
@@ -164,7 +184,26 @@ export async function pasarPresupuestoATrabajos(
       cantidad: it.cantidad,
       costoUnitario,
       itemPresupuestoId: it.id,
+      ...(it.repuesto_id ? { repuestoId: it.repuesto_id } : {}),
     })
+
+    // Repuesto del inventario con stock → registrar el consumo (no bloquea si falla).
+    const stockActual = it.repuesto_id ? stockPorRepuesto.get(it.repuesto_id) ?? 0 : 0
+    if (it.repuesto_id && stockActual > 0) {
+      try {
+        await consumirStockParaOT(supabase, {
+          repuestoId: it.repuesto_id,
+          itemReparacionId: nuevo.id,
+          cantidad: it.cantidad,
+          stockActual,
+          descripcion: it.descripcion,
+        })
+        // Si el mismo repuesto aparece en dos líneas, baja el disponible local.
+        stockPorRepuesto.set(it.repuesto_id, Math.max(0, stockActual - it.cantidad))
+      } catch {
+        /* silencioso: el consumo de stock no bloquea la creación de trabajos */
+      }
+    }
   }
 
   return reparacion

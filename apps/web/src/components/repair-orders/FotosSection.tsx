@@ -42,6 +42,7 @@ export function FotosSection({
 
   const linkAvance = token && typeof window !== 'undefined' ? `${window.location.origin}/avance/${token}` : null
   const visiblesCount = fotos.filter((f) => f.visible_cliente).length
+  const pendientesCount = fotos.filter((f) => !f.visible_cliente).length
 
   async function onFiles(e: React.ChangeEvent<HTMLInputElement>) {
     const files = Array.from(e.target.files ?? [])
@@ -53,7 +54,9 @@ export function FotosSection({
       const nuevas: FotoOT[] = []
       for (const file of files) {
         if (file.size > 10_485_760) { setError(`"${file.name}" supera 10 MB.`); continue }
-        nuevas.push(await subirFotoOT(supabase, ordenTrabajoId, file, detalle))
+        // Rol de gestión (puedeGestionar) → la foto nace visible al cliente.
+        // Mecánico → nace pendiente de aprobación (lo refuerza el trigger en DB).
+        nuevas.push(await subirFotoOT(supabase, ordenTrabajoId, file, detalle, puedeGestionar))
       }
       setFotos((prev) => [...nuevas, ...prev])
       setDetalle('')
@@ -129,6 +132,19 @@ export function FotosSection({
       />
 
       {error && <p className="text-sm text-red-700">{error}</p>}
+
+      {/* Aviso según quién sube: el mecánico deja la foto pendiente de aprobación. */}
+      {!puedeGestionar ? (
+        <p className="rounded-md border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-xs text-amber-800">
+          Las fotos que subas quedan <strong>pendientes de aprobación</strong>. Un admin o asesor las revisa antes de que las vea el cliente.
+        </p>
+      ) : (
+        pendientesCount > 0 && (
+          <p className="rounded-md border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-xs text-amber-800">
+            {pendientesCount} foto{pendientesCount === 1 ? '' : 's'} pendiente{pendientesCount === 1 ? '' : 's'} de aprobación. Toca <strong>“Aprobar”</strong> en cada una para que el cliente la vea.
+          </p>
+        )
+      )}
 
       {fotos.length === 0 ? (
         <p className="text-sm text-neutral-500">Aún no hay fotos. Subí fotos del avance para mostrárselas al cliente.</p>
@@ -214,11 +230,20 @@ function FotoCard({
         </a>
         <div className="absolute inset-x-0 bottom-0 flex items-center justify-between gap-1 bg-black/55 px-2 py-1 text-[11px] text-white">
           {puedeGestionar ? (
-            <button type="button" onClick={onToggle} className="hover:underline">
-              {foto.visible_cliente ? '👁 Cliente ve' : '🔒 Interna'}
+            <button
+              type="button"
+              onClick={onToggle}
+              className={`rounded px-1.5 py-0.5 font-medium hover:brightness-110 ${
+                foto.visible_cliente ? 'text-emerald-300' : 'bg-amber-400/90 text-black'
+              }`}
+              title={foto.visible_cliente ? 'Ocultar al cliente' : 'Aprobar para que la vea el cliente'}
+            >
+              {foto.visible_cliente ? '👁 Cliente ve · Ocultar' : '⏳ Pendiente · Aprobar'}
             </button>
           ) : (
-            <span>{foto.visible_cliente ? '👁 Cliente ve' : '🔒 Interna'}</span>
+            <span className={foto.visible_cliente ? 'text-emerald-300' : 'text-amber-300'}>
+              {foto.visible_cliente ? '👁 Cliente ve' : '⏳ Pendiente'}
+            </span>
           )}
           {puedeGestionar && (
             <button type="button" onClick={onBorrar} className="text-red-300 hover:text-red-200" title="Eliminar">✕</button>

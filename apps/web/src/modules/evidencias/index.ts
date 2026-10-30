@@ -38,12 +38,22 @@ export async function listFotosByOT(supabase: DbClient, ordenTrabajoId: string):
   return (data ?? []) as unknown as FotoOT[]
 }
 
-/** Sube una foto al bucket y registra la evidencia ligada a la OT. */
+/**
+ * Sube una foto al bucket y registra la evidencia ligada a la OT.
+ *
+ * `visibleCliente` define si la foto nace visible para el cliente:
+ *  - Recepción → true (el estado de entrada del auto siempre se le muestra).
+ *  - Avance de la OT → true solo si la sube un rol de gestión; si la sube un
+ *    mecánico, va como pendiente (false) y debe aprobarla un admin/asesor.
+ * Además el trigger `evidencias_mecanico_sin_autoaprobar` (migration 047) fuerza
+ * visible_cliente=false para el rol 'mecanico' aunque se intente saltar la app.
+ */
 export async function subirFotoOT(
   supabase: DbClient,
   ordenTrabajoId: string,
   file: File,
   descripcion?: string | null,
+  visibleCliente = true,
 ): Promise<FotoOT> {
   const { orgId, userId } = await getAuthContext(supabase)
   const ext = (file.name.split('.').pop() || 'jpg').toLowerCase().replace(/[^a-z0-9]/g, '') || 'jpg'
@@ -64,7 +74,7 @@ export async function subirFotoOT(
       bucket_path: path,
       mime_type: file.type || 'image/jpeg',
       tamano_bytes: file.size,
-      visible_cliente: true, // por defecto el cliente la ve (ese es el fin)
+      visible_cliente: visibleCliente,
       ...(descripcion?.trim() ? { descripcion: descripcion.trim() } : {}),
       creado_por: userId,
     })

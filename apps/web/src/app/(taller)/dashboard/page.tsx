@@ -12,7 +12,6 @@ import { listVehiculosConVencimiento } from '@/modules/vehicles/queries'
 import { load } from '@/lib/ui/load'
 import { Notice } from '@/components/ui/Notice'
 import { MetricCard } from '@/components/ui/MetricCard'
-import { StatusBadge } from '@/components/ui/StatusBadge'
 import { EmptyState } from '@/components/ui/EmptyState'
 import { btnPrimary, cardInteractive, sectionLabel } from '@/components/ui/styles'
 
@@ -96,26 +95,8 @@ export default async function DashboardPage() {
       ? (await getResumenFinanzas(supabase, hoyYMD, hoyYMD)).ingresos
       : null
 
-    // Mecánicos trabajando en cada OT visible (desde los trabajos asignados).
-    const mecanicosPorOt: Record<string, string[]> = {}
-    if (enTaller.length > 0) {
-      const { data: repData } = await supabase
-        .from('reparaciones')
-        .select('orden_trabajo_id, mecanico:usuarios!mecanico_id(nombre)')
-        .eq('org_id', orgId)
-        .in('orden_trabajo_id', enTaller.map((r) => r.id))
-        .not('mecanico_id', 'is', null)
-      type RepRow = { orden_trabajo_id: string; mecanico: { nombre: string } | null }
-      for (const r of (repData ?? []) as unknown as RepRow[]) {
-        if (!r.mecanico?.nombre) continue
-        const lista = (mecanicosPorOt[r.orden_trabajo_id] ??= [])
-        if (!lista.includes(r.mecanico.nombre)) lista.push(r.mecanico.nombre)
-      }
-    }
-
     return {
       enTaller,
-      mecanicosPorOt,
       cotizacionesRespondidas,
       citasActivas,
       vencimientos,
@@ -143,7 +124,7 @@ export default async function DashboardPage() {
     )
   }
 
-  const { metrics, enTaller, mecanicosPorOt, cotizacionesRespondidas, citasActivas, vencimientos, facturacionHoy } = result.data
+  const { metrics, enTaller, cotizacionesRespondidas, citasActivas, vencimientos, facturacionHoy } = result.data
 
   // Enriquecemos cada vehículo con el aviso más urgente (RT o mantención por fecha).
   type Aviso = { id: string; patente: string; marca: string; modelo: string; tipo: 'RT' | 'Mantención'; dias: number }
@@ -319,29 +300,22 @@ export default async function DashboardPage() {
             }
           />
         ) : (
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
-            {enTaller.map((ot) => (
-              <Link key={ot.id} href={`/repair-orders/${ot.id}`} className={cardInteractive}>
-                <div className="flex items-center justify-between gap-2">
-                  <span className="text-base font-semibold tracking-wide text-neutral-50">
-                    {ot.vehiculos?.patente ?? 'Vehículo'}
-                  </span>
-                  <StatusBadge estado={ot.estado} />
-                </div>
-                <p className="mt-1 text-sm text-neutral-400">
-                  {ot.vehiculos ? `${ot.vehiculos.marca} ${ot.vehiculos.modelo}` : '—'}
-                </p>
-                {(mecanicosPorOt[ot.id]?.length ?? 0) > 0 && (
-                  <p className="mt-2 inline-flex items-center gap-1.5 rounded-md border border-sky-500/20 bg-sky-500/10 px-2 py-0.5 text-xs font-medium text-sky-800">
-                    🔧 {mecanicosPorOt[ot.id]!.join(', ')}
-                  </p>
-                )}
-                <p className="mt-3 text-xs text-neutral-600">
-                  {ot.numero_ot} · {new Date(ot.creado_en).toLocaleDateString('es-CL')}
-                </p>
-              </Link>
-            ))}
-          </div>
+          // El detalle vehículo por vehículo vive en el Tablero (Kanban por etapa).
+          // Acá solo un acceso directo para no duplicar la misma lista.
+          <Link
+            href="/tablero"
+            className={`${cardInteractive} flex items-center justify-between gap-4`}
+          >
+            <div>
+              <p className="text-base font-semibold text-neutral-50">
+                {enTaller.length} vehículo{enTaller.length === 1 ? '' : 's'} en el flujo del taller
+              </p>
+              <p className="mt-1 text-sm text-neutral-400">
+                Míralos por etapa (diagnóstico, presupuesto, reparación…) en el Tablero.
+              </p>
+            </div>
+            <span className="shrink-0 text-sm font-medium text-accent-400">Ver tablero →</span>
+          </Link>
         )}
       </section>
     </div>

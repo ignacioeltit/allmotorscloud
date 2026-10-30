@@ -579,6 +579,7 @@ export function ReceptionFlow({
                   cantidad: i.cantidad,
                   precio_unitario: i.precio_unitario,
                   descuento_porcentaje: i.descuento_porcentaje,
+                  repuesto_id: i.repuesto_id,
                 })),
               })
             }
