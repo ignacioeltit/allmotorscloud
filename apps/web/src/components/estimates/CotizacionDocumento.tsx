@@ -108,6 +108,20 @@ export function CotizacionDocumento({
           </tbody>
         </table>
 
+        {/* Aviso cuando el vehículo no está identificado (cotización con datos mínimos):
+            los insumos y precios quedan sujetos a confirmación. */}
+        {!p.vehiculo?.patente && (
+          <div className="mt-4 rounded-lg border border-[#f59e0b] bg-[#fffbeb] px-4 py-3 text-xs text-[#92400e]">
+            <p className="font-semibold">⚠️ Presupuesto sujeto a confirmación</p>
+            <p className="mt-1">
+              Esta cotización se generó sin identificar el vehículo. Los insumos (filtros, aceite y
+              repuestos) y sus precios deben <span className="font-semibold">confirmarse una vez
+              identificado correctamente el vehículo</span> (patente y modelo), ya que varían según
+              la versión.
+            </p>
+          </div>
+        )}
+
         {/* Totales */}
         <div className="mt-4 flex justify-end">
           <div className="w-64 space-y-1 text-sm">
