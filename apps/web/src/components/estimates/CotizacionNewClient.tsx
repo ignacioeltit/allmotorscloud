@@ -83,8 +83,7 @@ export function CotizacionNewClient() {
   const [sintomas, setSintomas] = useState<string[]>([])
   // Mantención: paquete sugerido + aceite deducido del historial.
   const [paquetesMant, setPaquetesMant] = useState<PlantillaResumen[]>([])
-  const [paqueteElegido, setPaqueteElegido] = useState<string | null>(null)
-  const [usarPaquete, setUsarPaquete] = useState(true)
+  const [paquetesElegidos, setPaquetesElegidos] = useState<string[]>([])
   const [aceiteSug, setAceiteSug] = useState<AceiteSugerido | null>(null)
 
   /** Busca un vehículo por patente y arma el modo existente/nuevo. */
@@ -142,12 +141,11 @@ export function CotizacionNewClient() {
           p.marca ? getAceiteSugerido(supabase, p.marca, p.modelo) : Promise.resolve(null),
         ])
         setPaquetesMant(paquetes)
-        setPaqueteElegido(paquetes[0]?.id ?? null)
-        setUsarPaquete(paquetes.length > 0)
+        setPaquetesElegidos(paquetes.map((p) => p.id)) // todos marcados por defecto
         setAceiteSug(aceite)
       } else {
         setPaquetesMant([])
-        setPaqueteElegido(null)
+        setPaquetesElegidos([])
         setAceiteSug(null)
       }
 
@@ -173,7 +171,7 @@ export function CotizacionNewClient() {
     setServicios([])
     setSintomas([])
     setPaquetesMant([])
-    setPaqueteElegido(null)
+    setPaquetesElegidos([])
     setAceiteSug(null)
   }
 
@@ -254,36 +252,39 @@ export function CotizacionNewClient() {
       }
       const items: LineaItem[] = []
       const esAceite = (d: string) => /aceite/i.test(d) && !/filtro/i.test(d)
-      const paquete = paquetesMant.find((p) => p.id === paqueteElegido)
-      const usaPaquete = usarPaquete && !!paquete
-      // Servicios que el paquete de mantención ya cubre (no se agregan sueltos).
+      const paquetesSel = paquetesMant.filter((p) => paquetesElegidos.includes(p.id))
+      const usaPaquete = paquetesSel.length > 0
+      // Servicios que los paquetes de mantención ya cubren (no se agregan sueltos).
       const CUBIERTOS = new Set(['Cambio de aceite', 'Cambio de filtros'])
 
-      if (usaPaquete && paquete) {
-        const lineas = await expandirPlantilla(supabase, paquete)
-        const paqueteTraeAceite = lineas.some((l) => esAceite(l.descripcion))
-        for (const l of lineas) {
-          if (esAceite(l.descripcion) && aceiteSug) {
-            // Reemplaza el aceite genérico del paquete por el del historial.
-            items.push({
-              tipo: 'repuesto',
-              descripcion: aceiteSug.descripcion,
-              cantidad: l.cantidad,
-              precioUnitario: aceiteSug.precio_unitario ?? l.precio,
-              ...(aceiteSug.repuesto_id ? { repuestoId: aceiteSug.repuesto_id } : l.repuestoId ? { repuestoId: l.repuestoId } : {}),
-            })
-          } else {
-            items.push({
-              tipo: l.grupo,
-              descripcion: l.descripcion,
-              cantidad: l.cantidad,
-              precioUnitario: l.precio,
-              ...(l.repuestoId ? { repuestoId: l.repuestoId } : {}),
-            })
+      if (usaPaquete) {
+        let aceitePuesto = false // el aceite sugerido se pone una sola vez
+        for (const paquete of paquetesSel) {
+          const lineas = await expandirPlantilla(supabase, paquete)
+          for (const l of lineas) {
+            if (esAceite(l.descripcion) && aceiteSug && !aceitePuesto) {
+              // Reemplaza la línea de aceite del paquete por el del historial.
+              aceitePuesto = true
+              items.push({
+                tipo: 'repuesto',
+                descripcion: aceiteSug.descripcion,
+                cantidad: l.cantidad,
+                precioUnitario: aceiteSug.precio_unitario ?? l.precio,
+                ...(aceiteSug.repuesto_id ? { repuestoId: aceiteSug.repuesto_id } : l.repuestoId ? { repuestoId: l.repuestoId } : {}),
+              })
+            } else {
+              items.push({
+                tipo: l.grupo,
+                descripcion: l.descripcion,
+                cantidad: l.cantidad,
+                precioUnitario: l.precio,
+                ...(l.repuestoId ? { repuestoId: l.repuestoId } : {}),
+              })
+            }
           }
         }
-        // Si el paquete no incluía aceite pero el historial lo sugiere, se agrega.
-        if (!paqueteTraeAceite && aceiteSug) {
+        // Si ningún paquete traía aceite pero el historial lo sugiere, se agrega.
+        if (!aceitePuesto && aceiteSug) {
           items.push({
             tipo: 'repuesto',
             descripcion: aceiteSug.descripcion,
@@ -294,10 +295,16 @@ export function CotizacionNewClient() {
         }
       }
 
+      // Evita duplicar una misma línea cuando dos servicios detectados matchean
+      // el mismo servicio del catálogo (ej. "aceite" y "filtros" → el mismo ítem).
+      const vistos = new Set<string>()
       for (const label of servicios) {
         if (usaPaquete && CUBIERTOS.has(label)) continue
         const matches = await buscarServiciosCatalogo(supabase, label)
         const m = matches[0]
+        const clave = (m?.id ?? (m?.nombre ?? label)).toLowerCase()
+        if (vistos.has(clave)) continue
+        vistos.add(clave)
         items.push({
           tipo: 'mano_obra',
           ...(m?.codigo ? { codigo: m.codigo } : {}),
@@ -393,24 +400,28 @@ export function CotizacionNewClient() {
               <div className="rounded-lg border border-sky-500/25 bg-sky-500/[0.06] px-3 py-2.5">
                 <p className="mb-1.5 font-semibold text-sky-800">🔧 Mantención</p>
                 {paquetesMant.length > 0 && (
-                  <label className="flex items-center gap-2">
-                    <input type="checkbox" checked={usarPaquete} onChange={(e) => setUsarPaquete(e.target.checked)} />
-                    <span className="text-neutral-200">Usar paquete de mantención</span>
-                  </label>
-                )}
-                {usarPaquete && paquetesMant.length > 1 && (
-                  <select
-                    className={`${inputClass} mt-2`}
-                    value={paqueteElegido ?? ''}
-                    onChange={(e) => setPaqueteElegido(e.target.value)}
-                  >
-                    {paquetesMant.map((p) => (
-                      <option key={p.id} value={p.id}>{p.nombre}</option>
-                    ))}
-                  </select>
-                )}
-                {usarPaquete && paquetesMant.length === 1 && (
-                  <p className="mt-1 text-neutral-400">Paquete: <span className="font-medium text-neutral-200">{paquetesMant[0]!.nombre}</span></p>
+                  <>
+                    <p className="mb-1 text-neutral-400">Paquetes a aplicar (destilda los que no correspondan):</p>
+                    <div className="space-y-1">
+                      {paquetesMant.map((p) => {
+                        const marcado = paquetesElegidos.includes(p.id)
+                        return (
+                          <label key={p.id} className="flex items-center gap-2">
+                            <input
+                              type="checkbox"
+                              checked={marcado}
+                              onChange={(e) =>
+                                setPaquetesElegidos((prev) =>
+                                  e.target.checked ? [...prev, p.id] : prev.filter((x) => x !== p.id),
+                                )
+                              }
+                            />
+                            <span className="text-neutral-200">{p.nombre}</span>
+                          </label>
+                        )
+                      })}
+                    </div>
+                  </>
                 )}
                 {aceiteSug ? (
                   <p className="mt-2 text-neutral-300">

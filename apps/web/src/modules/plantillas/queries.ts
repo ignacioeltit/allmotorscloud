@@ -14,8 +14,11 @@ export interface PlantillaResumen {
 }
 
 /**
- * Lista los paquetes activos de categoría 'mantencion' del tenant (con ítems o
- * de precio por cabecera). Para proponerlos al cotizar un cambio de aceite.
+ * Lista paquetes de mantención del tenant para proponerlos al cotizar un cambio
+ * de aceite/filtros. Toma los de categoría 'mantencion' y, como muchos paquetes
+ * no tienen categoría seteada, también los que por NOMBRE lucen de mantención
+ * (mantención, servicio, "12 puntos", kit de filtros). Solo activos y con ítems
+ * (o de precio por cabecera).
  */
 export async function listPaquetesMantencion(supabase: DbClient): Promise<PlantillaResumen[]> {
   const { orgId } = await getAuthContext(supabase)
@@ -24,8 +27,8 @@ export async function listPaquetesMantencion(supabase: DbClient): Promise<Planti
     .select('id, codigo, nombre, tipo_precio, precio_cabecera, items_plantilla(count)')
     .eq('org_id', orgId)
     .eq('activo', true)
-    .eq('categoria', 'mantencion')
     .is('eliminado_en', null)
+    .or('categoria.eq.mantencion,nombre.ilike.%manten%,nombre.ilike.%12 punto%')
     .order('frecuencia_uso', { ascending: false, nullsFirst: false })
     .limit(20)
   type Row = PlantillaResumen & { items_plantilla: { count: number }[] }
