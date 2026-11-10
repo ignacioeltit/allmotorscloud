@@ -12,7 +12,7 @@ import { getVehiculoByPatente } from '@/modules/vehicles/queries'
 import { getPropietarioActivoByVehiculo } from '@/modules/customers/queries'
 import { buscarServiciosCatalogo } from '@/modules/catalogo/queries'
 import { addItemsPresupuesto } from '@/modules/estimates/mutations'
-import { getAceiteSugerido, type AceiteSugerido } from '@/modules/estimates/queries'
+import { getAceiteSugerido, getFiltrosSugeridos, type AceiteSugerido } from '@/modules/estimates/queries'
 import { parseMensaje } from '@/modules/estimates/parse-mensaje'
 import { listPaquetesMantencion, expandirPlantilla, type PlantillaResumen } from '@/modules/plantillas/queries'
 import { TIPOS_VEHICULO } from '@/modules/vehicles/constants'
@@ -85,6 +85,7 @@ export function CotizacionNewClient() {
   const [paquetesMant, setPaquetesMant] = useState<PlantillaResumen[]>([])
   const [paquetesElegidos, setPaquetesElegidos] = useState<string[]>([])
   const [aceiteSug, setAceiteSug] = useState<AceiteSugerido | null>(null)
+  const [filtrosSug, setFiltrosSug] = useState<AceiteSugerido[]>([])
 
   /** Busca un vehículo por patente y arma el modo existente/nuevo. */
   async function buscarPatente(q: string): Promise<void> {
@@ -136,17 +137,20 @@ export function CotizacionNewClient() {
       // Mantención: si pide aceite o filtros, proponer paquete + aceite del historial.
       const pideMantencion = p.servicios.includes('Cambio de aceite') || p.servicios.includes('Cambio de filtros')
       if (pideMantencion) {
-        const [paquetes, aceite] = await Promise.all([
+        const [paquetes, aceite, filtros] = await Promise.all([
           listPaquetesMantencion(supabase),
           p.marca ? getAceiteSugerido(supabase, p.marca, p.modelo) : Promise.resolve(null),
+          p.marca ? getFiltrosSugeridos(supabase, p.marca, p.modelo) : Promise.resolve([]),
         ])
         setPaquetesMant(paquetes)
         setPaquetesElegidos(paquetes.map((p) => p.id)) // todos marcados por defecto
         setAceiteSug(aceite)
+        setFiltrosSug(filtros)
       } else {
         setPaquetesMant([])
         setPaquetesElegidos([])
         setAceiteSug(null)
+        setFiltrosSug([])
       }
 
       if (p.patente) {
@@ -173,6 +177,7 @@ export function CotizacionNewClient() {
     setPaquetesMant([])
     setPaquetesElegidos([])
     setAceiteSug(null)
+    setFiltrosSug([])
   }
 
   const necesitaCliente = modo === 'nuevo' || (modo === 'existente' && !cliente)
@@ -257,11 +262,13 @@ export function CotizacionNewClient() {
       // Servicios que los paquetes de mantención ya cubren (no se agregan sueltos).
       const CUBIERTOS = new Set(['Cambio de aceite', 'Cambio de filtros'])
 
+      let paqueteCubreFiltros = false // ¿algún paquete ya incluye filtros?
       if (usaPaquete) {
         let aceitePuesto = false // el aceite sugerido se pone una sola vez
         for (const paquete of paquetesSel) {
           const lineas = await expandirPlantilla(supabase, paquete)
           for (const l of lineas) {
+            if (/filtro/i.test(l.descripcion)) paqueteCubreFiltros = true
             if (esAceite(l.descripcion) && aceiteSug && !aceitePuesto) {
               // Reemplaza la línea de aceite del paquete por el del historial.
               aceitePuesto = true
@@ -291,6 +298,20 @@ export function CotizacionNewClient() {
             cantidad: 1,
             precioUnitario: aceiteSug.precio_unitario ?? 0,
             ...(aceiteSug.repuesto_id ? { repuestoId: aceiteSug.repuesto_id } : {}),
+          })
+        }
+      }
+
+      // Filtros deducidos del historial: si se pidieron filtros y ningún paquete
+      // seleccionado ya los incluye, se agregan como líneas de repuesto.
+      if (servicios.includes('Cambio de filtros') && !(usaPaquete && paqueteCubreFiltros) && filtrosSug.length > 0) {
+        for (const f of filtrosSug) {
+          items.push({
+            tipo: 'repuesto',
+            descripcion: f.descripcion,
+            cantidad: 1,
+            precioUnitario: f.precio_unitario ?? 0,
+            ...(f.repuesto_id ? { repuestoId: f.repuesto_id } : {}),
           })
         }
       }
@@ -430,6 +451,18 @@ export function CotizacionNewClient() {
                   </p>
                 ) : (
                   <p className="mt-2 text-neutral-500">Sin historial de aceite para este vehículo — defines el aceite al cotizar.</p>
+                )}
+                {filtrosSug.length > 0 && (
+                  <div className="mt-2">
+                    <p className="text-neutral-300">🧰 Filtros sugeridos (historial):</p>
+                    <div className="mt-1 flex flex-wrap gap-1.5">
+                      {filtrosSug.map((f) => (
+                        <span key={f.descripcion} className="rounded-full border border-sky-500/30 bg-sky-500/10 px-2 py-0.5 text-neutral-200">
+                          {f.descripcion}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
                 )}
               </div>
             )}

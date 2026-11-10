@@ -39,6 +39,25 @@ export async function getAceiteSugerido(
   return (data as AceiteSugerido | null) ?? null
 }
 
+/**
+ * Lista de filtros que el taller suele usar en vehículos de esa marca/modelo
+ * (historial): aire, aceite, polen, combustible… Vía RPC fn_filtros_sugeridos
+ * (migration 052). Best-effort: [] si la función no existe o falla.
+ */
+export async function getFiltrosSugeridos(
+  supabase: DbClient,
+  marca: string,
+  modelo: string | null,
+): Promise<AceiteSugerido[]> {
+  if (!marca.trim()) return []
+  const { data, error } = await supabase.rpc('fn_filtros_sugeridos', {
+    p_marca: marca.trim(),
+    p_modelo: (modelo ?? '').trim(),
+  })
+  if (error) return []
+  return (data as AceiteSugerido[] | null) ?? []
+}
+
 const ITEM_COLUMNS =
   'id, org_id, presupuesto_id, tipo, codigo, descripcion, repuesto_id, cantidad, precio_unitario, descuento_porcentaje, precio_total, autorizador_id, creado_en, actualizado_en, creado_por, eliminado_en, eliminado_por'
 
