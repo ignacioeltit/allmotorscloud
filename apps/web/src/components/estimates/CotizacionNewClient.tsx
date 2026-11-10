@@ -32,6 +32,21 @@ import {
 
 type Modo = 'buscar' | 'existente' | 'nuevo'
 
+type LineaItem = {
+  tipo: 'mano_obra' | 'repuesto' | 'otros'
+  codigo?: string
+  descripcion: string
+  cantidad: number
+  precioUnitario: number
+  repuestoId?: string
+}
+
+const TIPO_LINEA_LABEL: Record<LineaItem['tipo'], string> = {
+  mano_obra: 'Mano de obra',
+  repuesto: 'Repuesto',
+  otros: 'Otros',
+}
+
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <div>
@@ -86,6 +101,10 @@ export function CotizacionNewClient() {
   const [paquetesElegidos, setPaquetesElegidos] = useState<string[]>([])
   const [aceiteSug, setAceiteSug] = useState<AceiteSugerido | null>(null)
   const [filtrosSug, setFiltrosSug] = useState<AceiteSugerido[]>([])
+  // Paso de revisión: líneas propuestas, editables antes de crear.
+  const [revisando, setRevisando] = useState(false)
+  const [preparando, setPreparando] = useState(false)
+  const [lineasPropuestas, setLineasPropuestas] = useState<LineaItem[]>([])
 
   /** Busca un vehículo por patente y arma el modo existente/nuevo. */
   async function buscarPatente(q: string): Promise<void> {
@@ -178,6 +197,8 @@ export function CotizacionNewClient() {
     setPaquetesElegidos([])
     setAceiteSug(null)
     setFiltrosSug([])
+    setRevisando(false)
+    setLineasPropuestas([])
   }
 
   const necesitaCliente = modo === 'nuevo' || (modo === 'existente' && !cliente)
@@ -189,72 +210,13 @@ export function CotizacionNewClient() {
   const registraVehiculo = modo === 'existente' || tieneVehiculoNuevo
   const puedeCrear = true
 
-  async function crear() {
-    setCreando(true)
+  // Paso 1: arma las líneas propuestas (paquetes + aceite + filtros + servicios +
+  // síntomas), las deduplica y abre el paso de revisión para editar/eliminar.
+  async function prepararLineas() {
+    setPreparando(true)
     setError(null)
     try {
       const supabase = createClient()
-      const anioNum = vAnio.trim() ? Number.parseInt(vAnio, 10) : null
-
-      // Crea cliente solo si hay algún dato de contacto (si no, cotización sin cliente).
-      const creaCliente = necesitaCliente && !!(cNombre.trim() || cTelefono.trim() || cRut.trim())
-
-      // Si el vehículo no se registra (falta patente), preservamos en las notas
-      // lo que sepamos de él y del contacto, para no perder nada.
-      let notasFinal = notas.trim()
-      if (modo === 'nuevo' && !tieneVehiculoNuevo) {
-        const vehInfo = [patente.trim().toUpperCase(), vMarca.trim(), vModelo.trim(), vAnio.trim()].filter(Boolean).join(' ')
-        const extra: string[] = []
-        if (vehInfo) extra.push(`Vehículo (sin registrar): ${vehInfo}`)
-        if (!creaCliente) {
-          const contacto = [cNombre.trim(), cTelefono.trim()].filter(Boolean).join(' · ')
-          if (contacto) extra.push(`Contacto: ${contacto}`)
-        }
-        if (extra.length) notasFinal = [extra.join('\n'), notasFinal].filter(Boolean).join('\n\n')
-      }
-
-      const payload = {
-        p_cliente_id: modo === 'existente' && cliente ? cliente.id : null,
-        p_cliente: creaCliente
-          ? {
-              nombre: cNombre.trim() || (cTelefono.trim() ? `Cliente ${cTelefono.trim()}` : 'Cliente'),
-              tipo: cTipo,
-              ...(cRut.trim() && { rut: cRut.trim() }),
-              ...(cTelefono.trim() && { telefono: cTelefono.trim() }),
-            }
-          : null,
-        p_vehiculo_id: modo === 'existente' && vehiculo ? vehiculo.id : null,
-        // Solo se registra el vehículo si hay patente (+ marca/modelo); si no, va en notas.
-        p_vehiculo: tieneVehiculoNuevo
-          ? {
-              patente: patente.trim().toUpperCase(),
-              marca: vMarca.trim(),
-              modelo: vModelo.trim(),
-              tipo: vTipo,
-              ...(anioNum != null && Number.isFinite(anioNum) ? { anio: String(anioNum) } : {}),
-              ...(vColor.trim() && { color: vColor.trim() }),
-            }
-          : null,
-        p_notas: notasFinal || null,
-      }
-
-      const { data, error: rpcError } = await supabase.rpc('fn_crear_cotizacion', payload)
-      if (rpcError) throw new Error(rpcError.message)
-      const result = data as { presupuesto_id: string }
-
-      // Si se analizó un mensaje, pre-carga las líneas detectadas:
-      //  - si se usa un paquete de mantención: se expande (reemplaza aceite/filtros
-      //    sueltos) y su línea de aceite se cambia por el aceite sugerido del historial.
-      //  - cada otro servicio se cotiza con el precio del catálogo (si hay match).
-      //  - cada síntoma entra como línea de diagnóstico, con precio a confirmar.
-      type LineaItem = {
-        tipo: 'mano_obra' | 'repuesto' | 'otros'
-        codigo?: string
-        descripcion: string
-        cantidad: number
-        precioUnitario: number
-        repuestoId?: string
-      }
       const items: LineaItem[] = []
       const esAceite = (d: string) => /aceite/i.test(d) && !/filtro/i.test(d)
       const paquetesSel = paquetesMant.filter((p) => paquetesElegidos.includes(p.id))
@@ -354,6 +316,89 @@ export function CotizacionNewClient() {
       for (const s of sintomas) {
         items.push({ tipo: 'mano_obra', descripcion: `Diagnóstico: ${s}`, cantidad: 1, precioUnitario: 0 })
       }
+
+      // Dedup final por tipo + descripción (evita filtros/ítems repetidos).
+      const dedup: LineaItem[] = []
+      const claves = new Set<string>()
+      for (const it of items) {
+        const k = `${it.tipo}|${it.descripcion.trim().toLowerCase()}`
+        if (claves.has(k)) continue
+        claves.add(k)
+        dedup.push(it)
+      }
+
+      setLineasPropuestas(dedup)
+      setRevisando(true)
+    } catch (err) {
+      setError(toErrorMessage(err))
+    } finally {
+      setPreparando(false)
+    }
+  }
+
+  // Edición de las líneas en el paso de revisión.
+  function editarLinea(i: number, campos: Partial<LineaItem>) {
+    setLineasPropuestas((prev) => prev.map((l, idx) => (idx === i ? { ...l, ...campos } : l)))
+  }
+  function eliminarLinea(i: number) {
+    setLineasPropuestas((prev) => prev.filter((_, idx) => idx !== i))
+  }
+  function agregarLinea() {
+    setLineasPropuestas((prev) => [...prev, { tipo: 'mano_obra', descripcion: '', cantidad: 1, precioUnitario: 0 }])
+  }
+
+  const totalRevision = lineasPropuestas.reduce((acc, l) => acc + l.cantidad * l.precioUnitario, 0)
+
+  // Paso 2: crea la cotización con las líneas ya revisadas/editadas.
+  async function confirmarCrear() {
+    setCreando(true)
+    setError(null)
+    try {
+      const supabase = createClient()
+      const anioNum = vAnio.trim() ? Number.parseInt(vAnio, 10) : null
+      const creaCliente = necesitaCliente && !!(cNombre.trim() || cTelefono.trim() || cRut.trim())
+
+      let notasFinal = notas.trim()
+      if (modo === 'nuevo' && !tieneVehiculoNuevo) {
+        const vehInfo = [patente.trim().toUpperCase(), vMarca.trim(), vModelo.trim(), vAnio.trim()].filter(Boolean).join(' ')
+        const extra: string[] = []
+        if (vehInfo) extra.push(`Vehículo (sin registrar): ${vehInfo}`)
+        if (!creaCliente) {
+          const contacto = [cNombre.trim(), cTelefono.trim()].filter(Boolean).join(' · ')
+          if (contacto) extra.push(`Contacto: ${contacto}`)
+        }
+        if (extra.length) notasFinal = [extra.join('\n'), notasFinal].filter(Boolean).join('\n\n')
+      }
+
+      const payload = {
+        p_cliente_id: modo === 'existente' && cliente ? cliente.id : null,
+        p_cliente: creaCliente
+          ? {
+              nombre: cNombre.trim() || (cTelefono.trim() ? `Cliente ${cTelefono.trim()}` : 'Cliente'),
+              tipo: cTipo,
+              ...(cRut.trim() && { rut: cRut.trim() }),
+              ...(cTelefono.trim() && { telefono: cTelefono.trim() }),
+            }
+          : null,
+        p_vehiculo_id: modo === 'existente' && vehiculo ? vehiculo.id : null,
+        p_vehiculo: tieneVehiculoNuevo
+          ? {
+              patente: patente.trim().toUpperCase(),
+              marca: vMarca.trim(),
+              modelo: vModelo.trim(),
+              tipo: vTipo,
+              ...(anioNum != null && Number.isFinite(anioNum) ? { anio: String(anioNum) } : {}),
+              ...(vColor.trim() && { color: vColor.trim() }),
+            }
+          : null,
+        p_notas: notasFinal || null,
+      }
+
+      const { data, error: rpcError } = await supabase.rpc('fn_crear_cotizacion', payload)
+      if (rpcError) throw new Error(rpcError.message)
+      const result = data as { presupuesto_id: string }
+
+      const items = lineasPropuestas.filter((l) => l.descripcion.trim() && l.cantidad > 0)
       if (items.length > 0) {
         await addItemsPresupuesto(supabase, { presupuestoId: result.presupuesto_id, items })
       }
@@ -589,18 +634,85 @@ export function CotizacionNewClient() {
               {error}
             </div>
           )}
-          <div className="mt-4 flex items-center gap-3">
-            <button type="button" onClick={() => void crear()} disabled={!puedeCrear || creando} className={btnPrimary}>
-              {creando ? 'Creando…' : 'Crear cotización →'}
-            </button>
-            {registraVehiculo ? (
-              <p className="text-xs text-neutral-500">Luego agregas los ítems (mano de obra y repuestos).</p>
-            ) : (
-              <p className="text-xs text-amber-700">
-                Se creará <span className="font-medium">sin vehículo</span> (lo que sepas queda en las notas; lo asocias después).
-              </p>
-            )}
-          </div>
+          {!revisando ? (
+            <div className="mt-4 flex items-center gap-3">
+              <button type="button" onClick={() => void prepararLineas()} disabled={!puedeCrear || preparando} className={btnPrimary}>
+                {preparando ? 'Armando líneas…' : 'Revisar líneas →'}
+              </button>
+              {registraVehiculo ? (
+                <p className="text-xs text-neutral-500">Revisa y edita las líneas antes de crear.</p>
+              ) : (
+                <p className="text-xs text-amber-700">
+                  Se creará <span className="font-medium">sin vehículo</span> (lo que sepas queda en las notas; lo asocias después).
+                </p>
+              )}
+            </div>
+          ) : (
+            <div className="mt-4 space-y-3">
+              <div className="flex items-center justify-between">
+                <p className="text-sm font-medium text-neutral-100">Revisa las líneas antes de crear</p>
+                <button type="button" onClick={agregarLinea} className={btnSecondary}>+ Línea</button>
+              </div>
+
+              {lineasPropuestas.length === 0 ? (
+                <p className="text-sm text-neutral-500">No hay líneas. Agrega al menos una, o vuelve y crea una cotización vacía.</p>
+              ) : (
+                <div className="space-y-2">
+                  {/* Encabezados (desktop) */}
+                  <div className="hidden gap-2 px-1 text-[11px] uppercase tracking-wide text-neutral-500 sm:grid sm:grid-cols-[7rem_1fr_4rem_7rem_2rem]">
+                    <span>Tipo</span><span>Descripción</span><span className="text-right">Cant.</span><span className="text-right">P. unit.</span><span />
+                  </div>
+                  {lineasPropuestas.map((l, i) => (
+                    <div key={i} className="grid grid-cols-1 gap-2 rounded-lg border border-black/[0.06] p-2 sm:grid-cols-[7rem_1fr_4rem_7rem_2rem] sm:items-center sm:border-0 sm:p-0">
+                      <select
+                        className={`${inputClass} !py-1.5 text-xs`}
+                        value={l.tipo}
+                        onChange={(e) => editarLinea(i, { tipo: e.target.value as LineaItem['tipo'] })}
+                      >
+                        {(['mano_obra', 'repuesto', 'otros'] as const).map((t) => (
+                          <option key={t} value={t}>{TIPO_LINEA_LABEL[t]}</option>
+                        ))}
+                      </select>
+                      <input
+                        className={`${inputClass} !py-1.5 text-sm`}
+                        value={l.descripcion}
+                        placeholder="Descripción"
+                        onChange={(e) => editarLinea(i, { descripcion: e.target.value })}
+                      />
+                      <input
+                        type="number" step="0.01" min="0"
+                        className={`${inputClass} !py-1.5 text-right text-sm`}
+                        value={l.cantidad}
+                        onChange={(e) => editarLinea(i, { cantidad: Number.parseFloat(e.target.value) || 0 })}
+                      />
+                      <input
+                        type="number" step="1" min="0"
+                        className={`${inputClass} !py-1.5 text-right text-sm`}
+                        value={l.precioUnitario}
+                        onChange={(e) => editarLinea(i, { precioUnitario: Number.parseFloat(e.target.value) || 0 })}
+                      />
+                      <button type="button" onClick={() => eliminarLinea(i)} className="justify-self-end text-red-600 hover:text-red-500" title="Eliminar">✕</button>
+                    </div>
+                  ))}
+                  <div className="flex justify-end border-t border-black/[0.06] pt-2 text-sm">
+                    <span className="text-neutral-500">Neto estimado:&nbsp;</span>
+                    <span className="font-semibold text-neutral-100">
+                      {totalRevision.toLocaleString('es-CL', { style: 'currency', currency: 'CLP', maximumFractionDigits: 0 })}
+                    </span>
+                  </div>
+                </div>
+              )}
+
+              <div className="flex items-center gap-3">
+                <button type="button" onClick={() => void confirmarCrear()} disabled={creando} className={btnPrimary}>
+                  {creando ? 'Creando…' : 'Confirmar y crear →'}
+                </button>
+                <button type="button" onClick={() => setRevisando(false)} disabled={creando} className={btnSecondary}>
+                  ← Volver
+                </button>
+              </div>
+            </div>
+          )}
         </section>
       )}
     </div>
