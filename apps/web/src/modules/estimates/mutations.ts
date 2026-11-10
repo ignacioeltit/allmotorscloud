@@ -14,7 +14,7 @@
 import type { DbClient } from '@/lib/supabase/types'
 import { getAuthContext } from '@/lib/auth/context'
 import { unwrapWritten } from '@/lib/supabase/result'
-import { validationErrorFromZod, mapPostgrestError } from '@/lib/errors'
+import { validationErrorFromZod, mapPostgrestError, ValidationError } from '@/lib/errors'
 import {
   crearPresupuestoSchema,
   addItemPresupuestoSchema,
@@ -57,6 +57,30 @@ export async function crearPresupuesto(
 }
 
 /** Agrega un ítem (mano de obra o repuesto) a un presupuesto y recalcula sus totales. */
+/**
+ * Verifica que todos los repuesto_id (que vienen del cliente) pertenezcan a la
+ * organización del usuario. El FK a `repuestos` no valida org_id, así que sin
+ * esto se podría enlazar un repuesto de otro tenant (IDOR cross-tenant).
+ */
+async function assertRepuestosDelOrg(
+  supabase: DbClient,
+  orgId: string,
+  ids: (string | null | undefined)[],
+): Promise<void> {
+  const unicos = Array.from(new Set(ids.filter((x): x is string => !!x)))
+  if (unicos.length === 0) return
+  const { data, error } = await supabase
+    .from('repuestos')
+    .select('id')
+    .eq('org_id', orgId)
+    .is('eliminado_en', null)
+    .in('id', unicos)
+  if (error) throw mapPostgrestError(error)
+  if ((data?.length ?? 0) !== unicos.length) {
+    throw new ValidationError('Uno o más repuestos no son válidos para tu organización.')
+  }
+}
+
 export async function addItemPresupuesto(
   supabase: DbClient,
   input: AddItemPresupuestoInput,
@@ -69,6 +93,7 @@ export async function addItemPresupuesto(
     presupuestoId, tipo, descripcion, cantidad,
     precioUnitario, descuentoPorcentaje, repuestoId,
   } = parsed.data
+  await assertRepuestosDelOrg(supabase, orgId, [repuestoId])
 
   const descuento = descuentoPorcentaje ?? 0
   const precio_total = Math.round(cantidad * precioUnitario * (1 - descuento / 100) * 100) / 100
@@ -137,6 +162,10 @@ export async function addItemsPresupuesto(
 
   const { userId, orgId } = await getAuthContext(supabase)
   const { presupuestoId, items } = parsed.data
+
+  // Seguridad (cross-tenant): los repuesto_id vienen del cliente; se valida que
+  // pertenezcan a la organización antes de enlazarlos (el FK no valida org_id).
+  await assertRepuestosDelOrg(supabase, orgId, items.map((it) => it.repuestoId))
 
   const rows = items.map((it) => {
     const descuento = it.descuentoPorcentaje ?? 0
