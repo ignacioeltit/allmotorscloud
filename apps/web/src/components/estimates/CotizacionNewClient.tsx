@@ -11,6 +11,7 @@ import { createClient } from '@/lib/supabase/client'
 import { getVehiculoByPatente } from '@/modules/vehicles/queries'
 import { getPropietarioActivoByVehiculo } from '@/modules/customers/queries'
 import { buscarServiciosCatalogo } from '@/modules/catalogo/queries'
+import { searchRepuestos } from '@/modules/inventory/queries'
 import { addItemsPresupuesto } from '@/modules/estimates/mutations'
 import { getAceiteSugerido, getFiltrosSugeridos, type AceiteSugerido } from '@/modules/estimates/queries'
 import { parseMensaje } from '@/modules/estimates/parse-mensaje'
@@ -105,6 +106,8 @@ export function CotizacionNewClient() {
   const [revisando, setRevisando] = useState(false)
   const [preparando, setPreparando] = useState(false)
   const [lineasPropuestas, setLineasPropuestas] = useState<LineaItem[]>([])
+  const [textoFalta, setTextoFalta] = useState('')
+  const [agregandoTexto, setAgregandoTexto] = useState(false)
 
   /** Busca un vehículo por patente y arma el modo existente/nuevo. */
   async function buscarPatente(q: string): Promise<void> {
@@ -199,6 +202,7 @@ export function CotizacionNewClient() {
     setFiltrosSug([])
     setRevisando(false)
     setLineasPropuestas([])
+    setTextoFalta('')
   }
 
   const necesitaCliente = modo === 'nuevo' || (modo === 'existente' && !cliente)
@@ -345,6 +349,54 @@ export function CotizacionNewClient() {
   }
   function agregarLinea() {
     setLineasPropuestas((prev) => [...prev, { tipo: 'mano_obra', descripcion: '', cantidad: 1, precioUnitario: 0 }])
+  }
+
+  // Agrega líneas desde texto libre (ej. "falta el aceite y el filtro de polen"):
+  // por cada ítem busca primero en repuestos (inventario), luego en el catálogo
+  // de servicios; si no hay match, lo deja como línea libre para completar.
+  async function agregarDesdeTexto() {
+    const txt = textoFalta.trim()
+    if (!txt) return
+    setAgregandoTexto(true)
+    setError(null)
+    try {
+      const supabase = createClient()
+      const limpiar = (f: string) =>
+        f.toLowerCase()
+          .replace(/\b(me|falta|faltan|agrega|agregar|agregame|poner|pon|añade|anade|incluir|incluye|sumar|suma|tambien|también|el|la|los|las|un|una|unos|unas|de|del)\b/g, ' ')
+          .replace(/\s+/g, ' ')
+          .trim()
+      const cap = (s: string) => (s ? s.charAt(0).toUpperCase() + s.slice(1) : s)
+
+      const fragmentos = txt.split(/[,;\n]+|\s+y\s+/i).map(limpiar).filter(Boolean)
+      const nuevas: LineaItem[] = []
+      for (const frag of fragmentos) {
+        const reps = await searchRepuestos(supabase, frag)
+        if (reps[0]) {
+          const r = reps[0]
+          nuevas.push({ tipo: 'repuesto', ...(r.codigo ? { codigo: r.codigo } : {}), descripcion: r.nombre, cantidad: 1, precioUnitario: r.precio_venta ?? 0, repuestoId: r.id })
+          continue
+        }
+        const servs = await buscarServiciosCatalogo(supabase, frag)
+        if (servs[0]) {
+          const m = servs[0]
+          nuevas.push({ tipo: 'mano_obra', ...(m.codigo ? { codigo: m.codigo } : {}), descripcion: m.nombre, cantidad: 1, precioUnitario: m.precio_unitario ?? 0 })
+          continue
+        }
+        nuevas.push({ tipo: 'repuesto', descripcion: cap(frag), cantidad: 1, precioUnitario: 0 })
+      }
+
+      setLineasPropuestas((prev) => {
+        const claves = new Set(prev.map((l) => `${l.tipo}|${l.descripcion.trim().toLowerCase()}`))
+        const add = nuevas.filter((n) => !claves.has(`${n.tipo}|${n.descripcion.trim().toLowerCase()}`))
+        return [...prev, ...add]
+      })
+      setTextoFalta('')
+    } catch (err) {
+      setError(toErrorMessage(err))
+    } finally {
+      setAgregandoTexto(false)
+    }
   }
 
   const totalRevision = lineasPropuestas.reduce((acc, l) => acc + l.cantidad * l.precioUnitario, 0)
@@ -651,7 +703,24 @@ export function CotizacionNewClient() {
             <div className="mt-4 space-y-3">
               <div className="flex items-center justify-between">
                 <p className="text-sm font-medium text-neutral-100">Revisa las líneas antes de crear</p>
-                <button type="button" onClick={agregarLinea} className={btnSecondary}>+ Línea</button>
+                <button type="button" onClick={agregarLinea} className={btnSecondary}>+ Línea vacía</button>
+              </div>
+
+              {/* Agregar lo que falta por texto (busca en repuestos y servicios) */}
+              <div className="rounded-lg border border-accent-500/25 bg-accent-500/[0.05] p-2.5">
+                <label className="text-xs text-neutral-400">Agregar lo que falta (busca en repuestos e inventario):</label>
+                <div className="mt-1 flex gap-2">
+                  <input
+                    className={`${inputClass} !py-1.5 text-sm`}
+                    value={textoFalta}
+                    onChange={(e) => setTextoFalta(e.target.value)}
+                    placeholder="Ej: falta el aceite y el filtro de polen"
+                    onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); void agregarDesdeTexto() } }}
+                  />
+                  <button type="button" onClick={() => void agregarDesdeTexto()} disabled={!textoFalta.trim() || agregandoTexto} className={btnSecondary}>
+                    {agregandoTexto ? 'Buscando…' : 'Agregar'}
+                  </button>
+                </div>
               </div>
 
               {lineasPropuestas.length === 0 ? (
