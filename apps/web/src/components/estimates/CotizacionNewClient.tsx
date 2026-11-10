@@ -121,6 +121,8 @@ export function CotizacionNewClient() {
     if (p.nombre) setCNombre(p.nombre)
     if (p.telefono) setCTelefono(p.telefono)
     if (p.marca) setVMarca(p.marca)
+    if (p.modelo) setVModelo(p.modelo)
+    if (p.anio) setVAnio(p.anio)
     setBuscando(true)
     setError(null)
     try {

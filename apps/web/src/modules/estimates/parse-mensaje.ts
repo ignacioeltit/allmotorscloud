@@ -9,6 +9,8 @@ export interface MensajeParseado {
   nombre: string | null
   patente: string | null
   marca: string | null
+  modelo: string | null
+  anio: string | null
   telefono: string | null
   /** Etiquetas canónicas de servicios cotizables detectados (sin precio). */
   servicios: string[]
@@ -25,6 +27,49 @@ const MARCAS = [
   'mercedes', 'mercedes-benz', 'bmw', 'audi', 'fiat', 'citroen', 'volvo', 'isuzu',
   'ssangyong', 'changan', 'maxus', 'foton', 'jetour', 'baic', 'dfsk', 'dfm',
   'opel', 'skoda', 'seat', 'mini', 'land rover', 'jaguar', 'porsche', 'tesla',
+]
+
+// Modelo (sin tildes) → marca + modelo "bonito". Los clientes suelen nombrar el
+// MODELO, no la marca ("una navara", "un hilux 2020"). Match por nombre de modelo.
+const MODELOS: { clave: string; marca: string; modelo: string }[] = [
+  { clave: 'navara', marca: 'Nissan', modelo: 'Navara' },
+  { clave: 'frontier', marca: 'Nissan', modelo: 'Frontier' },
+  { clave: 'qashqai', marca: 'Nissan', modelo: 'Qashqai' },
+  { clave: 'versa', marca: 'Nissan', modelo: 'Versa' },
+  { clave: 'kicks', marca: 'Nissan', modelo: 'Kicks' },
+  { clave: 'x-trail', marca: 'Nissan', modelo: 'X-Trail' },
+  { clave: 'xtrail', marca: 'Nissan', modelo: 'X-Trail' },
+  { clave: 'hilux', marca: 'Toyota', modelo: 'Hilux' },
+  { clave: 'corolla', marca: 'Toyota', modelo: 'Corolla' },
+  { clave: 'yaris', marca: 'Toyota', modelo: 'Yaris' },
+  { clave: 'rav4', marca: 'Toyota', modelo: 'RAV4' },
+  { clave: 'ranger', marca: 'Ford', modelo: 'Ranger' },
+  { clave: 'ecosport', marca: 'Ford', modelo: 'EcoSport' },
+  { clave: 'amarok', marca: 'Volkswagen', modelo: 'Amarok' },
+  { clave: 'l200', marca: 'Mitsubishi', modelo: 'L200' },
+  { clave: 'montero', marca: 'Mitsubishi', modelo: 'Montero' },
+  { clave: 'outlander', marca: 'Mitsubishi', modelo: 'Outlander' },
+  { clave: 'dmax', marca: 'Isuzu', modelo: 'D-Max' },
+  { clave: 'd-max', marca: 'Isuzu', modelo: 'D-Max' },
+  { clave: 'colorado', marca: 'Chevrolet', modelo: 'Colorado' },
+  { clave: 's10', marca: 'Chevrolet', modelo: 'S10' },
+  { clave: 'sail', marca: 'Chevrolet', modelo: 'Sail' },
+  { clave: 'spark', marca: 'Chevrolet', modelo: 'Spark' },
+  { clave: 'tracker', marca: 'Chevrolet', modelo: 'Tracker' },
+  { clave: 'sportage', marca: 'Kia', modelo: 'Sportage' },
+  { clave: 'rio', marca: 'Kia', modelo: 'Rio' },
+  { clave: 'morning', marca: 'Kia', modelo: 'Morning' },
+  { clave: 'cerato', marca: 'Kia', modelo: 'Cerato' },
+  { clave: 'tucson', marca: 'Hyundai', modelo: 'Tucson' },
+  { clave: 'accent', marca: 'Hyundai', modelo: 'Accent' },
+  { clave: 'creta', marca: 'Hyundai', modelo: 'Creta' },
+  { clave: 'santa fe', marca: 'Hyundai', modelo: 'Santa Fe' },
+  { clave: 'swift', marca: 'Suzuki', modelo: 'Swift' },
+  { clave: 'baleno', marca: 'Suzuki', modelo: 'Baleno' },
+  { clave: 'grand vitara', marca: 'Suzuki', modelo: 'Grand Vitara' },
+  { clave: 'cx-5', marca: 'Mazda', modelo: 'CX-5' },
+  { clave: 'cx5', marca: 'Mazda', modelo: 'CX-5' },
+  { clave: 'bt-50', marca: 'Mazda', modelo: 'BT-50' },
 ]
 
 // Palabra clave (sin tildes) → etiqueta de servicio canónica cotizable.
@@ -96,6 +141,27 @@ function extraerMarca(textoNorm: string): string | null {
   return null
 }
 
+/** Reconoce el modelo nombrado por el cliente y deduce su marca. */
+function extraerModelo(textoNorm: string): { marca: string; modelo: string } | null {
+  for (const m of MODELOS) {
+    const re = new RegExp(`\\b${m.clave.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`)
+    if (re.test(textoNorm)) return { marca: m.marca, modelo: m.modelo }
+  }
+  return null
+}
+
+/** Año del vehículo (4 dígitos plausibles). */
+function extraerAnio(texto: string): string | null {
+  const now = new Date().getFullYear()
+  const matches = texto.match(/\b(?:19|20)\d{2}\b/g)
+  if (!matches) return null
+  for (const y of matches) {
+    const n = Number(y)
+    if (n >= 1960 && n <= now + 1) return y
+  }
+  return null
+}
+
 function extraerNombre(textoNorm: string, textoOriginal: string): string | null {
   const m = textoNorm.match(/\b(?:soy|me llamo|mi nombre es|habla|aqui)\s+([a-zñ]+(?:\s+[a-zñ]+){0,2})/)
   if (!m) return null
@@ -162,10 +228,14 @@ function extraerSintomas(textoOriginal: string): string[] {
 export function parseMensaje(texto: string): MensajeParseado {
   const textoOriginal = (texto ?? '').trim()
   const n = norm(textoOriginal)
+  const modeloInfo = extraerModelo(n)
+  const marca = extraerMarca(n) ?? modeloInfo?.marca ?? null
   return {
     nombre: extraerNombre(n, textoOriginal),
     patente: extraerPatente(textoOriginal),
-    marca: extraerMarca(n),
+    marca,
+    modelo: modeloInfo?.modelo ?? null,
+    anio: extraerAnio(textoOriginal),
     telefono: extraerTelefono(textoOriginal),
     servicios: extraerServicios(n),
     sintomas: extraerSintomas(textoOriginal),

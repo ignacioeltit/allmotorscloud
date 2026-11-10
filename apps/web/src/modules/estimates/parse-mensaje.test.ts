@@ -39,4 +39,16 @@ describe('parseMensaje', () => {
     expect(p.marca).toBe('MG')
     expect(p.patente).toBeNull()
   })
+
+  it('deduce marca y modelo cuando el cliente nombra solo el modelo + año', () => {
+    const p = parseMensaje(
+      'Hola buenas tardes, me podrían cotizar un cambio de aceite para una navara 2022 con cambio de filtro de aceite, polen y petróleo porfavor.',
+    )
+    expect(p.marca).toBe('Nissan')
+    expect(p.modelo).toBe('Navara')
+    expect(p.anio).toBe('2022')
+    expect(p.servicios).toEqual(
+      expect.arrayContaining(['Cambio de aceite', 'Cambio de filtros']),
+    )
+  })
 })
