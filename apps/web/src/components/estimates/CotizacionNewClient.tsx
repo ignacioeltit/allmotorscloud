@@ -178,10 +178,15 @@ export function CotizacionNewClient() {
   }
 
   const necesitaCliente = modo === 'nuevo' || (modo === 'existente' && !cliente)
-  const puedeCrear =
-    modo === 'existente'
-      ? true
-      : Boolean(patente.trim() && vMarca.trim() && vModelo.trim() && cNombre.trim())
+  // El nombre del cliente es opcional (se puede cotizar sin identificarlo aún);
+  // la patente/marca/modelo sí son obligatorias para registrar el vehículo.
+  const faltantes =
+    modo === 'nuevo'
+      ? (['patente', 'marca', 'modelo'] as const).filter((campo) =>
+          campo === 'patente' ? !patente.trim() : campo === 'marca' ? !vMarca.trim() : !vModelo.trim(),
+        )
+      : []
+  const puedeCrear = modo === 'existente' ? true : faltantes.length === 0
 
   async function crear() {
     setCreando(true)
@@ -194,7 +199,11 @@ export function CotizacionNewClient() {
         p_cliente_id: modo === 'existente' && cliente ? cliente.id : null,
         p_cliente: necesitaCliente
           ? {
-              nombre: cNombre.trim(),
+              // Nombre opcional: si no se identificó al cliente, queda un
+              // marcador editable (con su teléfono si lo dio) para completarlo luego.
+              nombre:
+                cNombre.trim() ||
+                (cTelefono.trim() ? `Cliente ${cTelefono.trim()}` : 'Cliente sin identificar'),
               tipo: cTipo,
               ...(cRut.trim() && { rut: cRut.trim() }),
               ...(cTelefono.trim() && { telefono: cTelefono.trim() }),
@@ -482,8 +491,8 @@ export function CotizacionNewClient() {
             </div>
           ) : (
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-              <Field label="Nombre *">
-                <input className={inputClass} value={cNombre} onChange={(e) => setCNombre(e.target.value)} />
+              <Field label="Nombre (opcional)">
+                <input className={inputClass} value={cNombre} onChange={(e) => setCNombre(e.target.value)} placeholder="Si aún no lo sabes, lo completas después" />
               </Field>
               <Field label="Tipo de cliente">
                 <select className={inputClass} value={cTipo} onChange={(e) => setCTipo(e.target.value as TipoCliente)}>
@@ -519,7 +528,13 @@ export function CotizacionNewClient() {
             <button type="button" onClick={() => void crear()} disabled={!puedeCrear || creando} className={btnPrimary}>
               {creando ? 'Creando…' : 'Crear cotización →'}
             </button>
-            <p className="text-xs text-neutral-500">Luego agregas los ítems (mano de obra y repuestos).</p>
+            {faltantes.length > 0 ? (
+              <p className="text-xs text-amber-700">
+                Falta completar: <span className="font-medium">{faltantes.join(', ')}</span>.
+              </p>
+            ) : (
+              <p className="text-xs text-neutral-500">Luego agregas los ítems (mano de obra y repuestos).</p>
+            )}
           </div>
         </section>
       )}
