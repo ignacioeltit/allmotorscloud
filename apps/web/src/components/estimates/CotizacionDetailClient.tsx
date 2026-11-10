@@ -14,6 +14,7 @@ import type { CotizacionDetalle } from '@/modules/estimates/queries'
 import { toErrorMessage } from '@/lib/ui/error-message'
 import { card, sectionLabel, btnSecondary, btnGhost } from '@/components/ui/styles'
 import { FichaIngresoLineas } from './FichaIngresoLineas'
+import { AsociarVehiculoSection } from './AsociarVehiculoSection'
 import { ordenarItemsPorTipo } from '@/lib/ui/ordenar-items'
 
 function fmtCLP(n: number): string {
@@ -136,6 +137,11 @@ export function CotizacionDetailClient({
 
   return (
     <div className="space-y-5">
+      {/* Cotización sin vehículo (datos mínimos): permitir asociarlo para cerrar el ciclo */}
+      {!p.vehiculo?.id && (
+        <AsociarVehiculoSection presupuestoId={p.id} tieneCliente={!!p.cliente?.id} />
+      )}
+
       {/* Compartir con el cliente: link + WhatsApp + PDF */}
       {conItems && (
         <section className={card}>

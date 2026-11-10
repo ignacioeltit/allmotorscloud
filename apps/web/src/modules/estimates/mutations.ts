@@ -265,3 +265,28 @@ export async function enviarPresupuesto(
 
   return unwrapWritten<Presupuesto>(data, error)
 }
+
+/**
+ * Asocia un vehículo (y cliente) a una cotización creada con datos mínimos.
+ * Busca por patente o crea el vehículo/cliente, y deja el presupuesto listo para
+ * convertir a OT. Atómico vía RPC fn_asociar_vehiculo_cotizacion (migration 050).
+ */
+export async function asociarVehiculoCotizacion(
+  supabase: DbClient,
+  input: {
+    presupuestoId: string
+    clienteId?: string | null
+    cliente?: { nombre: string; tipo?: string; rut?: string; telefono?: string } | null
+    vehiculoId?: string | null
+    vehiculo?: { patente: string; marca: string; modelo: string; tipo?: string; anio?: string; color?: string } | null
+  },
+): Promise<void> {
+  const { error } = await supabase.rpc('fn_asociar_vehiculo_cotizacion', {
+    p_presupuesto_id: input.presupuestoId,
+    p_cliente_id: input.clienteId ?? null,
+    p_cliente: input.cliente ?? null,
+    p_vehiculo_id: input.vehiculoId ?? null,
+    p_vehiculo: input.vehiculo ?? null,
+  })
+  if (error) throw mapPostgrestError(error)
+}
