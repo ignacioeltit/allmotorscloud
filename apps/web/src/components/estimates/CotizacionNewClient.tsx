@@ -178,15 +178,13 @@ export function CotizacionNewClient() {
   }
 
   const necesitaCliente = modo === 'nuevo' || (modo === 'existente' && !cliente)
-  // El nombre del cliente es opcional (se puede cotizar sin identificarlo aún);
-  // la patente/marca/modelo sí son obligatorias para registrar el vehículo.
-  const faltantes =
-    modo === 'nuevo'
-      ? (['patente', 'marca', 'modelo'] as const).filter((campo) =>
-          campo === 'patente' ? !patente.trim() : campo === 'marca' ? !vMarca.trim() : !vModelo.trim(),
-        )
-      : []
-  const puedeCrear = modo === 'existente' ? true : faltantes.length === 0
+  // Para no perder clientes, la cotización se puede crear con los mínimos datos:
+  // sin nombre y sin vehículo. Si la patente/marca/modelo están, se registra el
+  // vehículo; si no, el presupuesto queda suelto (se asocia después) y lo que se
+  // sepa del vehículo/contacto se guarda en las notas.
+  const tieneVehiculoNuevo = modo === 'nuevo' && !!(patente.trim() && vMarca.trim() && vModelo.trim())
+  const registraVehiculo = modo === 'existente' || tieneVehiculoNuevo
+  const puedeCrear = true
 
   async function crear() {
     setCreando(true)
@@ -195,33 +193,46 @@ export function CotizacionNewClient() {
       const supabase = createClient()
       const anioNum = vAnio.trim() ? Number.parseInt(vAnio, 10) : null
 
+      // Crea cliente solo si hay algún dato de contacto (si no, cotización sin cliente).
+      const creaCliente = necesitaCliente && !!(cNombre.trim() || cTelefono.trim() || cRut.trim())
+
+      // Si el vehículo no se registra (falta patente), preservamos en las notas
+      // lo que sepamos de él y del contacto, para no perder nada.
+      let notasFinal = notas.trim()
+      if (modo === 'nuevo' && !tieneVehiculoNuevo) {
+        const vehInfo = [patente.trim().toUpperCase(), vMarca.trim(), vModelo.trim(), vAnio.trim()].filter(Boolean).join(' ')
+        const extra: string[] = []
+        if (vehInfo) extra.push(`Vehículo (sin registrar): ${vehInfo}`)
+        if (!creaCliente) {
+          const contacto = [cNombre.trim(), cTelefono.trim()].filter(Boolean).join(' · ')
+          if (contacto) extra.push(`Contacto: ${contacto}`)
+        }
+        if (extra.length) notasFinal = [extra.join('\n'), notasFinal].filter(Boolean).join('\n\n')
+      }
+
       const payload = {
         p_cliente_id: modo === 'existente' && cliente ? cliente.id : null,
-        p_cliente: necesitaCliente
+        p_cliente: creaCliente
           ? {
-              // Nombre opcional: si no se identificó al cliente, queda un
-              // marcador editable (con su teléfono si lo dio) para completarlo luego.
-              nombre:
-                cNombre.trim() ||
-                (cTelefono.trim() ? `Cliente ${cTelefono.trim()}` : 'Cliente sin identificar'),
+              nombre: cNombre.trim() || (cTelefono.trim() ? `Cliente ${cTelefono.trim()}` : 'Cliente'),
               tipo: cTipo,
               ...(cRut.trim() && { rut: cRut.trim() }),
               ...(cTelefono.trim() && { telefono: cTelefono.trim() }),
             }
           : null,
         p_vehiculo_id: modo === 'existente' && vehiculo ? vehiculo.id : null,
-        p_vehiculo:
-          modo === 'nuevo'
-            ? {
-                patente: patente.trim().toUpperCase(),
-                marca: vMarca.trim(),
-                modelo: vModelo.trim(),
-                tipo: vTipo,
-                ...(anioNum != null && Number.isFinite(anioNum) ? { anio: String(anioNum) } : {}),
-                ...(vColor.trim() && { color: vColor.trim() }),
-              }
-            : null,
-        p_notas: notas.trim() || null,
+        // Solo se registra el vehículo si hay patente (+ marca/modelo); si no, va en notas.
+        p_vehiculo: tieneVehiculoNuevo
+          ? {
+              patente: patente.trim().toUpperCase(),
+              marca: vMarca.trim(),
+              modelo: vModelo.trim(),
+              tipo: vTipo,
+              ...(anioNum != null && Number.isFinite(anioNum) ? { anio: String(anioNum) } : {}),
+              ...(vColor.trim() && { color: vColor.trim() }),
+            }
+          : null,
+        p_notas: notasFinal || null,
       }
 
       const { data, error: rpcError } = await supabase.rpc('fn_crear_cotizacion', payload)
@@ -440,9 +451,14 @@ export function CotizacionNewClient() {
               className={inputXL}
               aria-label="Patente"
             />
-            <p className="mt-2 text-xs text-neutral-600">
-              {buscando ? 'Buscando…' : 'Escribe la patente y presiona Enter. Si no existe, la registras.'}
-            </p>
+            <div className="mt-2 flex flex-wrap items-center justify-between gap-2">
+              <p className="text-xs text-neutral-600">
+                {buscando ? 'Buscando…' : 'Escribe la patente y presiona Enter. Si no existe, la registras.'}
+              </p>
+              <button type="button" onClick={() => setModo('nuevo')} className="text-xs font-medium text-accent-400 hover:text-accent-300">
+                Cotizar sin vehículo →
+              </button>
+            </div>
           </form>
         ) : modo === 'existente' && vehiculo ? (
           <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
@@ -453,13 +469,13 @@ export function CotizacionNewClient() {
           </div>
         ) : (
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-            <Field label="Patente *">
+            <Field label="Patente">
               <input className={inputClass} value={patente} onChange={(e) => setPatente(e.target.value)} />
             </Field>
-            <Field label="Marca *">
+            <Field label="Marca">
               <input className={inputClass} value={vMarca} onChange={(e) => setVMarca(e.target.value)} />
             </Field>
-            <Field label="Modelo *">
+            <Field label="Modelo">
               <input className={inputClass} value={vModelo} onChange={(e) => setVModelo(e.target.value)} />
             </Field>
             <Field label="Año">
@@ -528,12 +544,12 @@ export function CotizacionNewClient() {
             <button type="button" onClick={() => void crear()} disabled={!puedeCrear || creando} className={btnPrimary}>
               {creando ? 'Creando…' : 'Crear cotización →'}
             </button>
-            {faltantes.length > 0 ? (
-              <p className="text-xs text-amber-700">
-                Falta completar: <span className="font-medium">{faltantes.join(', ')}</span>.
-              </p>
-            ) : (
+            {registraVehiculo ? (
               <p className="text-xs text-neutral-500">Luego agregas los ítems (mano de obra y repuestos).</p>
+            ) : (
+              <p className="text-xs text-amber-700">
+                Se creará <span className="font-medium">sin vehículo</span> (lo que sepas queda en las notas; lo asocias después).
+              </p>
             )}
           </div>
         </section>
