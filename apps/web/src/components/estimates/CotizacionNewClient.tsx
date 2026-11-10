@@ -268,18 +268,23 @@ export function CotizacionNewClient() {
         for (const paquete of paquetesSel) {
           const lineas = await expandirPlantilla(supabase, paquete)
           for (const l of lineas) {
-            if (/filtro/i.test(l.descripcion)) paqueteCubreFiltros = true
-            if (esAceite(l.descripcion) && aceiteSug && !aceitePuesto) {
-              // Reemplaza la línea de aceite del paquete por el del historial.
+            // Un paquete "cubre" aceite/filtros solo si trae el PRODUCTO (repuesto),
+            // no una línea de mano de obra como "RENOVAR FILTRO/ACEITE".
+            const esRepuesto = l.grupo === 'repuesto'
+            if (esRepuesto && /filtro/i.test(l.descripcion)) paqueteCubreFiltros = true
+            if (esRepuesto && esAceite(l.descripcion) && aceiteSug && !aceitePuesto) {
+              // El paquete trae aceite como producto → se usa el del historial.
               aceitePuesto = true
               items.push({
                 tipo: 'repuesto',
                 descripcion: aceiteSug.descripcion,
-                cantidad: l.cantidad,
+                cantidad: aceiteSug.cantidad ?? l.cantidad,
                 precioUnitario: aceiteSug.precio_unitario ?? l.precio,
                 ...(aceiteSug.repuesto_id ? { repuestoId: aceiteSug.repuesto_id } : l.repuestoId ? { repuestoId: l.repuestoId } : {}),
               })
             } else {
+              // El resto de líneas del paquete se mantienen tal cual (incluida la
+              // mano de obra "RENOVAR ACEITE/FILTRO").
               items.push({
                 tipo: l.grupo,
                 descripcion: l.descripcion,
@@ -290,12 +295,12 @@ export function CotizacionNewClient() {
             }
           }
         }
-        // Si ningún paquete traía aceite pero el historial lo sugiere, se agrega.
+        // Si ningún paquete traía el aceite como producto, se agrega del historial.
         if (!aceitePuesto && aceiteSug) {
           items.push({
             tipo: 'repuesto',
             descripcion: aceiteSug.descripcion,
-            cantidad: 1,
+            cantidad: aceiteSug.cantidad ?? 1,
             precioUnitario: aceiteSug.precio_unitario ?? 0,
             ...(aceiteSug.repuesto_id ? { repuestoId: aceiteSug.repuesto_id } : {}),
           })
@@ -303,13 +308,13 @@ export function CotizacionNewClient() {
       }
 
       // Filtros deducidos del historial: si se pidieron filtros y ningún paquete
-      // seleccionado ya los incluye, se agregan como líneas de repuesto.
+      // seleccionado trae los filtros PRODUCTO, se agregan como líneas de repuesto.
       if (servicios.includes('Cambio de filtros') && !(usaPaquete && paqueteCubreFiltros) && filtrosSug.length > 0) {
         for (const f of filtrosSug) {
           items.push({
             tipo: 'repuesto',
             descripcion: f.descripcion,
-            cantidad: 1,
+            cantidad: f.cantidad ?? 1,
             precioUnitario: f.precio_unitario ?? 0,
             ...(f.repuesto_id ? { repuestoId: f.repuesto_id } : {}),
           })

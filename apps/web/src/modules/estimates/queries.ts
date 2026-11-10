@@ -13,6 +13,7 @@ const PRES_COLUMNS =
 export interface AceiteSugerido {
   repuesto_id: string | null
   descripcion: string
+  cantidad: number | null
   precio_unitario: number | null
   costo_compra_unitario: number | null
   veces: number
