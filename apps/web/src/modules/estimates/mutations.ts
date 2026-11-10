@@ -151,6 +151,7 @@ export async function addItemsPresupuesto(
       precio_unitario: it.precioUnitario,
       descuento_porcentaje: descuento,
       precio_total,
+      ...(it.repuestoId ? { repuesto_id: it.repuestoId } : {}),
       creado_por: userId,
     }
   })

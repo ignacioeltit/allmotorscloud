@@ -9,6 +9,36 @@ import type { EstadoPresupuesto } from './constants'
 const PRES_COLUMNS =
   'id, org_id, orden_trabajo_id, presupuesto_anterior_id, version, estado, total_mano_obra, total_repuestos, total_otros, total_descuentos, total_neto, notas, enviado_en, autorizado_en, autorizado_por_nombre, rechazado_en, razon_rechazo, creado_en, actualizado_en, creado_por, eliminado_en, eliminado_por, token_publico, nota_cliente, agendar_solicitado, folio'
 
+/** Aceite que el taller suele usar en vehículos de esa marca/modelo (historial). */
+export interface AceiteSugerido {
+  repuesto_id: string | null
+  descripcion: string
+  precio_unitario: number | null
+  costo_compra_unitario: number | null
+  veces: number
+}
+
+/**
+ * Sugiere el aceite para un vehículo según el historial de cambios en vehículos
+ * similares (misma marca+modelo; si no hay, misma marca). Devuelve null si no
+ * hay historial. Vía RPC fn_aceite_sugerido (migration 048).
+ */
+export async function getAceiteSugerido(
+  supabase: DbClient,
+  marca: string,
+  modelo: string | null,
+): Promise<AceiteSugerido | null> {
+  if (!marca.trim()) return null
+  // Es una sugerencia best-effort: si la función aún no existe (migración 048 sin
+  // aplicar) o falla, no mostramos aceite sugerido en vez de romper el análisis.
+  const { data, error } = await supabase.rpc('fn_aceite_sugerido', {
+    p_marca: marca.trim(),
+    p_modelo: (modelo ?? '').trim(),
+  })
+  if (error) return null
+  return (data as AceiteSugerido | null) ?? null
+}
+
 const ITEM_COLUMNS =
   'id, org_id, presupuesto_id, tipo, codigo, descripcion, repuesto_id, cantidad, precio_unitario, descuento_porcentaje, precio_total, autorizador_id, creado_en, actualizado_en, creado_por, eliminado_en, eliminado_por'
 

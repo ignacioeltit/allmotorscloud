@@ -94,6 +94,7 @@ export const addItemsPresupuestoSchema = z.object({
         cantidad: z.number().positive().multipleOf(0.001),
         precioUnitario: z.number().min(0),
         descuentoPorcentaje: z.number().min(0).max(100).optional(),
+        repuestoId: uuid.optional(),
       }),
     )
     .min(1, 'Agrega al menos una línea con datos.'),

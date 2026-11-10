@@ -12,7 +12,9 @@ import { getVehiculoByPatente } from '@/modules/vehicles/queries'
 import { getPropietarioActivoByVehiculo } from '@/modules/customers/queries'
 import { buscarServiciosCatalogo } from '@/modules/catalogo/queries'
 import { addItemsPresupuesto } from '@/modules/estimates/mutations'
+import { getAceiteSugerido, type AceiteSugerido } from '@/modules/estimates/queries'
 import { parseMensaje } from '@/modules/estimates/parse-mensaje'
+import { listPaquetesMantencion, expandirPlantilla, type PlantillaResumen } from '@/modules/plantillas/queries'
 import { TIPOS_VEHICULO } from '@/modules/vehicles/constants'
 import { TIPOS_CLIENTE, TIPO_CLIENTE_LABEL, TIPO_CLIENTE_DEFAULT, type TipoCliente } from '@/modules/customers/constants'
 import type { Vehiculo } from '@/modules/vehicles/types'
@@ -79,6 +81,11 @@ export function CotizacionNewClient() {
   const [analizado, setAnalizado] = useState(false)
   const [servicios, setServicios] = useState<string[]>([])
   const [sintomas, setSintomas] = useState<string[]>([])
+  // Mantención: paquete sugerido + aceite deducido del historial.
+  const [paquetesMant, setPaquetesMant] = useState<PlantillaResumen[]>([])
+  const [paqueteElegido, setPaqueteElegido] = useState<string | null>(null)
+  const [usarPaquete, setUsarPaquete] = useState(true)
+  const [aceiteSug, setAceiteSug] = useState<AceiteSugerido | null>(null)
 
   /** Busca un vehículo por patente y arma el modo existente/nuevo. */
   async function buscarPatente(q: string): Promise<void> {
@@ -126,6 +133,24 @@ export function CotizacionNewClient() {
     setBuscando(true)
     setError(null)
     try {
+      const supabase = createClient()
+      // Mantención: si pide aceite o filtros, proponer paquete + aceite del historial.
+      const pideMantencion = p.servicios.includes('Cambio de aceite') || p.servicios.includes('Cambio de filtros')
+      if (pideMantencion) {
+        const [paquetes, aceite] = await Promise.all([
+          listPaquetesMantencion(supabase),
+          p.marca ? getAceiteSugerido(supabase, p.marca, p.modelo) : Promise.resolve(null),
+        ])
+        setPaquetesMant(paquetes)
+        setPaqueteElegido(paquetes[0]?.id ?? null)
+        setUsarPaquete(paquetes.length > 0)
+        setAceiteSug(aceite)
+      } else {
+        setPaquetesMant([])
+        setPaqueteElegido(null)
+        setAceiteSug(null)
+      }
+
       if (p.patente) {
         await buscarPatente(p.patente)
       } else {
@@ -147,6 +172,9 @@ export function CotizacionNewClient() {
     setAnalizado(false)
     setServicios([])
     setSintomas([])
+    setPaquetesMant([])
+    setPaqueteElegido(null)
+    setAceiteSug(null)
   }
 
   const necesitaCliente = modo === 'nuevo' || (modo === 'existente' && !cliente)
@@ -192,16 +220,62 @@ export function CotizacionNewClient() {
       const result = data as { presupuesto_id: string }
 
       // Si se analizó un mensaje, pre-carga las líneas detectadas:
-      //  - cada servicio se cotiza con el precio del catálogo (si hay match).
+      //  - si se usa un paquete de mantención: se expande (reemplaza aceite/filtros
+      //    sueltos) y su línea de aceite se cambia por el aceite sugerido del historial.
+      //  - cada otro servicio se cotiza con el precio del catálogo (si hay match).
       //  - cada síntoma entra como línea de diagnóstico, con precio a confirmar.
-      const items: {
+      type LineaItem = {
         tipo: 'mano_obra' | 'repuesto' | 'otros'
         codigo?: string
         descripcion: string
         cantidad: number
         precioUnitario: number
-      }[] = []
+        repuestoId?: string
+      }
+      const items: LineaItem[] = []
+      const esAceite = (d: string) => /aceite/i.test(d) && !/filtro/i.test(d)
+      const paquete = paquetesMant.find((p) => p.id === paqueteElegido)
+      const usaPaquete = usarPaquete && !!paquete
+      // Servicios que el paquete de mantención ya cubre (no se agregan sueltos).
+      const CUBIERTOS = new Set(['Cambio de aceite', 'Cambio de filtros'])
+
+      if (usaPaquete && paquete) {
+        const lineas = await expandirPlantilla(supabase, paquete)
+        const paqueteTraeAceite = lineas.some((l) => esAceite(l.descripcion))
+        for (const l of lineas) {
+          if (esAceite(l.descripcion) && aceiteSug) {
+            // Reemplaza el aceite genérico del paquete por el del historial.
+            items.push({
+              tipo: 'repuesto',
+              descripcion: aceiteSug.descripcion,
+              cantidad: l.cantidad,
+              precioUnitario: aceiteSug.precio_unitario ?? l.precio,
+              ...(aceiteSug.repuesto_id ? { repuestoId: aceiteSug.repuesto_id } : l.repuestoId ? { repuestoId: l.repuestoId } : {}),
+            })
+          } else {
+            items.push({
+              tipo: l.grupo,
+              descripcion: l.descripcion,
+              cantidad: l.cantidad,
+              precioUnitario: l.precio,
+              ...(l.repuestoId ? { repuestoId: l.repuestoId } : {}),
+            })
+          }
+        }
+        // Si el paquete no incluía aceite pero el historial lo sugiere, se agrega.
+        if (!paqueteTraeAceite && aceiteSug) {
+          items.push({
+            tipo: 'repuesto',
+            descripcion: aceiteSug.descripcion,
+            cantidad: 1,
+            precioUnitario: aceiteSug.precio_unitario ?? 0,
+            ...(aceiteSug.repuesto_id ? { repuestoId: aceiteSug.repuesto_id } : {}),
+          })
+        }
+      }
+
       for (const label of servicios) {
+        if (usaPaquete && CUBIERTOS.has(label)) continue
         const matches = await buscarServiciosCatalogo(supabase, label)
         const m = matches[0]
         items.push({
@@ -212,6 +286,18 @@ export function CotizacionNewClient() {
           precioUnitario: m?.precio_unitario ?? 0,
         })
       }
+
+      // Sin paquete pero con cambio de aceite pedido: agrega el aceite del historial.
+      if (!usaPaquete && aceiteSug && servicios.includes('Cambio de aceite')) {
+        items.push({
+          tipo: 'repuesto',
+          descripcion: aceiteSug.descripcion,
+          cantidad: 1,
+          precioUnitario: aceiteSug.precio_unitario ?? 0,
+          ...(aceiteSug.repuesto_id ? { repuestoId: aceiteSug.repuesto_id } : {}),
+        })
+      }
+
       for (const s of sintomas) {
         items.push({ tipo: 'mano_obra', descripcion: `Diagnóstico: ${s}`, cantidad: 1, precioUnitario: 0 })
       }
@@ -281,6 +367,42 @@ export function CotizacionNewClient() {
             {servicios.length === 0 && sintomas.length === 0 && (
               <p className="text-neutral-500">No se detectaron servicios ni síntomas. Agrégalos luego a mano.</p>
             )}
+
+            {/* Mantención: paquete sugerido + aceite deducido del historial */}
+            {(paquetesMant.length > 0 || aceiteSug) && (
+              <div className="rounded-lg border border-sky-500/25 bg-sky-500/[0.06] px-3 py-2.5">
+                <p className="mb-1.5 font-semibold text-sky-800">🔧 Mantención</p>
+                {paquetesMant.length > 0 && (
+                  <label className="flex items-center gap-2">
+                    <input type="checkbox" checked={usarPaquete} onChange={(e) => setUsarPaquete(e.target.checked)} />
+                    <span className="text-neutral-200">Usar paquete de mantención</span>
+                  </label>
+                )}
+                {usarPaquete && paquetesMant.length > 1 && (
+                  <select
+                    className={`${inputClass} mt-2`}
+                    value={paqueteElegido ?? ''}
+                    onChange={(e) => setPaqueteElegido(e.target.value)}
+                  >
+                    {paquetesMant.map((p) => (
+                      <option key={p.id} value={p.id}>{p.nombre}</option>
+                    ))}
+                  </select>
+                )}
+                {usarPaquete && paquetesMant.length === 1 && (
+                  <p className="mt-1 text-neutral-400">Paquete: <span className="font-medium text-neutral-200">{paquetesMant[0]!.nombre}</span></p>
+                )}
+                {aceiteSug ? (
+                  <p className="mt-2 text-neutral-300">
+                    🛢 Aceite sugerido (historial): <span className="font-medium text-neutral-100">{aceiteSug.descripcion}</span>
+                    <span className="text-neutral-500"> · usado {aceiteSug.veces} {aceiteSug.veces === 1 ? 'vez' : 'veces'} en vehículos similares</span>
+                  </p>
+                ) : (
+                  <p className="mt-2 text-neutral-500">Sin historial de aceite para este vehículo — defines el aceite al cotizar.</p>
+                )}
+              </div>
+            )}
+
             <p className="text-neutral-500">
               Se agregarán como líneas al crear la cotización (los precios de servicios salen del catálogo; el diagnóstico queda a confirmar).
             </p>

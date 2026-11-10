@@ -13,6 +13,34 @@ export interface PlantillaResumen {
   precio_cabecera: number | null
 }
 
+/**
+ * Lista los paquetes activos de categoría 'mantencion' del tenant (con ítems o
+ * de precio por cabecera). Para proponerlos al cotizar un cambio de aceite.
+ */
+export async function listPaquetesMantencion(supabase: DbClient): Promise<PlantillaResumen[]> {
+  const { orgId } = await getAuthContext(supabase)
+  const { data, error } = await supabase
+    .from('plantillas_trabajo')
+    .select('id, codigo, nombre, tipo_precio, precio_cabecera, items_plantilla(count)')
+    .eq('org_id', orgId)
+    .eq('activo', true)
+    .eq('categoria', 'mantencion')
+    .is('eliminado_en', null)
+    .order('frecuencia_uso', { ascending: false, nullsFirst: false })
+    .limit(20)
+  type Row = PlantillaResumen & { items_plantilla: { count: number }[] }
+  const rows = unwrapList<Row>(data as Row[] | null, error)
+  return rows
+    .filter((r) => r.tipo_precio === 'cabecera' || (r.items_plantilla?.[0]?.count ?? 0) > 0)
+    .map((r) => ({
+      id: r.id,
+      codigo: r.codigo,
+      nombre: r.nombre,
+      tipo_precio: r.tipo_precio,
+      precio_cabecera: r.precio_cabecera,
+    }))
+}
+
 export interface LineaExpandida {
   grupo: 'mano_obra' | 'repuesto' | 'otros'
   descripcion: string
