@@ -233,7 +233,8 @@ export function CotizacionNewClient() {
       // Servicios que los paquetes de mantención ya cubren (no se agregan sueltos).
       const CUBIERTOS = new Set(['Cambio de aceite', 'Cambio de filtros'])
 
-      let paqueteCubreFiltros = false // ¿algún paquete ya incluye filtros?
+      let paqueteCubreFiltros = false // ¿algún paquete trae el filtro PRODUCTO?
+      let paqueteMencionaFiltros = false // ¿el paquete menciona filtros (aunque sea mano de obra)?
       if (usaPaquete) {
         let aceitePuesto = false // el aceite sugerido se pone una sola vez
         for (const paquete of paquetesSel) {
@@ -242,6 +243,7 @@ export function CotizacionNewClient() {
             // Un paquete "cubre" aceite/filtros solo si trae el PRODUCTO (repuesto),
             // no una línea de mano de obra como "RENOVAR FILTRO/ACEITE".
             const esRepuesto = l.grupo === 'repuesto'
+            if (/filtro/i.test(l.descripcion)) paqueteMencionaFiltros = true
             if (esRepuesto && /filtro/i.test(l.descripcion)) paqueteCubreFiltros = true
             if (esRepuesto && esAceite(l.descripcion) && aceiteSug && !aceitePuesto) {
               // El paquete trae aceite como producto → se usa el del historial.
@@ -278,9 +280,11 @@ export function CotizacionNewClient() {
         }
       }
 
-      // Filtros deducidos del historial: si se pidieron filtros y ningún paquete
-      // seleccionado trae los filtros PRODUCTO, se agregan como líneas de repuesto.
-      if (servicios.includes('Cambio de filtros') && !(usaPaquete && paqueteCubreFiltros) && filtrosSug.length > 0) {
+      // Filtros deducidos del historial: si se pidieron filtros, o si el paquete
+      // de mantención los menciona (una mantención implica filtros aunque el
+      // mensaje solo diga "aceite"), y ningún paquete trae el filtro PRODUCTO.
+      const filtrosImplicados = servicios.includes('Cambio de filtros') || (usaPaquete && paqueteMencionaFiltros)
+      if (filtrosImplicados && !(usaPaquete && paqueteCubreFiltros) && filtrosSug.length > 0) {
         for (const f of filtrosSug) {
           items.push({
             tipo: 'repuesto',
