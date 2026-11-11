@@ -587,7 +587,7 @@ export function CotizacionNewClient() {
                 ) : (
                   <p className="mt-2 text-neutral-500">Sin historial de aceite para este vehículo — defines el aceite al cotizar.</p>
                 )}
-                {filtrosSug.length > 0 && (
+                {filtrosSug.length > 0 ? (
                   <div className="mt-2">
                     <p className="text-neutral-300">🧰 Filtros sugeridos (historial):</p>
                     <div className="mt-1 flex flex-wrap gap-1.5">
@@ -598,7 +598,11 @@ export function CotizacionNewClient() {
                       ))}
                     </div>
                   </div>
-                )}
+                ) : servicios.includes('Cambio de filtros') ? (
+                  <p className="mt-2 text-neutral-500">
+                    Sin filtros en el historial de este modelo — agrégalos en el paso de revisión (cuadro “Agregar lo que falta” o buscando el repuesto).
+                  </p>
+                ) : null}
               </div>
             )}
 
