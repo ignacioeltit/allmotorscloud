@@ -16,6 +16,7 @@ import type { RepuestoResumen } from '@/modules/inventory/types'
 import { addItemsPresupuesto } from '@/modules/estimates/mutations'
 import { getAceiteSugerido, getFiltrosSugeridos, type AceiteSugerido } from '@/modules/estimates/queries'
 import { parseMensaje } from '@/modules/estimates/parse-mensaje'
+import { ordenarItemsPorTipo } from '@/lib/ui/ordenar-items'
 import { listPaquetesMantencion, expandirPlantilla, type PlantillaResumen } from '@/modules/plantillas/queries'
 import { TIPOS_VEHICULO } from '@/modules/vehicles/constants'
 import { TIPOS_CLIENTE, TIPO_CLIENTE_LABEL, TIPO_CLIENTE_DEFAULT, type TipoCliente } from '@/modules/customers/constants'
@@ -335,7 +336,18 @@ export function CotizacionNewClient() {
         dedup.push(it)
       }
 
-      setLineasPropuestas(dedup)
+      // Orden: repuestos arriba, mano de obra abajo (igual que el documento), con
+      // dos líneas libres entre medio para agregar algo más.
+      const ordenadas = ordenarItemsPorTipo(dedup)
+      const libres: LineaItem[] = [
+        { tipo: 'repuesto', descripcion: '', cantidad: 1, precioUnitario: 0 },
+        { tipo: 'repuesto', descripcion: '', cantidad: 1, precioUnitario: 0 },
+      ]
+      const corte = ordenadas.findIndex((l) => l.tipo !== 'repuesto')
+      const conLibres =
+        corte === -1 ? [...ordenadas, ...libres] : [...ordenadas.slice(0, corte), ...libres, ...ordenadas.slice(corte)]
+
+      setLineasPropuestas(conLibres)
       setRevisando(true)
     } catch (err) {
       setError(toErrorMessage(err))
