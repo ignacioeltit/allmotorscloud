@@ -12,6 +12,7 @@ import { getVehiculoByPatente } from '@/modules/vehicles/queries'
 import { getPropietarioActivoByVehiculo } from '@/modules/customers/queries'
 import { buscarServiciosCatalogo } from '@/modules/catalogo/queries'
 import { searchRepuestos } from '@/modules/inventory/queries'
+import type { RepuestoResumen } from '@/modules/inventory/types'
 import { addItemsPresupuesto } from '@/modules/estimates/mutations'
 import { getAceiteSugerido, getFiltrosSugeridos, type AceiteSugerido } from '@/modules/estimates/queries'
 import { parseMensaje } from '@/modules/estimates/parse-mensaje'
@@ -108,6 +109,9 @@ export function CotizacionNewClient() {
   const [lineasPropuestas, setLineasPropuestas] = useState<LineaItem[]>([])
   const [textoFalta, setTextoFalta] = useState('')
   const [agregandoTexto, setAgregandoTexto] = useState(false)
+  // Autocompletado de repuestos por fila en la tabla de revisión.
+  const [filaActiva, setFilaActiva] = useState<number | null>(null)
+  const [repResultados, setRepResultados] = useState<RepuestoResumen[]>([])
 
   /** Busca un vehículo por patente y arma el modo existente/nuevo. */
   async function buscarPatente(q: string): Promise<void> {
@@ -346,6 +350,35 @@ export function CotizacionNewClient() {
   }
   function eliminarLinea(i: number) {
     setLineasPropuestas((prev) => prev.filter((_, idx) => idx !== i))
+  }
+
+  // Busca repuestos para el autocompletado de la fila mientras se escribe.
+  async function buscarRepParaFila(i: number, q: string) {
+    if (q.trim().length < 2) {
+      setFilaActiva(null)
+      setRepResultados([])
+      return
+    }
+    try {
+      const reps = await searchRepuestos(createClient(), q)
+      setFilaActiva(i)
+      setRepResultados(reps)
+    } catch {
+      setRepResultados([])
+    }
+  }
+
+  // Aplica un repuesto elegido del autocompletado a la fila.
+  function elegirRepuesto(i: number, r: RepuestoResumen) {
+    editarLinea(i, {
+      tipo: 'repuesto',
+      descripcion: r.nombre,
+      precioUnitario: r.precio_venta ?? 0,
+      repuestoId: r.id,
+      ...(r.codigo ? { codigo: r.codigo } : {}),
+    })
+    setFilaActiva(null)
+    setRepResultados([])
   }
   function agregarLinea() {
     setLineasPropuestas((prev) => [...prev, { tipo: 'mano_obra', descripcion: '', cantidad: 1, precioUnitario: 0 }])
@@ -742,12 +775,42 @@ export function CotizacionNewClient() {
                           <option key={t} value={t}>{TIPO_LINEA_LABEL[t]}</option>
                         ))}
                       </select>
-                      <input
-                        className={`${inputClass} !py-1.5 text-sm`}
-                        value={l.descripcion}
-                        placeholder="Descripción"
-                        onChange={(e) => editarLinea(i, { descripcion: e.target.value })}
-                      />
+                      <div className="relative">
+                        <input
+                          className={`${inputClass} !py-1.5 text-sm`}
+                          value={l.descripcion}
+                          placeholder="Descripción (escribe para buscar repuesto)"
+                          onChange={(e) => {
+                            // Al editar el texto se desvincula el repuesto anterior.
+                            editarLinea(i, { descripcion: e.target.value, repuestoId: undefined })
+                            void buscarRepParaFila(i, e.target.value)
+                          }}
+                          onFocus={() => { if (l.descripcion.trim().length >= 2) void buscarRepParaFila(i, l.descripcion) }}
+                          onBlur={() => setTimeout(() => setFilaActiva((f) => (f === i ? null : f)), 150)}
+                          autoComplete="off"
+                        />
+                        {filaActiva === i && repResultados.length > 0 && (
+                          <div className="absolute left-0 right-0 top-full z-20 mt-1 max-h-56 overflow-auto rounded-lg border border-black/10 bg-white shadow-lg">
+                            {repResultados.map((r) => (
+                              <button
+                                key={r.id}
+                                type="button"
+                                onMouseDown={(e) => e.preventDefault()}
+                                onClick={() => elegirRepuesto(i, r)}
+                                className="flex w-full items-center justify-between gap-2 px-3 py-1.5 text-left text-sm hover:bg-black/[0.04]"
+                              >
+                                <span className="truncate text-neutral-800">
+                                  {r.codigo ? <span className="mr-1.5 font-mono text-[11px] text-neutral-500">{r.codigo}</span> : null}
+                                  {r.nombre}
+                                </span>
+                                <span className="shrink-0 text-xs text-neutral-500">
+                                  {r.precio_venta != null ? r.precio_venta.toLocaleString('es-CL', { style: 'currency', currency: 'CLP', maximumFractionDigits: 0 }) : '—'} · stk {r.stock_actual}
+                                </span>
+                              </button>
+                            ))}
+                          </div>
+                        )}
+                      </div>
                       <input
                         type="number" step="0.01" min="0"
                         className={`${inputClass} !py-1.5 text-right text-sm`}
