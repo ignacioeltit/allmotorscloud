@@ -49,7 +49,7 @@ export function MobileNav({
         onClick={() => setOpen(true)}
         aria-label="Abrir menú"
         aria-expanded={open}
-        className="-ml-1 inline-flex h-10 w-10 items-center justify-center rounded-lg text-neutral-300 hover:bg-black/[0.06]"
+        className="-ml-1 inline-flex h-10 w-10 items-center justify-center rounded-lg text-zinc-200 hover:bg-white/10"
       >
         <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round">
           <path d="M4 6h16M4 12h16M4 18h16" />
@@ -68,19 +68,22 @@ export function MobileNav({
             className="absolute inset-0 bg-black/50"
           />
           {/* Panel */}
-          <div className="absolute inset-y-0 left-0 flex w-[82%] max-w-xs flex-col border-r border-black/[0.08] bg-neutral-900 px-4 py-5 shadow-2xl">
+          <div className="absolute inset-y-0 left-0 flex w-[82%] max-w-xs flex-col bg-gradient-to-b from-[#1c1f24] via-[#16181c] to-[#101114] px-4 py-5 shadow-2xl">
             <div className="mb-6 flex items-center justify-between">
               <Link href="/dashboard" className="flex items-center gap-2.5">
-                <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-accent-600 text-sm font-bold text-white">A</span>
-                <span className="text-sm font-semibold tracking-tight text-neutral-100">
-                  All Motors <span className="text-neutral-500">Cloud</span>
+                <span className="h-9 w-9 shrink-0 overflow-hidden rounded-lg bg-black ring-1 ring-white/10">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img src="/logo-allmotors.jpg" alt="All Motors" className="h-full w-full object-contain" />
+                </span>
+                <span className="text-sm font-bold tracking-tight text-white">
+                  All Motors <span className="text-orange-400">Cloud</span>
                 </span>
               </Link>
               <button
                 type="button"
                 onClick={() => setOpen(false)}
                 aria-label="Cerrar"
-                className="inline-flex h-9 w-9 items-center justify-center rounded-lg text-neutral-400 hover:bg-black/[0.06]"
+                className="inline-flex h-9 w-9 items-center justify-center rounded-lg text-zinc-400 hover:bg-white/10 hover:text-white"
               >
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round">
                   <path d="M6 6l12 12M18 6L6 18" />
@@ -92,8 +95,8 @@ export function MobileNav({
               <SidebarNav pendientesCatalogo={pendientesCatalogo} rolUsuario={rolUsuario} />
             </div>
 
-            <div className="mt-4 border-t border-black/[0.06] pt-4">
-              <LogoutButton />
+            <div className="mt-4 border-t border-white/[0.08] pt-4">
+              <LogoutButton tono="oscuro" />
             </div>
           </div>
         </div>,

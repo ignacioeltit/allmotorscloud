@@ -165,18 +165,19 @@ export default async function DashboardPage() {
       </header>
 
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
-        <MetricCard label="Vehículos en taller" value={metrics.enTaller} icon="🚗" accent />
-        <MetricCard label="OT abiertas" value={metrics.abiertas} icon="🔧" />
-        <MetricCard label="Esperando repuestos" value={metrics.esperandoRepuestos} icon="📦" />
-        <MetricCard label="Listos para entregar" value={metrics.listas} icon="✅" />
-        <MetricCard label="Entregados hoy" value={metrics.entregadasHoy} icon="🚙" />
-        <MetricCard label="Recepciones del día" value={metrics.recepcionesHoy} icon="📥" />
-        <MetricCard label="Piden agendar" value={pidenAgendar} icon="📅" accent={pidenAgendar > 0} />
+        <MetricCard label="Vehículos en taller" value={metrics.enTaller} icon="🚗" tone="orange" accent />
+        <MetricCard label="OT abiertas" value={metrics.abiertas} icon="🔧" tone="blue" />
+        <MetricCard label="Esperando repuestos" value={metrics.esperandoRepuestos} icon="📦" tone="amber" />
+        <MetricCard label="Listos para entregar" value={metrics.listas} icon="✅" tone="emerald" />
+        <MetricCard label="Entregados hoy" value={metrics.entregadasHoy} icon="🚙" tone="teal" />
+        <MetricCard label="Recepciones del día" value={metrics.recepcionesHoy} icon="📥" tone="sky" />
+        <MetricCard label="Piden agendar" value={pidenAgendar} icon="📅" tone="violet" accent={pidenAgendar > 0} />
         <MetricCard
           label="Facturación del día"
           value={facturacionHoy != null ? fmtCLP(facturacionHoy) : '—'}
           hint={facturacionHoy != null ? 'Ingresos de hoy' : undefined}
           icon="💰"
+          tone="emerald"
           accent={facturacionHoy != null && facturacionHoy > 0}
         />
       </div>

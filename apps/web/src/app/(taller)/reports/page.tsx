@@ -105,10 +105,10 @@ export default async function ReportesPage() {
       </header>
 
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-        <MetricCard label="Ingresos del mes" value={fmtCLP(mesActual.ingresos)} icon="💰" accent />
-        <MetricCard label="Gastos del mes" value={fmtCLP(mesActual.gastos)} icon="📉" />
-        <MetricCard label="Utilidad del mes" value={fmtCLP(utilidad)} icon="📈" accent={utilidad > 0} />
-        <MetricCard label="Ingresos 6 meses" value={fmtCLP(totalIngresos6)} icon="🗓" />
+        <MetricCard label="Ingresos del mes" value={fmtCLP(mesActual.ingresos)} icon="💰" tone="emerald" accent />
+        <MetricCard label="Gastos del mes" value={fmtCLP(mesActual.gastos)} icon="📉" tone="rose" />
+        <MetricCard label="Utilidad del mes" value={fmtCLP(utilidad)} icon="📈" tone="orange" accent={utilidad > 0} />
+        <MetricCard label="Ingresos 6 meses" value={fmtCLP(totalIngresos6)} icon="🗓" tone="sky" />
       </div>
 
       {/* Ingresos vs gastos por mes */}

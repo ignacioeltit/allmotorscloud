@@ -14,6 +14,13 @@
 
   body {
     @apply bg-neutral-950 text-neutral-100 font-sans;
+    /* Gris acero más luminoso con un leve brillo naranjo de marca arriba,
+       para que el fondo no se vea plano. */
+    background-color: #e4e7eb;
+    background-image:
+      radial-gradient(900px 380px at 85% -120px, rgba(249, 115, 22, 0.10), transparent 70%),
+      radial-gradient(700px 320px at 20% -160px, rgba(56, 189, 248, 0.07), transparent 70%);
+    background-repeat: no-repeat;
     /* Evita el scroll horizontal del documento en móvil: ningún elemento
        (header, tarjeta, nombre largo) ensancha la página más allá del viewport. */
     overflow-x: hidden;

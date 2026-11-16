@@ -26,7 +26,7 @@ export function CommandTrigger({ compact = false }: { compact?: boolean }) {
         type="button"
         onClick={abrir}
         aria-label="Buscar"
-        className="inline-flex h-9 w-9 items-center justify-center rounded-lg text-neutral-400 hover:bg-black/[0.06] hover:text-neutral-200"
+        className="inline-flex h-9 w-9 items-center justify-center rounded-lg text-zinc-300 hover:bg-white/10 hover:text-white"
       >
         🔍
       </button>
@@ -36,11 +36,11 @@ export function CommandTrigger({ compact = false }: { compact?: boolean }) {
     <button
       type="button"
       onClick={abrir}
-      className="mb-4 flex w-full items-center gap-2 rounded-lg border border-black/10 bg-black/[0.03] px-3 py-2 text-sm text-neutral-500 hover:bg-black/[0.06]"
+      className="mb-4 flex w-full items-center gap-2 rounded-lg border border-white/10 bg-white/[0.05] px-3 py-2 text-sm text-zinc-400 transition hover:border-white/20 hover:bg-white/[0.08] hover:text-zinc-200"
     >
       <span>🔍</span>
       <span className="flex-1 text-left">Buscar…</span>
-      <kbd className="rounded border border-black/10 bg-black/[0.04] px-1.5 py-0.5 text-[10px] font-medium text-neutral-500">⌘K</kbd>
+      <kbd className="rounded border border-white/10 bg-white/[0.06] px-1.5 py-0.5 text-[10px] font-medium text-zinc-400">⌘K</kbd>
     </button>
   )
 }

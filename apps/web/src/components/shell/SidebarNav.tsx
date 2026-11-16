@@ -1,26 +1,15 @@
 'use client'
 
-// Navegación lateral del ERP con resaltado de ruta activa.
+// Navegación lateral del ERP (barra oscura grafito) con resaltado de ruta activa.
+// Los ítems, colores por sección y roles viven en ./nav.ts.
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-
-const items = [
-  { href: '/dashboard',   label: 'Dashboard',    icon: 'grid' },
-  { href: '/tablero',     label: 'Tablero',      icon: 'layers' },
-  { href: '/agenda',      label: 'Agenda',       icon: 'calendar' },
-  { href: '/customers',   label: 'Clientes',     icon: 'users' },
-  { href: '/vehicles',    label: 'Vehículos',    icon: 'car' },
-  { href: '/repair-orders', label: 'Órdenes',    icon: 'wrench' },
-  { href: '/estimates',   label: 'Presupuestos', icon: 'file' },
-  { href: '/inventory',   label: 'Inventario',   icon: 'package' },
-  { href: '/catalogo',    label: 'Catálogo',     icon: 'catalog' },
-  { href: '/catalogo/paquetes', label: 'Paquetes', icon: 'layers' },
-] as const
+import { navItemsParaRol, TONO_CHIP } from './nav'
 
 function Icon({ name }: { name: string }) {
   const common = {
-    width: 18,
-    height: 18,
+    width: 16,
+    height: 16,
     viewBox: '0 0 24 24',
     fill: 'none',
     stroke: 'currentColor',
@@ -161,18 +150,13 @@ export function SidebarNav({ pendientesCatalogo = 0, rolUsuario }: SidebarNavPro
     return pathname === href || pathname.startsWith(`${href}/`)
   }
   const receptionActive = pathname.startsWith('/recepcion') || pathname.startsWith('/reception')
-  const canConfig = rolUsuario === 'admin' || rolUsuario === 'jefe_taller'
-  const canFinanzas = canConfig || rolUsuario === 'recepcionista'
-  const canEmpresa = rolUsuario === 'admin'
 
   return (
-    <nav className="flex flex-col gap-1">
+    <nav className="flex flex-col gap-0.5">
       <Link
         href="/recepcion"
-        className={`mb-3 flex items-center justify-center gap-2 rounded-lg px-3 py-2.5 text-sm font-semibold transition-colors ${
-          receptionActive
-            ? 'bg-accent-500 text-white'
-            : 'bg-accent-600 text-white hover:bg-accent-500'
+        className={`mb-4 flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-orange-500 to-orange-600 px-3 py-2.5 text-sm font-semibold text-white shadow-lg shadow-orange-900/40 ring-1 ring-inset ring-white/15 transition hover:from-orange-400 hover:to-orange-500 ${
+          receptionActive ? 'ring-2 ring-orange-300/70' : ''
         }`}
       >
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
@@ -181,143 +165,40 @@ export function SidebarNav({ pendientesCatalogo = 0, rolUsuario }: SidebarNavPro
         Nueva Recepción
       </Link>
 
-      {items.map((item) => {
+      {navItemsParaRol(rolUsuario).map((item) => {
         const active = isActive(item.href)
-        const isCatalogo = item.href === '/catalogo'
-        const showBadge = isCatalogo && pendientesCatalogo > 0
+        const showBadge = item.href === '/catalogo' && pendientesCatalogo > 0
 
         return (
           <Link
             key={item.href}
             href={item.href}
-            className={`flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors ${
+            aria-current={active ? 'page' : undefined}
+            className={`group relative flex items-center gap-3 rounded-lg px-2.5 py-1.5 text-sm font-medium transition-colors ${
               active
-                ? 'bg-black/[0.07] text-neutral-50'
-                : 'text-neutral-400 hover:bg-black/[0.04] hover:text-neutral-200'
+                ? 'bg-white/[0.08] text-white'
+                : 'text-zinc-400 hover:bg-white/[0.04] hover:text-zinc-100'
             }`}
           >
-            <span className={active ? 'text-accent-400' : 'text-neutral-500'}>
+            {active && (
+              <span className="absolute -left-4 top-1/2 h-6 w-1 -translate-y-1/2 rounded-r-full bg-orange-500" aria-hidden />
+            )}
+            <span
+              className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-md ring-1 ring-inset transition ${
+                TONO_CHIP[item.tono]
+              } ${active ? '' : 'opacity-80 group-hover:opacity-100'}`}
+            >
               <Icon name={item.icon} />
             </span>
             <span className="flex-1">{item.label}</span>
             {showBadge && (
-              <span className="flex h-5 min-w-[20px] items-center justify-center rounded-full bg-amber-500/20 px-1.5 text-[10px] font-bold text-amber-700">
+              <span className="flex h-5 min-w-[20px] items-center justify-center rounded-full bg-amber-400 px-1.5 text-[10px] font-bold text-amber-950">
                 {pendientesCatalogo > 99 ? '99+' : pendientesCatalogo}
               </span>
             )}
           </Link>
         )
       })}
-
-      {canFinanzas && (() => {
-        const active = isActive('/pos')
-        return (
-          <Link
-            href="/pos"
-            className={`flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors ${
-              active ? 'bg-black/[0.07] text-neutral-50' : 'text-neutral-400 hover:bg-black/[0.04] hover:text-neutral-200'
-            }`}
-          >
-            <span className={active ? 'text-accent-400' : 'text-neutral-500'}>
-              <Icon name="cart" />
-            </span>
-            Mostrador
-          </Link>
-        )
-      })()}
-
-      {canFinanzas && (() => {
-        const active = isActive('/finanzas')
-        return (
-          <Link
-            href="/finanzas"
-            className={`flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors ${
-              active
-                ? 'bg-black/[0.07] text-neutral-50'
-                : 'text-neutral-400 hover:bg-black/[0.04] hover:text-neutral-200'
-            }`}
-          >
-            <span className={active ? 'text-accent-400' : 'text-neutral-500'}>
-              <Icon name="wallet" />
-            </span>
-            Finanzas
-          </Link>
-        )
-      })()}
-
-      {canFinanzas && (() => {
-        const active = isActive('/reports')
-        return (
-          <Link
-            href="/reports"
-            className={`flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors ${
-              active ? 'bg-black/[0.07] text-neutral-50' : 'text-neutral-400 hover:bg-black/[0.04] hover:text-neutral-200'
-            }`}
-          >
-            <span className={active ? 'text-accent-400' : 'text-neutral-500'}>
-              <Icon name="chart" />
-            </span>
-            Reportes
-          </Link>
-        )
-      })()}
-
-      {canConfig && (() => {
-        const active = isActive('/settings/equipo')
-        return (
-          <Link
-            href="/settings/equipo"
-            className={`flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors ${
-              active
-                ? 'bg-black/[0.07] text-neutral-50'
-                : 'text-neutral-400 hover:bg-black/[0.04] hover:text-neutral-200'
-            }`}
-          >
-            <span className={active ? 'text-accent-400' : 'text-neutral-500'}>
-              <Icon name="users" />
-            </span>
-            Equipo
-          </Link>
-        )
-      })()}
-
-      {canEmpresa && (() => {
-        const active = isActive('/settings/empresa')
-        return (
-          <Link
-            href="/settings/empresa"
-            className={`flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors ${
-              active
-                ? 'bg-black/[0.07] text-neutral-50'
-                : 'text-neutral-400 hover:bg-black/[0.04] hover:text-neutral-200'
-            }`}
-          >
-            <span className={active ? 'text-accent-400' : 'text-neutral-500'}>
-              <Icon name="building" />
-            </span>
-            Empresa
-          </Link>
-        )
-      })()}
-
-      {canConfig && (() => {
-        const active = isActive('/settings/workshop')
-        return (
-          <Link
-            href="/settings/workshop"
-            className={`flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors ${
-              active
-                ? 'bg-black/[0.07] text-neutral-50'
-                : 'text-neutral-400 hover:bg-black/[0.04] hover:text-neutral-200'
-            }`}
-          >
-            <span className={active ? 'text-accent-400' : 'text-neutral-500'}>
-              <Icon name="settings" />
-            </span>
-            Configuración
-          </Link>
-        )
-      })()}
     </nav>
   )
 }

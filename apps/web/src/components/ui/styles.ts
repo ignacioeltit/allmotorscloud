@@ -23,12 +23,13 @@ export const inputXL =
 
 export const labelClass = 'block text-[13px] font-medium text-neutral-400 mb-1.5'
 
+// Etiqueta de sección en el naranjo de marca: da color a todos los encabezados.
 export const sectionLabel =
-  'text-[11px] font-semibold uppercase tracking-[0.16em] text-neutral-500'
+  'text-[11px] font-semibold uppercase tracking-[0.16em] text-accent-400'
 
 // ── Botones ─────────────────────────────────────────────────────────────────
 export const btnPrimary =
-  'inline-flex items-center justify-center gap-2 rounded-lg bg-accent-600 px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-accent-500 disabled:cursor-not-allowed disabled:opacity-50'
+  'inline-flex items-center justify-center gap-2 rounded-lg bg-gradient-to-r from-orange-500 to-orange-600 px-4 py-2.5 text-sm font-semibold text-white shadow-md shadow-orange-600/25 ring-1 ring-inset ring-white/10 transition hover:from-orange-400 hover:to-orange-500 hover:shadow-lg hover:shadow-orange-600/30 disabled:cursor-not-allowed disabled:opacity-50'
 
 export const btnSecondary =
   'inline-flex items-center justify-center gap-2 rounded-lg border border-black/10 bg-black/[0.02] px-4 py-2.5 text-sm font-medium text-neutral-200 transition-colors hover:bg-black/[0.06] disabled:cursor-not-allowed disabled:opacity-50'
@@ -37,7 +38,7 @@ export const btnGhost =
   'inline-flex items-center justify-center gap-2 rounded-lg px-3 py-2 text-sm font-medium text-neutral-400 transition-colors hover:bg-black/[0.05] hover:text-neutral-100'
 
 export const btnLarge =
-  'inline-flex items-center justify-center gap-2.5 rounded-xl bg-accent-600 px-6 py-3.5 text-[15px] font-semibold text-white transition-colors hover:bg-accent-500 disabled:cursor-not-allowed disabled:opacity-50'
+  'inline-flex items-center justify-center gap-2.5 rounded-xl bg-gradient-to-r from-orange-500 to-orange-600 px-6 py-3.5 text-[15px] font-semibold text-white shadow-lg shadow-orange-600/25 ring-1 ring-inset ring-white/10 transition hover:from-orange-400 hover:to-orange-500 disabled:cursor-not-allowed disabled:opacity-50'
 
 // ── Misc ────────────────────────────────────────────────────────────────────
 export const badge =
