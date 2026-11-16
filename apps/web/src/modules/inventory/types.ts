@@ -70,7 +70,6 @@ export interface RepuestoResumen {
   marca: string | null
   unidad: string
   precio_venta: number | null
-  precio_costo: number | null
   stock_actual: number
   estado_stock: EstadoStock
 }

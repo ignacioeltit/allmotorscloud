@@ -23,12 +23,11 @@ import {
   type AddItemReparacionInput,
   type ActualizarCompraItemInput,
 } from './types'
+import { ITEM_REPARACION_COLUMNS } from './columns'
 
 const REP_COLUMNS =
   'id, org_id, orden_trabajo_id, evento_trabajo_id, mecanico_id, descripcion, observaciones, inicio_en, fin_en, creado_en, actualizado_en, creado_por'
 
-const ITEM_COLUMNS =
-  'id, org_id, reparacion_id, item_presupuesto_id, tipo, codigo, descripcion, repuesto_id, cantidad, costo_unitario, costo_total, costo_compra_unitario, inicio_en, fin_en, creado_en, actualizado_en, creado_por, eliminado_en, eliminado_por, servicio_catalogo_id, plantilla_id, nombre_servicio_snapshot, horas_estandar_snapshot, valor_hora_snapshot, precio_catalogo_snapshot, estado_compra, nota_compra'
 
 /**
  * Crea una reparación para una OT.
@@ -112,9 +111,12 @@ export async function addItemReparacion(
       ...(costoCompraUnitario   != null ? { costo_compra_unitario: costoCompraUnitario }       : {}),
       creado_por: userId,
     })
-    .select(ITEM_COLUMNS)
+    .select(ITEM_REPARACION_COLUMNS)
 
-  return unwrapWritten<ItemReparacion>(data, error)
+  // costo_compra_unitario no es legible por SELECT (migration 058); si la base
+  // lo completó desde el inventario se verá al refrescar la OT.
+  const item = unwrapWritten<Omit<ItemReparacion, 'costo_compra_unitario'>>(data, error)
+  return { ...item, costo_compra_unitario: costoCompraUnitario ?? null }
 }
 
 /**

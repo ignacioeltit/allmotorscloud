@@ -30,11 +30,14 @@ type Grupo = 'repuesto' | 'mano_obra' | 'otros'
 /** Grupos con autocompletado (otros es texto libre). */
 type GrupoBuscable = 'repuesto' | 'mano_obra'
 
-/** Metadatos de un pick del inventario (se pierden si se edita la descripción a mano). */
+/**
+ * Metadatos de un pick del inventario (se pierden si se edita la descripción a mano).
+ * El costo de compra no viaja aquí: lo completa la base desde el inventario al
+ * insertar el ítem (migration 059), así el mecánico nunca lo recibe.
+ */
 interface MetaRepuesto {
   id: string
   stock: number
-  costoCompra: number | null
 }
 
 /** Snapshot de un pick del catálogo de servicios. */
@@ -224,7 +227,7 @@ function GrillaTrabajos({
       ...(r.codigo ? { codigo: r.codigo } : {}),
       descripcion: r.nombre + (r.marca ? ` — ${r.marca}` : ''),
       precio: r.precio_venta != null ? String(r.precio_venta) : '',
-      repuesto: { id: r.id, stock: r.stock_actual, costoCompra: r.precio_costo },
+      repuesto: { id: r.id, stock: r.stock_actual },
       servicio: null,
     })
   }
@@ -381,14 +384,14 @@ export function FichaIngresoTrabajos({
       const lineas = await expandirPlantilla(createClient(), pl)
       const aFila = (l: {
         descripcion: string; cantidad: number; precio: number; codigo?: string | null
-        repuestoId?: string | null; stock?: number; costoCompra?: number | null
+        repuestoId?: string | null; stock?: number
       }): LineaT => ({
         codigo: l.codigo ?? '',
         descripcion: l.descripcion,
         cantidad: String(l.cantidad),
         precio: String(l.precio),
         repuesto: l.repuestoId
-          ? { id: l.repuestoId, stock: l.stock ?? 0, costoCompra: l.costoCompra ?? null }
+          ? { id: l.repuestoId, stock: l.stock ?? 0 }
           : null,
         servicio: null,
       })
@@ -437,7 +440,6 @@ export function FichaIngresoTrabajos({
             cantidad,
             costoUnitario,
             ...(r ? { repuestoId: r.id } : {}),
-            ...(r && r.costoCompra != null ? { costoCompraUnitario: r.costoCompra } : {}),
             ...(s
               ? {
                   servicioCatalogoId: s.id,
