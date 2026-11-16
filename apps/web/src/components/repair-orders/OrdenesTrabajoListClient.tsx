@@ -8,7 +8,7 @@ import { useEffect, useRef, useState, useTransition } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { StatusBadge } from '@/components/ui/StatusBadge'
-import { card, inputClass } from '@/components/ui/styles'
+import { card, inputClass, otEstadoFranja } from '@/components/ui/styles'
 
 export interface OtListadoRow {
   id: string
@@ -114,7 +114,7 @@ export function OrdenesTrabajoListClient({
             <Link
               key={r.id}
               href={`/repair-orders/${r.id}`}
-              className={`${card} flex items-center justify-between gap-3 transition-colors hover:border-black/[0.14]`}
+              className={`${card} ${otEstadoFranja(r.estado)} flex items-center justify-between gap-3 transition hover:-translate-y-px hover:shadow-md`}
             >
               <div className="min-w-0">
                 <div className="flex items-center gap-2">

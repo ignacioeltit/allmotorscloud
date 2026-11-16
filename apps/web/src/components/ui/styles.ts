@@ -66,6 +66,24 @@ export function otEstadoBadge(estado: string): string {
   return `${base} ${map[estado] ?? 'border-black/10 bg-black/[0.04] text-neutral-300'}`
 }
 
+/** Franja de color a la izquierda de una fila de OT, con el tono de su estado. */
+export function otEstadoFranja(estado: string): string {
+  const map: Record<string, string> = {
+    pendiente_diagnostico: 'border-l-amber-400',
+    diagnosticada: 'border-l-amber-400',
+    presupuesto_pendiente: 'border-l-sky-400',
+    presupuesto_enviado: 'border-l-sky-400',
+    autorizada: 'border-l-violet-400',
+    en_reparacion: 'border-l-orange-500',
+    control_calidad: 'border-l-fuchsia-400',
+    lista_para_entrega: 'border-l-emerald-500',
+    entregada: 'border-l-emerald-400',
+    cerrada: 'border-l-zinc-300',
+    cancelada: 'border-l-red-400',
+  }
+  return `border-l-4 ${map[estado] ?? 'border-l-zinc-300'}`
+}
+
 /** Etiqueta legible para un estado de OT. */
 export function otEstadoLabel(estado: string): string {
   const map: Record<string, string> = {
