@@ -13,6 +13,7 @@ import {
 import type { ReparacionConItems, ItemReparacion } from '@/modules/reparaciones/types'
 import type { MecanicoSimple } from '@/modules/users/types'
 import { searchRepuestos } from '@/modules/inventory/queries'
+import { getCostosRepuestos } from '@/modules/costos/queries'
 import { consumirStockParaOT } from '@/modules/inventory/mutations'
 import type { RepuestoResumen } from '@/modules/inventory/types'
 import { ESTADO_STOCK_LABEL, ESTADO_STOCK_CLASS } from '@/modules/inventory/constants'
@@ -188,9 +189,11 @@ interface AgregarItemFormProps {
   configuracion: ConfiguracionManoObra
   onDone: (hasPendiente?: boolean) => void
   onCancel: () => void
+  /** Gestión ve y edita el costo de compra; el mecánico no (lo pone la base). */
+  puedeVerCostos: boolean
 }
 
-function AgregarItemForm({ reparacionId, configuracion, onDone, onCancel }: AgregarItemFormProps) {
+function AgregarItemForm({ reparacionId, configuracion, onDone, onCancel, puedeVerCostos }: AgregarItemFormProps) {
   const [tipo, setTipo] = useState<'mano_obra' | 'repuesto'>('mano_obra')
   const [codigo, setCodigo] = useState('')
   const [descripcion, setDescripcion] = useState('')
@@ -298,9 +301,18 @@ function AgregarItemForm({ reparacionId, configuracion, onDone, onCancel }: Agre
     if (r.codigo) setCodigo(r.codigo)
     setDescripcion(r.nombre + (r.marca ? ` — ${r.marca}` : ''))
     setCostoUnitario(String(r.precio_venta ?? ''))
-    setCostoCompra(r.precio_costo != null ? String(r.precio_costo) : '')
+    setCostoCompra('')
     setShowDropdown(false)
     setSearchQuery('')
+    // El precio de costo solo lo entrega la base a gestión (migration 058).
+    if (puedeVerCostos) {
+      getCostosRepuestos(createClient(), [r.id])
+        .then((costos) => {
+          const costo = costos.get(r.id)
+          if (costo != null) setCostoCompra(String(costo))
+        })
+        .catch(() => { /* sin costo: se completa desde el inventario al guardar */ })
+    }
   }
 
   function clearRepuesto() {
@@ -656,8 +668,8 @@ function AgregarItemForm({ reparacionId, configuracion, onDone, onCancel }: Agre
           })()}
         </div>
 
-        {/* ── Costo de compra: solo repuestos ── */}
-        {tipo === 'repuesto' && (
+        {/* ── Costo de compra: solo repuestos y solo gestión ── */}
+        {tipo === 'repuesto' && puedeVerCostos && (
           <div>
             <label className={labelClass}>Costo de compra unitario (CLP)</label>
             <input
@@ -1114,6 +1126,7 @@ function TrabajoCard({ reparacion, mecanicos, configuracion, onChanged, initialS
           configuracion={configuracion}
           onDone={(hasPendiente) => { setShowAddItem(false); onChanged(hasPendiente) }}
           onCancel={() => setShowAddItem(false)}
+          puedeVerCostos={puedeVerCostos}
         />
       ) : (
         <div className="flex flex-wrap gap-2">

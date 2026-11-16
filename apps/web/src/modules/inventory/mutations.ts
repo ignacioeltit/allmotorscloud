@@ -20,13 +20,10 @@ import {
   type RepuestoUpdateInput,
   type RegistrarMovimientoInput,
 } from './types'
-import { calcularEstadoStock } from './queries'
+import { calcularEstadoStock, conPrecioCostoUno } from './queries'
+import { REPUESTO_COLUMNS, MOVIMIENTO_COLUMNS as MOV_COLUMNS } from './columns'
 
-const REPUESTO_COLUMNS =
-  'id, org_id, sucursal_id, codigo, codigo_barra, nombre, descripcion, marca, modelo_aplicacion, categoria, unidad, precio_costo, precio_venta, stock_actual, stock_minimo, ubicacion, proveedor, activo, creado_en, actualizado_en, creado_por, eliminado_en, eliminado_por'
-
-const MOV_COLUMNS =
-  'id, org_id, repuesto_id, tipo, cantidad, stock_antes, stock_despues, costo_unitario, precio_venta_unitario, referencia_tipo, referencia_id, motivo, actor_id, creado_en'
+type RepuestoSinCosto = Omit<Repuesto, 'precio_costo'>
 
 /** Crea un repuesto en el catálogo del org. */
 export async function createRepuesto(
@@ -45,7 +42,7 @@ export async function createRepuesto(
     .insert({ ...rest, org_id: orgId, creado_por: userId, stock_actual: 0 })
     .select(REPUESTO_COLUMNS)
 
-  const repuesto = unwrapWritten<Repuesto>(data, error)
+  const repuesto = await conPrecioCostoUno(supabase, unwrapWritten<RepuestoSinCosto>(data, error))
 
   // 2. Si hay stock inicial, registrar movimiento de entrada
   if (stockInicial && stockInicial > 0) {
@@ -65,7 +62,7 @@ export async function createRepuesto(
     .eq('id', repuesto.id)
     .single()
 
-  return (updated ?? repuesto) as Repuesto
+  return updated ? { ...(updated as RepuestoSinCosto), precio_costo: repuesto.precio_costo } : repuesto
 }
 
 /** Actualiza datos de un repuesto. No toca stock_actual (solo vía movimientos). */
@@ -91,7 +88,8 @@ export async function updateRepuesto(
     .is('eliminado_en', null)
     .select(REPUESTO_COLUMNS)
 
-  return unwrapWritten<Repuesto>(data, error)
+  const repuesto = await conPrecioCostoUno(supabase, unwrapWritten<RepuestoSinCosto>(data, error))
+  return repuesto
 }
 
 /** Soft-delete de un repuesto. */
@@ -144,7 +142,8 @@ export async function registrarMovimientoStock(
     })
     .select(MOV_COLUMNS)
 
-  return unwrapWritten<MovimientoStock>(data, error)
+  // costo_unitario no es legible por SELECT (migration 058) y este flujo no lo registra.
+  return { ...unwrapWritten<Omit<MovimientoStock, 'costo_unitario'>>(data, error), costo_unitario: null }
 }
 
 /**

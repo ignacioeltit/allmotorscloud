@@ -6,6 +6,7 @@ export const dynamic = 'force-dynamic'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/server'
 import { getAuthContext } from '@/lib/auth/context'
+import { puedeVerCostos as rolPuedeVerCostos } from '@/lib/auth/roles'
 import { getOrdenTrabajoById } from '@/modules/repair-orders/queries'
 import { getVehiculoById } from '@/modules/vehicles/queries'
 import { getPropietarioActivoByVehiculo } from '@/modules/customers/queries'
@@ -91,7 +92,7 @@ export default async function OrdenTrabajoDetailPage({
         getHistoriaByVehiculoId(supabase, orden.vehiculo_id),
         getTipoEventoBySlug(supabase, 'reparacion'),
         getTipoEventoBySlug(supabase, 'diagnostico'),
-        listReparacionesByOT(supabase, orden.id),
+        listReparacionesByOT(supabase, orden.id, { conCostos: true }),
         getPresupuestoActivoByOT(supabase, orden.id),
         listMecanicosByOrg(supabase),
         getConfiguracionManoObra(supabase),
@@ -136,8 +137,9 @@ export default async function OrdenTrabajoDetailPage({
   const inspeccionAtencion = (inspeccion?.puntos ?? []).filter((p) => p.estado === 'atencion').length
 
   // Costos (compra, utilidad, margen) solo para admin, jefe de taller y asesor
-  // de servicio (recepción). Los mecánicos NO ven costos ni rentabilidad.
-  const puedeVerCostos = rol === 'admin' || rol === 'jefe_taller' || rol === 'recepcionista'
+  // de servicio (recepción). Los mecánicos NO ven costos ni rentabilidad, y la
+  // base tampoco se los entrega (migration 058).
+  const puedeVerCostos = rolPuedeVerCostos(rol)
   // Aprobar fotos para el cliente: SOLO admin o asesor de servicio (recepcionista).
   const puedeAprobarFotos = rol === 'admin' || rol === 'recepcionista'
 

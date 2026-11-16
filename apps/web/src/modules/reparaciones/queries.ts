@@ -3,20 +3,27 @@
 import type { DbClient } from '@/lib/supabase/types'
 import { getAuthContext } from '@/lib/auth/context'
 import { unwrapList } from '@/lib/supabase/result'
+import { puedeVerCostos } from '@/lib/auth/roles'
+import { getCostosItemsOT } from '@/modules/costos/queries'
+import { aplicarCostos } from '@/modules/costos/merge'
 import type { Reparacion, ItemReparacion, ReparacionConItems, TotalesOT } from './types'
+import { ITEM_REPARACION_COLUMNS } from './columns'
 
 const REP_COLUMNS =
   'id, org_id, orden_trabajo_id, evento_trabajo_id, mecanico_id, descripcion, observaciones, inicio_en, fin_en, creado_en, actualizado_en, creado_por'
 
-const ITEM_COLUMNS =
-  'id, org_id, reparacion_id, item_presupuesto_id, tipo, codigo, descripcion, repuesto_id, cantidad, costo_unitario, costo_total, costo_compra_unitario, inicio_en, fin_en, creado_en, actualizado_en, creado_por, eliminado_en, eliminado_por, servicio_catalogo_id, plantilla_id, nombre_servicio_snapshot, horas_estandar_snapshot, valor_hora_snapshot, precio_catalogo_snapshot, estado_compra, nota_compra'
-
-/** Lista las reparaciones de una OT con sus ítems, en orden cronológico. */
+/**
+ * Lista las reparaciones de una OT con sus ítems, en orden cronológico.
+ *
+ * `costo_compra_unitario` viene en null salvo que se pida `conCostos` y el
+ * usuario sea de gestión (la base no lo entrega a otros roles).
+ */
 export async function listReparacionesByOT(
   supabase: DbClient,
   ordenTrabajoId: string,
+  opciones: { conCostos?: boolean } = {},
 ): Promise<ReparacionConItems[]> {
-  const { orgId } = await getAuthContext(supabase)
+  const { orgId, rol } = await getAuthContext(supabase)
 
   const { data: repsData, error: repsError } = await supabase
     .from('reparaciones')
@@ -31,13 +38,19 @@ export async function listReparacionesByOT(
   const repIds = reps.map((r) => r.id)
   const { data: itemsData, error: itemsError } = await supabase
     .from('items_reparacion')
-    .select(ITEM_COLUMNS)
+    .select(ITEM_REPARACION_COLUMNS)
     .eq('org_id', orgId)
     .in('reparacion_id', repIds)
     .is('eliminado_en', null)
     .order('creado_en', { ascending: true })
 
-  const items = unwrapList<ItemReparacion>(itemsData, itemsError)
+  const costos =
+    opciones.conCostos && puedeVerCostos(rol) ? await getCostosItemsOT(supabase, ordenTrabajoId) : null
+  const items: ItemReparacion[] = aplicarCostos(
+    unwrapList<Omit<ItemReparacion, 'costo_compra_unitario'>>(itemsData, itemsError),
+    'costo_compra_unitario',
+    costos,
+  )
 
   const byRepId = new Map<string, ItemReparacion[]>()
   for (const item of items) {

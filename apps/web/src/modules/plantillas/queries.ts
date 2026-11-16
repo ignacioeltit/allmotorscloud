@@ -53,7 +53,6 @@ export interface LineaExpandida {
   // Permite descontar stock al aplicar el paquete en la OT.
   repuestoId?: string | null
   stock?: number
-  costoCompra?: number | null
 }
 
 /** Fila de items_plantilla para la pantalla de administración. */
@@ -192,19 +191,20 @@ export async function expandirPlantilla(
     repuesto_id: string | null
   }>(data, error)
 
-  // Para las líneas de repuesto vinculadas al inventario, traemos el stock y
-  // costo actuales (así el paquete puede descontar stock al aplicarse en la OT).
+  // Para las líneas de repuesto vinculadas al inventario, traemos el stock actual
+  // (así el paquete puede descontar stock al aplicarse en la OT). El costo de
+  // compra lo completa la base al insertar el ítem (migration 059).
   const repuestoIds = Array.from(
     new Set(items.filter((it) => !it.es_cabecera && it.repuesto_id).map((it) => it.repuesto_id as string)),
   )
-  const stockPorRepuesto = new Map<string, { stock: number; costoCompra: number | null }>()
+  const stockPorRepuesto = new Map<string, number>()
   if (repuestoIds.length > 0) {
     const { data: reps } = await supabase
       .from('repuestos')
-      .select('id, stock_actual, precio_costo')
+      .select('id, stock_actual')
       .in('id', repuestoIds)
-    for (const r of (reps ?? []) as { id: string; stock_actual: number; precio_costo: number | null }[]) {
-      stockPorRepuesto.set(r.id, { stock: r.stock_actual ?? 0, costoCompra: r.precio_costo })
+    for (const r of (reps ?? []) as { id: string; stock_actual: number }[]) {
+      stockPorRepuesto.set(r.id, r.stock_actual ?? 0)
     }
   }
 
@@ -217,15 +217,13 @@ export async function expandirPlantilla(
           : it.tipo === 'other' || it.tipo === 'otros'
             ? ('otros' as const)
             : ('repuesto' as const)
-      const rep = it.repuesto_id ? stockPorRepuesto.get(it.repuesto_id) : undefined
       return {
         grupo,
         descripcion: it.nombre,
         cantidad: it.cantidad ?? 1,
         precio: it.precio_unitario ?? 0,
         repuestoId: it.repuesto_id,
-        stock: rep?.stock ?? 0,
-        costoCompra: rep?.costoCompra ?? null,
+        stock: it.repuesto_id ? stockPorRepuesto.get(it.repuesto_id) ?? 0 : 0,
       }
     })
 
