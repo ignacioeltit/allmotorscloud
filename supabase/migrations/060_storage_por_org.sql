@@ -30,11 +30,14 @@ DROP POLICY IF EXISTS "evidencias_org_insert"    ON storage.objects;
 DROP POLICY IF EXISTS "evidencias_org_delete"    ON storage.objects;
 
 -- Necesaria para remove() desde la app (Storage exige SELECT + DELETE).
+-- Solo personal del taller: el listado revelaría fotos no aprobadas
+-- (visible_cliente=false) a un futuro usuario cliente_portal.
 CREATE POLICY "evidencias_org_select" ON storage.objects
   FOR SELECT TO authenticated
   USING (
     bucket_id = 'evidencias'
     AND (storage.foldername(name))[1] = public.mi_org_id()::text
+    AND public.mi_rol() IN ('admin', 'jefe_taller', 'recepcionista', 'mecanico')
   );
 
 CREATE POLICY "evidencias_org_insert" ON storage.objects
