@@ -28,6 +28,17 @@ export function EquipoClient({ equipo }: { equipo: MiembroEquipo[] }) {
   const [guardando, setGuardando] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
+  // Alta de usuario CON ACCESO (asesor de servicio / jefe de taller).
+  const [showAcceso, setShowAcceso] = useState(false)
+  const [aNombre, setANombre] = useState('')
+  const [aEmail, setAEmail] = useState('')
+  const [aPass, setAPass] = useState('')
+  const [aTelefono, setATelefono] = useState('')
+  const [aRol, setARol] = useState('recepcionista')
+  const [aGuardando, setAGuardando] = useState(false)
+  const [aError, setAError] = useState<string | null>(null)
+  const [aOk, setAOk] = useState<string | null>(null)
+
   async function guardar() {
     if (!nombre.trim()) {
       setError('El nombre es obligatorio.')
@@ -50,6 +61,42 @@ export function EquipoClient({ equipo }: { equipo: MiembroEquipo[] }) {
       setError(toErrorMessage(e))
     } finally {
       setGuardando(false)
+    }
+  }
+
+  async function guardarAcceso() {
+    setAError(null)
+    setAOk(null)
+    if (!aNombre.trim() || !aEmail.trim() || aPass.length < 6) {
+      setAError('Completa nombre, email y una clave de al menos 6 caracteres.')
+      return
+    }
+    setAGuardando(true)
+    try {
+      const res = await fetch('/api/equipo/usuario', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          nombre: aNombre.trim(),
+          email: aEmail.trim(),
+          password: aPass,
+          telefono: aTelefono.trim(),
+          rol: aRol,
+        }),
+      })
+      const data = (await res.json().catch(() => ({}))) as { ok?: boolean; email?: string; error?: string }
+      if (!res.ok || !data.ok) throw new Error(data.error ?? 'No se pudo crear el usuario.')
+      setAOk(`Usuario creado: ${data.email}. Ya puede iniciar sesión con esa clave.`)
+      setANombre('')
+      setAEmail('')
+      setAPass('')
+      setATelefono('')
+      setShowAcceso(false)
+      router.refresh()
+    } catch (e) {
+      setAError(toErrorMessage(e))
+    } finally {
+      setAGuardando(false)
     }
   }
 
@@ -102,6 +149,58 @@ export function EquipoClient({ equipo }: { equipo: MiembroEquipo[] }) {
           </div>
         ))}
       </div>
+
+      {aOk && (
+        <p className="rounded-xl border border-emerald-500/25 bg-emerald-500/[0.08] px-4 py-3 text-sm text-emerald-800">{aOk}</p>
+      )}
+
+      {/* Alta de usuario con acceso (asesor de servicio / jefe de taller) */}
+      {showAcceso ? (
+        <section className={card}>
+          <p className={`${sectionLabel} mb-1`}>Nuevo usuario con acceso</p>
+          <p className="mb-4 text-xs text-neutral-500">
+            Crea una cuenta para entrar a la app (recibir vehículos, aprobar fotos, cotizar…). Entra con el email y la clave que definas.
+          </p>
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+            <div>
+              <label className={labelClass}>Nombre *</label>
+              <input autoFocus className={inputClass} value={aNombre} onChange={(e) => setANombre(e.target.value)} placeholder="Ej: María Pérez" />
+            </div>
+            <div>
+              <label className={labelClass}>Rol *</label>
+              <select className={inputClass} value={aRol} onChange={(e) => setARol(e.target.value)}>
+                <option value="recepcionista">Asesor de servicio (recepcionista)</option>
+                <option value="jefe_taller">Jefe de taller</option>
+              </select>
+            </div>
+            <div>
+              <label className={labelClass}>Email *</label>
+              <input type="email" className={inputClass} value={aEmail} onChange={(e) => setAEmail(e.target.value)} placeholder="correo@taller.cl" />
+            </div>
+            <div>
+              <label className={labelClass}>Clave * (mín. 6)</label>
+              <input type="text" className={inputClass} value={aPass} onChange={(e) => setAPass(e.target.value)} placeholder="Clave inicial" />
+            </div>
+            <div>
+              <label className={labelClass}>Teléfono</label>
+              <input className={inputClass} value={aTelefono} onChange={(e) => setATelefono(e.target.value)} />
+            </div>
+          </div>
+          {aError && <p className="mt-3 text-sm text-red-800">{aError}</p>}
+          <div className="mt-4 flex gap-2">
+            <button onClick={() => void guardarAcceso()} disabled={aGuardando} className={btnPrimary}>
+              {aGuardando ? 'Creando…' : 'Crear usuario con acceso'}
+            </button>
+            <button onClick={() => { setShowAcceso(false); setAError(null) }} disabled={aGuardando} className={btnSecondary}>
+              Cancelar
+            </button>
+          </div>
+        </section>
+      ) : (
+        <button onClick={() => { setShowAcceso(true); setAOk(null) }} className={btnSecondary}>
+          + Agregar asesor de servicio
+        </button>
+      )}
 
       {showForm ? (
         <section className={card}>
