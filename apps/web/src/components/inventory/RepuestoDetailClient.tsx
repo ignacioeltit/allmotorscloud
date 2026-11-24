@@ -313,9 +313,11 @@ interface Props {
   repuesto: Repuesto
   movimientos: MovimientoStock[]
   usosEnOts: UsoEnOt[]
+  /** Costo y margen solo para gestión (la base tampoco los entrega a otros roles). */
+  puedeVerCostos: boolean
 }
 
-export function RepuestoDetailClient({ repuesto: initialRepuesto, movimientos, usosEnOts }: Props) {
+export function RepuestoDetailClient({ repuesto: initialRepuesto, movimientos, usosEnOts, puedeVerCostos }: Props) {
   const router = useRouter()
   const [repuesto, setRepuesto] = useState<Repuesto>(initialRepuesto)
   const [mode, setMode] = useState<'view' | 'edit' | 'ajuste'>('view')
@@ -438,12 +440,16 @@ export function RepuestoDetailClient({ repuesto: initialRepuesto, movimientos, u
               {/* Precios */}
               <div className={card}>
                 <p className={`${sectionLabel} mb-2`}>Precios</p>
-                <InfoRow label="Costo" value={fmtCLP(repuesto.precio_costo)} />
+                {puedeVerCostos && <InfoRow label="Costo" value={fmtCLP(repuesto.precio_costo)} />}
                 <InfoRow label="Venta" value={
                   <span className="font-semibold text-neutral-100">{fmtCLP(repuesto.precio_venta)}</span>
                 } />
-                <InfoRow label="Margen $" value={margenAbs != null ? fmtCLP(margenAbs) : null} />
-                <InfoRow label="Margen %" value={margenPct != null ? `${margenPct}%` : null} />
+                {puedeVerCostos && (
+                  <>
+                    <InfoRow label="Margen $" value={margenAbs != null ? fmtCLP(margenAbs) : null} />
+                    <InfoRow label="Margen %" value={margenPct != null ? `${margenPct}%` : null} />
+                  </>
+                )}
               </div>
 
               {/* Stock */}

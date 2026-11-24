@@ -1,5 +1,9 @@
 import type { DbClient } from '@/lib/supabase/types'
 import { getAuthContext } from '@/lib/auth/context'
+import { puedeVerCostos } from '@/lib/auth/roles'
+import { getCostosRepuestos, getCostosMovimientos, getCostoStock } from '@/modules/costos/queries'
+import { aplicarCostos } from '@/modules/costos/merge'
+import { REPUESTO_COLUMNS, REPUESTO_RESUMEN_COLUMNS, MOVIMIENTO_COLUMNS } from './columns'
 import { normalizarBusqueda } from '@/lib/search/normalize'
 import type {
   Repuesto,
@@ -10,11 +14,30 @@ import type {
   ListRepuestosResult,
 } from './types'
 
-const REPUESTO_COLUMNS =
-  'id, org_id, sucursal_id, codigo, codigo_barra, nombre, descripcion, marca, modelo_aplicacion, categoria, unidad, precio_costo, precio_venta, stock_actual, stock_minimo, ubicacion, proveedor, activo, creado_en, actualizado_en, creado_por, eliminado_en, eliminado_por'
+/**
+ * Completa `precio_costo` en repuestos leídos sin él. Solo gestión lo recibe de
+ * la base (migration 058); para otros roles queda en null.
+ */
+export async function conPrecioCosto(
+  supabase: DbClient,
+  repuestos: readonly Omit<Repuesto, 'precio_costo'>[],
+): Promise<Repuesto[]> {
+  if (repuestos.length === 0) return []
+  const { rol } = await getAuthContext(supabase)
+  const costos = puedeVerCostos(rol)
+    ? await getCostosRepuestos(supabase, repuestos.map((r) => r.id))
+    : null
+  return aplicarCostos(repuestos, 'precio_costo', costos)
+}
 
-const REPUESTO_RESUMEN_COLUMNS =
-  'id, codigo, nombre, descripcion, marca, unidad, precio_venta, precio_costo, stock_actual, stock_minimo'
+/** Igual que conPrecioCosto, para un solo repuesto. */
+export async function conPrecioCostoUno(
+  supabase: DbClient,
+  repuesto: Omit<Repuesto, 'precio_costo'>,
+): Promise<Repuesto> {
+  const [conCosto] = await conPrecioCosto(supabase, [repuesto])
+  return conCosto ?? { ...repuesto, precio_costo: null }
+}
 
 function calcularEstadoStock(stock_actual: number, stock_minimo: number): EstadoStock {
   if (stock_actual <= 0) return 'sin_stock'
@@ -59,7 +82,8 @@ export async function listRepuestos(
 
   const { data, error, count } = await q
   if (error) throw new Error(error.message)
-  return { data: (data ?? []) as Repuesto[], total: count ?? 0 }
+  const repuestos = await conPrecioCosto(supabase, (data ?? []) as Omit<Repuesto, 'precio_costo'>[])
+  return { data: repuestos, total: count ?? 0 }
 }
 
 /**
@@ -89,7 +113,7 @@ export async function searchRepuestos(
 
   if (error) throw new Error(error.message)
 
-  return ((data ?? []) as Array<Repuesto>).map((r) => ({
+  return ((data ?? []) as Array<Omit<RepuestoResumen, 'estado_stock'> & { stock_minimo: number }>).map((r) => ({
     ...r,
     estado_stock: calcularEstadoStock(r.stock_actual, r.stock_minimo),
   }))
@@ -104,7 +128,8 @@ export async function getRepuestoById(supabase: DbClient, id: string): Promise<R
     .single()
 
   if (error || !data) throw new Error(error?.message ?? 'Repuesto no encontrado')
-  return data as Repuesto
+  const repuesto = await conPrecioCostoUno(supabase, data as Omit<Repuesto, 'precio_costo'>)
+  return repuesto
 }
 
 /** Repuestos bajo su stock mínimo (para alertas). Usa la vista definida en migration 004. */
@@ -126,13 +151,15 @@ export async function listMovimientosByRepuesto(
 ): Promise<MovimientoStock[]> {
   const { data, error } = await supabase
     .from('movimientos_stock')
-    .select('id, org_id, repuesto_id, tipo, cantidad, stock_antes, stock_despues, costo_unitario, precio_venta_unitario, referencia_tipo, referencia_id, motivo, actor_id, creado_en')
+    .select(MOVIMIENTO_COLUMNS)
     .eq('repuesto_id', repuestoId)
     .order('creado_en', { ascending: false })
     .limit(limit)
 
   if (error) throw new Error(error.message)
-  return (data ?? []) as MovimientoStock[]
+  const { rol } = await getAuthContext(supabase)
+  const costos = puedeVerCostos(rol) ? await getCostosMovimientos(supabase, repuestoId) : null
+  return aplicarCostos((data ?? []) as Omit<MovimientoStock, 'costo_unitario'>[], 'costo_unitario', costos)
 }
 
 export interface UsoEnOt {
@@ -199,14 +226,15 @@ export interface ResumenInventario {
   items: number
   criticos: number
   valorStock: number
-  costoStock: number
+  /** Costo del stock a precio de compra. null si el usuario no es de gestión. */
+  costoStock: number | null
 }
 
 export async function getResumenInventario(supabase: DbClient): Promise<ResumenInventario> {
-  const { orgId } = await getAuthContext(supabase)
+  const { orgId, rol } = await getAuthContext(supabase)
   const { data, error } = await supabase
     .from('repuestos')
-    .select('stock_actual, stock_minimo, precio_costo, precio_venta')
+    .select('stock_actual, stock_minimo, precio_venta')
     .eq('org_id', orgId)
     .eq('activo', true)
     .is('eliminado_en', null)
@@ -214,16 +242,15 @@ export async function getResumenInventario(supabase: DbClient): Promise<ResumenI
   const rows = (data ?? []) as {
     stock_actual: number
     stock_minimo: number
-    precio_costo: number | null
     precio_venta: number | null
   }[]
   let valorStock = 0
-  let costoStock = 0
   let criticos = 0
   for (const r of rows) {
     valorStock += r.stock_actual * (r.precio_venta ?? 0)
-    costoStock += r.stock_actual * (r.precio_costo ?? 0)
     if (r.stock_actual < r.stock_minimo) criticos++
   }
+  // Costo del stock: solo gestión (migration 058). null = no mostrar.
+  const costoStock = puedeVerCostos(rol) ? await getCostoStock(supabase) : null
   return { items: rows.length, criticos, valorStock, costoStock }
 }

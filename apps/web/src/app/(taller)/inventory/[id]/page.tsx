@@ -2,6 +2,8 @@ export const dynamic = 'force-dynamic'
 
 import { notFound } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
+import { getAuthContext } from '@/lib/auth/context'
+import { puedeVerCostos } from '@/lib/auth/roles'
 import {
   getRepuestoById,
   listMovimientosByRepuesto,
@@ -20,12 +22,13 @@ export default async function RepuestoDetailPage({ params }: Props) {
 
   const result = await load(async () => {
     const supabase = await createClient()
-    const [repuesto, movimientos, usosEnOts] = await Promise.all([
+    const [repuesto, movimientos, usosEnOts, { rol }] = await Promise.all([
       getRepuestoById(supabase, id),
       listMovimientosByRepuesto(supabase, id, 20),
       getUsoEnOts(supabase, id, 10),
+      getAuthContext(supabase),
     ])
-    return { repuesto, movimientos, usosEnOts }
+    return { repuesto, movimientos, usosEnOts, verCostos: puedeVerCostos(rol) }
   })
 
   if (!result.ok) {
@@ -39,13 +42,14 @@ export default async function RepuestoDetailPage({ params }: Props) {
     )
   }
 
-  const { repuesto, movimientos, usosEnOts } = result.data
+  const { repuesto, movimientos, usosEnOts, verCostos } = result.data
 
   return (
     <RepuestoDetailClient
       repuesto={repuesto}
       movimientos={movimientos}
       usosEnOts={usosEnOts}
+      puedeVerCostos={verCostos}
     />
   )
 }

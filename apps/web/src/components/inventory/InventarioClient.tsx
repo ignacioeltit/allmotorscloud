@@ -213,10 +213,35 @@ function Paginacion({ currentPage, totalPages, total, pageSize, onPage, loading 
 
 // ── Vista principal ────────────────────────────────────────────────────────
 
+interface ResumenKpis { items: number; criticos: number; valorStock: number; costoStock: number | null }
+interface KpiInventario { label: string; value: string; alerta?: boolean }
+
+/** KPIs del inventario; costo y margen solo si el usuario puede ver costos. */
+function kpisInventario(r: ResumenKpis): KpiInventario[] {
+  const clp = (n: number) => `$${Math.round(n).toLocaleString('es-CL')}`
+  const costos: KpiInventario[] =
+    r.costoStock == null
+      ? []
+      : [
+          { label: 'Costo stock', value: clp(r.costoStock) },
+          {
+            label: 'Margen potencial',
+            value: `${r.valorStock > 0 ? Math.round(((r.valorStock - r.costoStock) / r.valorStock) * 100) : 0}%`,
+          },
+        ]
+  return [
+    { label: 'Valor stock (venta)', value: clp(r.valorStock) },
+    ...costos,
+    { label: 'Ítems', value: r.items.toLocaleString('es-CL') },
+    { label: 'Críticos', value: r.criticos.toLocaleString('es-CL'), alerta: r.criticos > 0 },
+  ]
+}
+
 interface InventarioClientProps {
   repuestos: Repuesto[]
   total: number
-  resumen?: { items: number; criticos: number; valorStock: number; costoStock: number }
+  /** costoStock es null para roles sin acceso a costos (mecánico). */
+  resumen?: ResumenKpis
   currentPage: number
   pageSize: number
   totalPages: number
@@ -316,16 +341,7 @@ export function InventarioClient({
       {/* KPIs del inventario completo */}
       {resumen && (
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 lg:grid-cols-5">
-          {[
-            { label: 'Valor stock (venta)', value: `$${Math.round(resumen.valorStock).toLocaleString('es-CL')}` },
-            { label: 'Costo stock', value: `$${Math.round(resumen.costoStock).toLocaleString('es-CL')}` },
-            {
-              label: 'Margen potencial',
-              value: `${resumen.valorStock > 0 ? Math.round(((resumen.valorStock - resumen.costoStock) / resumen.valorStock) * 100) : 0}%`,
-            },
-            { label: 'Ítems', value: resumen.items.toLocaleString('es-CL') },
-            { label: 'Críticos', value: resumen.criticos.toLocaleString('es-CL'), alerta: resumen.criticos > 0 },
-          ].map((k) => (
+          {kpisInventario(resumen).map((k) => (
             <div
               key={k.label}
               className={`rounded-xl border p-4 shadow-sm shadow-black/[0.04] ${
