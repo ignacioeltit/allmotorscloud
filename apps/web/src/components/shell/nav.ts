@@ -33,7 +33,7 @@ export const NAV_ITEMS: readonly NavItem[] = [
   { href: '/pos',               label: 'Mostrador',     icon: 'cart',     tono: 'rose',    roles: GESTION },
   { href: '/finanzas',          label: 'Finanzas',      icon: 'wallet',   tono: 'emerald', roles: GESTION },
   { href: '/reports',           label: 'Reportes',      icon: 'chart',    tono: 'cyan',    roles: GESTION },
-  { href: '/settings/equipo',   label: 'Equipo',        icon: 'users',    tono: 'violet',  roles: CONFIG },
+  { href: '/settings/equipo',   label: 'Equipo y usuarios', icon: 'users', tono: 'violet',  roles: CONFIG },
   { href: '/settings/empresa',  label: 'Empresa',       icon: 'building', tono: 'slate',   roles: ['admin'] },
   { href: '/settings/workshop', label: 'Configuración', icon: 'settings', tono: 'slate',   roles: CONFIG },
 ]

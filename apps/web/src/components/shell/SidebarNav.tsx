@@ -155,7 +155,7 @@ export function SidebarNav({ pendientesCatalogo = 0, rolUsuario }: SidebarNavPro
     <nav className="flex flex-col gap-0.5">
       <Link
         href="/recepcion"
-        className={`mb-4 flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-orange-500 to-orange-600 px-3 py-2.5 text-sm font-semibold text-white shadow-lg shadow-orange-900/40 ring-1 ring-inset ring-white/15 transition hover:from-orange-400 hover:to-orange-500 ${
+        className={`mb-2 flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-orange-500 to-orange-600 px-3 py-2 text-sm font-semibold text-white shadow-lg shadow-orange-900/40 ring-1 ring-inset ring-white/15 transition hover:from-orange-400 hover:to-orange-500 ${
           receptionActive ? 'ring-2 ring-orange-300/70' : ''
         }`}
       >
@@ -174,7 +174,7 @@ export function SidebarNav({ pendientesCatalogo = 0, rolUsuario }: SidebarNavPro
             key={item.href}
             href={item.href}
             aria-current={active ? 'page' : undefined}
-            className={`group relative flex items-center gap-3 rounded-lg px-2.5 py-1.5 text-sm font-medium transition-colors ${
+            className={`group relative flex items-center gap-2.5 rounded-lg px-2.5 py-1 text-sm font-medium transition-colors ${
               active
                 ? 'bg-white/[0.08] text-white'
                 : 'text-zinc-400 hover:bg-white/[0.04] hover:text-zinc-100'
@@ -184,7 +184,7 @@ export function SidebarNav({ pendientesCatalogo = 0, rolUsuario }: SidebarNavPro
               <span className="absolute -left-4 top-1/2 h-6 w-1 -translate-y-1/2 rounded-r-full bg-orange-500" aria-hidden />
             )}
             <span
-              className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-md ring-1 ring-inset transition ${
+              className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-md ring-1 ring-inset transition ${
                 TONO_CHIP[item.tono]
               } ${active ? '' : 'opacity-80 group-hover:opacity-100'}`}
             >

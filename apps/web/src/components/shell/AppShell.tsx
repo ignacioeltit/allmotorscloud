@@ -15,8 +15,8 @@ interface AppShellProps {
 export function AppShell({ children, pendientesCatalogo = 0, rolUsuario }: AppShellProps) {
   return (
     <div className="flex min-h-screen">
-      <aside className="sticky top-0 hidden h-screen w-64 shrink-0 flex-col bg-gradient-to-b from-[#1c1f24] via-[#16181c] to-[#101114] px-4 py-5 shadow-xl shadow-black/20 md:flex">
-        <Link href="/dashboard" className="mb-6 flex items-center gap-3 px-1.5">
+      <aside className="sticky top-0 hidden h-screen w-64 shrink-0 flex-col bg-gradient-to-b from-[#1c1f24] via-[#16181c] to-[#101114] px-4 py-4 shadow-xl shadow-black/20 md:flex">
+        <Link href="/dashboard" className="mb-3 flex shrink-0 items-center gap-3 px-1.5">
           <span className="h-10 w-10 shrink-0 overflow-hidden rounded-xl bg-black ring-1 ring-white/10 shadow-md shadow-black/40">
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img src="/logo-allmotors.jpg" alt="All Motors" className="h-full w-full object-contain" />
@@ -27,11 +27,13 @@ export function AppShell({ children, pendientesCatalogo = 0, rolUsuario }: AppSh
           </span>
         </Link>
 
-        <CommandTrigger />
+        <div className="shrink-0">
+          <CommandTrigger />
+        </div>
 
         {/* El menú hace scroll por dentro; "Cerrar sesión" queda siempre visible
             abajo (antes se salía de la pantalla en notebooks). */}
-        <div className="-mx-4 min-h-0 flex-1 overflow-y-auto px-4 pb-2">
+        <div className="-mx-4 mt-2 min-h-0 flex-1 overflow-y-auto px-4 pb-2">
           <SidebarNav pendientesCatalogo={pendientesCatalogo} rolUsuario={rolUsuario} />
         </div>
 
